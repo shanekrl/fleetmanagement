@@ -1,10 +1,10 @@
 <?php
 // ---- DB credentials ----
-$DB_HOST = '127.0.0.1';   // use 127.0.0.1 on Windows to avoid socket issues
+$DB_HOST = 'localhost';   // use 127.0.0.1 on Windows to avoid socket issues
 $DB_PORT = 3306;          // change if your MySQL uses a different port
-$DB_USER = 'root';
-$DB_PASS = '';
-$DB_NAME = 'onlinecarbooking';
+$DB_USER = 'u424609672_admin';
+$DB_PASS = 'Fleetmanagement1234.';
+$DB_NAME = 'u424609672_carbookings';
 
 // ---- Turn on mysqli exceptions (helpful during dev) ----
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
