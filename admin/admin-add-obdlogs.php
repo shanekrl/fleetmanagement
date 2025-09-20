@@ -1,10 +1,6 @@
 <?php
-session_start();
 include('vendor/inc/config.php');
-include('vendor/inc/checklogin.php');
-check_login();
-$aid = $_SESSION['a_id'];
-
+header('Content-Type: application/json');
 $json = file_get_contents("php://input");
 $data = json_decode($json, true);
 
