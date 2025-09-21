@@ -23,7 +23,7 @@ $isNewModel = table_exists($mysqli,'bookings');
 
 $succ = $err = '';
 
-// pick a valid accounts.id to use as created_by (first admin account)
+/* who is the creator (first admin account) */
 $creatorId = 1;
 if (table_exists($mysqli,'accounts')) {
   if ($rs = $mysqli->query("SELECT id FROM accounts WHERE role='admin' ORDER BY id LIMIT 1")) {
@@ -43,8 +43,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
 
   $customer    = trim($_POST['customer'] ?? '');
   $phone       = trim($_POST['phone'] ?? '');
-  $pax         = (int)($_POST['pax'] ?? 1);
-  if ($pax <= 0) $pax = 1;
+  $pax         = max(1, (int)($_POST['pax'] ?? 1));
 
   $pickup      = trim($_POST['pickup'] ?? '');
   $dropoff     = trim($_POST['dropoff'] ?? '');
@@ -52,17 +51,15 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
   $notes       = trim($_POST['notes'] ?? '');
 
   if ($isNewModel) {
-    // new schema fields
     $booking_type = ($_POST['booking_type'] ?? 'admin') === 'personal' ? 'personal' : 'admin';
 
-    // driver/vehicle via FK (optional)
     $driver_id  = (int)($_POST['driver_id'] ?? 0);
     $vehicle_id = (int)($_POST['vehicle_id'] ?? 0);
     if ($driver_id  <= 0) $driver_id  = null;
     if ($vehicle_id <= 0) $vehicle_id = null;
 
-    // initial status
-    $status = $driver_id ? 'assigned' : 'awaiting_driver';
+    // Initial status. If driver is chosen now, keep it conservative:
+    $status = $driver_id ? 'awaiting_driver' : 'pending';
 
     $sql = "INSERT INTO bookings
             (booking_type, created_by, client_id, driver_id, vehicle_id,
@@ -71,36 +68,42 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, ?, NOW(), NOW())";
 
     if ($stmt = $mysqli->prepare($sql)) {
-      $payment = 'unpaid';
-      // client_id is NULL in this UI
+      $payment   = 'unpaid';
       $client_id = null;
 
-      // types: s i i i i i s s s s s s s s  (14 params)
+      // types: booking_type(s),
+      //        created_by(i), client_id(i), driver_id(i), vehicle_id(i), pax(i),
+      //        contact_name(s), contact_phone(s), pickup_point(s), dropoff_point(s),
+      //        scheduled_start_at(s), status(s), payment_status(s), notes(s)
       $stmt->bind_param(
         'siiiiisssssssss',
         $booking_type, $creatorId, $client_id, $driver_id, $vehicle_id,
         $pax, $customer, $phone, $pickup, $dropoff,
         $scheduled, $status, $payment, $notes
       );
+
       $ok = false;
       try { $ok = $stmt->execute(); }
       catch (Throwable $e) { $err = 'Database error: '.$e->getMessage(); }
       $stmt->close();
 
-      if ($ok) {
-        $succ = "Booking created.";
-      } elseif (!$err) {
-        $err = "Please try again later.";
-      }
+      $succ = $ok ? "Booking created." : ($err ?: "Please try again later.");
 
     } else {
       $err = "DB error while preparing statement.";
     }
 
   } else {
-    // LEGACY fallback => tms_user insert (keeps your old flow)
+    // ===== LEGACY fallback => tms_user insert =====
     $u_fname = $customer;
-    $u_lname = ''; // hidden/unused in your UI
+    $u_lname = '';
+
+    $query = "INSERT INTO tms_user (
+      u_fname, u_lname, u_car_date, u_car_time, u_car_pax,
+      u_car_pickup, u_car_destination, u_car_regno,
+      u_car_type, u_car_driver, u_category, u_email, u_pwd,
+      u_car_book_status
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending')";
 
     $u_car_date = $sched_date;
     $u_car_time = $sched_time;
@@ -115,13 +118,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
     $u_category = 'User';
     $u_email = '';
     $u_pwd   = password_hash(bin2hex(random_bytes(4)), PASSWORD_DEFAULT);
-
-    $query = "INSERT INTO tms_user (
-      u_fname, u_lname, u_car_date, u_car_time, u_car_pax,
-      u_car_pickup, u_car_destination, u_car_regno,
-      u_car_type, u_car_driver, u_category, u_email, u_pwd,
-      u_car_book_status
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending')";
 
     if ($stmt = $mysqli->prepare($query)) {
       $stmt->bind_param(
@@ -144,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
 
 /* -----------------------------------------------------------
    Aux lists for selects + pairing maps
+   (NEW MODEL pulls from accounts + tms_vehicle)
 ----------------------------------------------------------- */
 $drivers = $vehicles = [];
 if ($isNewModel && table_exists($mysqli,'accounts')) {
@@ -151,57 +148,31 @@ if ($isNewModel && table_exists($mysqli,'accounts')) {
     while($r=$q->fetch_assoc()) $drivers[]=$r;
   }
 }
-if ($isNewModel && table_exists($mysqli,'vehicles')) {
-  if ($q = $mysqli->query("SELECT id, plate_no, name FROM vehicles ORDER BY name, plate_no")) {
+if ($isNewModel && table_exists($mysqli,'tms_vehicle')) {
+  if ($q = $mysqli->query("
+        SELECT v_id AS id,
+               COALESCE(NULLIF(v_name,''),'Vehicle') AS name,
+               COALESCE(NULLIF(v_reg_no,''), CONCAT('ID-', v_id)) AS plate_no,
+               default_driver_id
+        FROM tms_vehicle
+        WHERE deleted_at IS NULL
+        ORDER BY v_name, v_reg_no")) {
     while($r=$q->fetch_assoc()) $vehicles[]=$r;
   }
 }
 
-// Build pairing maps (Vehicle -> Driver) and (Driver -> Vehicle)
+/* Build pairing maps (Vehicle -> Driver) and (Driver -> Vehicle)
+   using tms_vehicle.default_driver_id */
 $vehToDrv = [];
 $drvToVeh = [];
-if ($isNewModel && table_exists($mysqli,'vehicles')) {
-  $driverCol = null;
-  if (column_exists($mysqli,'vehicles','driver_id')) $driverCol = 'driver_id';
-  elseif (column_exists($mysqli,'vehicles','default_driver_id')) $driverCol = 'default_driver_id';
-
-  if ($driverCol) {
-    $rs = $mysqli->query("SELECT id AS v_id, {$driverCol} AS d_id FROM vehicles WHERE {$driverCol} IS NOT NULL");
-    if ($rs) while($m=$rs->fetch_assoc()){
-      $vid=(int)$m['v_id']; $did=(int)$m['d_id'];
-      if ($vid && $did){ $vehToDrv[$vid]=$did; $drvToVeh[$did]=$vid; }
-    }
-  } else {
-    // Fallback via tms_vehicle / tms_user
-    $vehByPlate = [];
-    foreach ($vehicles as $v) {
-      $plate = trim((string)$v['plate_no']);
-      if ($plate!=='') $vehByPlate[strtolower($plate)] = (int)$v['id'];
-    }
-    $accByName = [];
-    if (table_exists($mysqli,'accounts')) {
-      $qr=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver'");
-      if ($qr) while($a=$qr->fetch_assoc()){
-        $nm=strtolower(trim((string)$a['name']));
-        if ($nm!=='') $accByName[$nm]=(int)$a['id'];
-      }
-    }
-    if (table_exists($mysqli,'tms_vehicle') && table_exists($mysqli,'tms_user')) {
-      $q=$mysqli->query("SELECT v.v_reg_no, u.u_fname, u.u_lname 
-                         FROM tms_vehicle v 
-                         LEFT JOIN tms_user u ON u.u_id=v.driver_user_id
-                         WHERE v.driver_user_id IS NOT NULL");
-      if ($q) while($r=$q->fetch_assoc()){
-        $plate = strtolower(trim((string)$r['v_reg_no']));
-        $name  = strtolower(trim(((string)$r['u_fname']).' '.((string)$r['u_lname'])));
-        if (isset($vehByPlate[$plate]) && isset($accByName[$name])){
-          $vid = $vehByPlate[$plate];
-          $did = $accByName[$name];
-          $vehToDrv[$vid] = $did;
-          $drvToVeh[$did] = $vid;
-        }
-      }
-    }
+if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,'tms_vehicle','default_driver_id')) {
+  $rs = $mysqli->query("
+        SELECT v_id AS v, default_driver_id AS d
+        FROM tms_vehicle
+        WHERE default_driver_id IS NOT NULL");
+  if ($rs) while($m=$rs->fetch_assoc()){
+    $vid = (int)$m['v']; $did = (int)$m['d'];
+    if ($vid && $did) { $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
   }
 }
 ?>
@@ -218,7 +189,6 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
 
         <h1 class="kaya-page-title">Create Trip Appointments</h1>
 
-        <!-- Toolbar (tabs left, actions right) -->
         <div class="kaya-toolbar d-flex align-items-center mb-3">
           <div class="btn-group" role="group" aria-label="Filters">
             <a href="admin-trip-appointment.php" class="btn kaya-tab">Upcoming</a>
@@ -243,7 +213,6 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
           </div>
         <?php endif; ?>
 
-        <!-- Create form -->
         <section class="kaya-card">
           <form method="POST" class="px-2">
             <input type="hidden" name="create_booking" value="1">
@@ -277,7 +246,7 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
               </div>
 
               <?php if (!$isNewModel): ?>
-                <!-- Legacy-only fields (keep visual layout unchanged) -->
+                <!-- Legacy inline fields -->
                 <div class="form-group col-md-3">
                   <label>Vehicle Type</label>
                   <input type="text" class="form-control" name="u_car_type">
@@ -291,7 +260,6 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
                   <input type="text" class="form-control" name="u_car_driver">
                 </div>
               <?php else: ?>
-                <!-- New model: dropdowns for vehicle & driver -->
                 <div class="form-group col-md-5">
                   <label>Vehicle</label>
                   <select class="form-control" name="vehicle_id" id="vehicleSelect">
@@ -345,7 +313,7 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
             <button type="submit" class="btn btn-kaya-primary">Create Booking</button>
             <a href="admin-trip-appointment.php" class="btn btn-outline-secondary ml-2">Back</a>
 
-            <!-- legacy-only hidden baggage (preserved but unused on new model) -->
+            <!-- legacy-only hidden baggage (no-op for new model) -->
             <input type="hidden" name="u_lname" value="">
             <input type="hidden" name="u_car_type" value="">
             <input type="hidden" name="u_car_regno" value="">
@@ -363,8 +331,9 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
 
-  <!-- Pairing maps from PHP (no AJAX needed) -->
+  <!-- Pairing maps from PHP -->
   <script>
+    // Maps built from tms_vehicle.default_driver_id
     const VEH_TO_DRV = <?= json_encode($vehToDrv, JSON_UNESCAPED_UNICODE) ?>;
     const DRV_TO_VEH = <?= json_encode($drvToVeh, JSON_UNESCAPED_UNICODE) ?>;
 
@@ -372,6 +341,7 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
       var $veh = $('#vehicleSelect');
       var $drv = $('#driverSelect');
 
+      // When a vehicle is picked, auto-fill its default driver
       $veh.on('change', function(){
         var vid = $(this).val();
         if (!vid) return;
@@ -381,6 +351,7 @@ if ($isNewModel && table_exists($mysqli,'vehicles')) {
         }
       });
 
+      // (Optional) when a driver is picked first, auto-select their paired vehicle
       $drv.on('change', function(){
         var uid = $(this).val();
         if (!uid) return;

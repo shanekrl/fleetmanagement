@@ -1,5 +1,5 @@
 <?php
-// KAYA · Trip Appointments (Upcoming)
+// KAYA · Trip Appointments (List first, Calendar below)
 session_start();
 include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');
@@ -21,22 +21,20 @@ function table_exists(mysqli $db, string $t): bool {
 function badge_for($s){
   $s = strtolower((string)$s);
   switch ($s) {
-    case 'pending':     return ['badge badge-light',   'Pending'];
-    case 'awaiting_driver':
-    case 'assigned':    return ['badge badge-info',    'Assigned'];
-    case 'accepted':    return ['badge badge-success', 'Accepted'];
-    case 'in_progress': return ['badge badge-primary', 'In Progress'];
-    case 'declined':    return ['badge badge-warning', 'Declined'];
-    case 'cancelled':   return ['badge badge-danger',  'Cancelled'];
-    case 'completed':   return ['badge badge-success', 'Completed'];
-    default:            return ['badge badge-secondary', ucfirst($s)];
+    case 'pending':         return ['badge badge-light',   'Pending'];
+    case 'awaiting_driver': return ['badge badge-info',    'Awaiting Driver'];
+    case 'accepted':        return ['badge badge-success', 'Accepted'];
+    case 'in_progress':     return ['badge badge-primary', 'In Progress'];
+    case 'rejected':        return ['badge badge-warning', 'Rejected'];
+    case 'cancelled':       return ['badge badge-danger',  'Cancelled'];
+    case 'completed':       return ['badge badge-success', 'Completed'];
+    default:                return ['badge badge-secondary', ucfirst($s)];
   }
 }
 
 /* ----- who is the driver (if not admin) ----- */
 $currentDriverId = null;
 if (!$isAdmin && isset($_SESSION['u_id'])) {
-  // try email -> accounts.id (driver)
   if ($q = $mysqli->prepare("SELECT u_email FROM tms_user WHERE u_id=? LIMIT 1")) {
     $uid = (int)$_SESSION['u_id'];
     $q->bind_param('i',$uid);
@@ -63,7 +61,7 @@ if (table_exists($mysqli,'v_booking_grid')) {
                  pickup, dropoff, vehicle_reg_no, booking_type, driver_name,
                  status, driver_id
           FROM v_booking_grid
-          WHERE status IN ('pending','awaiting_driver','assigned','accepted','in_progress')
+          WHERE status IN ('pending','awaiting_driver','accepted','in_progress')
           ".(!$isAdmin && $currentDriverId!==null ? "AND driver_id=".(int)$currentDriverId : "")."
           ORDER BY COALESCE(scheduled_at, created_at) ASC, booking_id ASC";
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
@@ -76,22 +74,21 @@ if (table_exists($mysqli,'v_booking_grid')) {
                  b.pax,
                  b.pickup_point  AS pickup,
                  b.dropoff_point AS dropoff,
-                 v.plate_no      AS vehicle_reg_no,
+                 tv.v_reg_no     AS vehicle_reg_no,
                  b.booking_type,
                  d.name          AS driver_name,
                  b.status,
                  b.driver_id
           FROM bookings b
-          LEFT JOIN accounts c ON c.id=b.client_id
-          LEFT JOIN accounts d ON d.id=b.driver_id
-          LEFT JOIN vehicles v ON v.id=b.vehicle_id
+          LEFT JOIN accounts c   ON c.id=b.client_id
+          LEFT JOIN accounts d   ON d.id=b.driver_id
+          LEFT JOIN tms_vehicle tv ON tv.v_id=b.vehicle_id
           WHERE b.status IN ('pending','awaiting_driver','accepted','in_progress')
           ".(!$isAdmin && $currentDriverId!==null ? "AND b.driver_id=".(int)$currentDriverId : "")."
           ORDER BY COALESCE(b.scheduled_start_at, b.created_at) ASC, b.id ASC";
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
 } elseif (table_exists($mysqli,'tms_user')) {
-  // legacy: Pending / Approved ~ upcoming
   $sql = "SELECT u_id AS booking_id,
                  FROM_UNIXTIME(NULLIF(u_car_createdat,0)) AS created_at,
                  NULL AS scheduled_at,
@@ -115,9 +112,76 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
 <!DOCTYPE html>
 <html lang="en">
   <style>
-     /* Consistent page title */
-    .kaya-page-title{font-weight:800;font-size:2rem;line-height:1.1;color:#000047;margin:0 0 1rem}
+      .kaya-page-title{font-weight:800;font-size:2rem;line-height:1.1;color:#000047;margin:0 0 1rem}
+
+      /* REVERTED: outline-only tabs (no fill even when active) */
+      .btn.kaya-tab { background:#fff; border:1px solid #000047; color:#000047; }
+      .btn-group .btn.kaya-tab.active,
+      .btn.kaya-tab.active,
+      .btn.kaya-tab:active,
+      .btn.kaya-tab:focus {
+        background:#fff !important;
+        color:#000047 !important;
+        border:1px solid #000047 !important;
+        box-shadow:none !important;
+        background-image:none !important;
+      }
+
+      .fc .fc-toolbar-title { font-weight:800; color:#000047; }
+      #kayaCalendar { min-height:520px; }
+    </style>
+
+    <style>
+    /* Keep outline look for both */
+    .btn.kaya-tab { background:#fff; border:1px solid #bfc6da; color:#0a0e2a; }
+
+    /* Subdue the NON-active tab (Completed on this page) */
+    .btn-group .btn.kaya-tab:not(.active){
+      border-color:#c7cfdf;
+      color:#0a0e2a99;   /* softer text */
+      background:#fff;
+      box-shadow:none;
+    }
+    .btn-group .btn.kaya-tab:not(.active):hover{
+      border-color:#9aa3bd;
+      color:#0a0e2a;     /* sharpen on hover */
+      background:#f6f8ff;
+    }
+
+    /* Make the active tab (Upcoming) stand out a bit more */
+    .btn-group .btn.kaya-tab.active{
+      border-color:#000047 !important;
+      color:#000047 !important;
+      background:#fff !important;
+      box-shadow: inset 0 -2px 0 #000047; /* subtle underline */
+    }
   </style>
+<style>
+  /* Same text color for both tabs */
+  .btn-group .btn.kaya-tab,
+  .btn-group .btn.kaya-tab:not(.active),
+  .btn.kaya-tab {
+    color: #000047 !important;   /* force normal text */
+    opacity: 1 !important;       /* cancel any dimming */
+  }
+
+  /* Borders: dark for active, gray for non-active */
+  .btn-group .btn.kaya-tab.active {
+    border: 1px solid #000047 !important;
+    background: #fff !important;
+  }
+  .btn-group .btn.kaya-tab:not(.active) {
+    border: 1px solid #d9deee !important;   /* only the border is grayed out */
+    background: #fff !important;
+  }
+  .btn-group .btn.kaya-tab:not(.active):hover {
+    border-color: #b9c2dd !important;
+    background: #f6f8ff !important;
+  }
+</style>
+
+
+
 <?php include('vendor/inc/head.php'); ?>
 <body id="page-top">
 <?php include('vendor/inc/nav.php'); ?>
@@ -130,9 +194,9 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
 
       <h1 class="kaya-page-title">Trip Appointments</h1>
 
-      <!-- Toolbar (exact same as your reference) -->
       <div class="kaya-toolbar d-flex align-items-center mb-3" style="gap:.5rem;flex-wrap:wrap;">
         <div class="btn-group" role="group" aria-label="Filters">
+          <!-- keep .active for routing; CSS ensures outline-only look -->
           <a href="admin-trip-appointment.php" class="btn kaya-tab active">Upcoming</a>
           <a href="admin-view-booking.php"   class="btn kaya-tab">Completed</a>
         </div>
@@ -142,8 +206,8 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
         </div>
       </div>
 
-      <!-- Table -->
-      <div class="kaya-card">
+      <!-- ===== Upcoming List (kept as-is) ===== -->
+      <div class="kaya-card mb-4" id="upcoming-list">
         <div class="table-responsive px-2">
           <table id="dataTable" class="kaya-table table table-borderless">
             <thead>
@@ -172,17 +236,17 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                 $isMine = (!$isAdmin && $r['driver_id']!==null && (int)$r['driver_id']===(int)$currentDriverId);
 
                 // Admin perms
-                $canAdminApprove  = $isAdmin && in_array(strtolower($r['status']),['pending','awaiting_driver','assigned']);
+                $canAdminApprove  = $isAdmin && in_array(strtolower($r['status']),['pending','awaiting_driver']);
                 $canAdminComplete = $isAdmin && in_array(strtolower($r['status']),['accepted','in_progress']);
-                $canAdminCancel   = $isAdmin && in_array(strtolower($r['status']),['pending','awaiting_driver','assigned','accepted','in_progress']);
+                $canAdminCancel   = $isAdmin && in_array(strtolower($r['status']),['pending','awaiting_driver','accepted','in_progress']);
 
                 // Driver perms
-                $canDriverAccept  = !$isAdmin && $isMine && in_array(strtolower($r['status']),['pending','awaiting_driver','assigned']);
-                $canDriverDecline = !$isAdmin && $isMine && in_array(strtolower($r['status']),['pending','awaiting_driver','assigned']);
+                $canDriverAccept  = !$isAdmin && $isMine && in_array(strtolower($r['status']),['pending','awaiting_driver']);
+                $canDriverDecline = !$isAdmin && $isMine && in_array(strtolower($r['status']),['pending','awaiting_driver']);
                 $canDriverStart   = !$isAdmin && $isMine && strtolower($r['status'])==='accepted';
                 $canDriverDrop    = !$isAdmin && $isMine && strtolower($r['status'])==='in_progress';
               ?>
-              <tr>
+              <tr data-date="<?= htmlspecialchars($dt ? date('Y-m-d', strtotime($dt)) : '') ?>">
                 <td><?= $n++ ?></td>
                 <td><?= htmlspecialchars($date) ?></td>
                 <td><?= htmlspecialchars($time) ?></td>
@@ -269,6 +333,30 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
         </div>
       </div>
 
+      <!-- ===== Calendar BELOW the list ===== -->
+      <div class="kaya-card" id="calendar-card">
+        <div class="d-flex align-items-center mb-2" style="gap:.5rem;flex-wrap:wrap;">
+          <h5 class="mb-0">Calendar</h5>
+          <div class="ml-auto d-flex align-items-center" style="gap:.5rem;">
+            <label for="kayaStatusFilter" class="mb-0 mr-1 small text-muted">Status</label>
+            <select id="kayaStatusFilter" class="form-control form-control-sm">
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="awaiting_driver">Awaiting Driver</option>
+              <option value="accepted">Accepted</option>
+              <option value="in_progress">In Progress</option>
+              <option value="rejected">Rejected</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
+            </select>
+            <?php if (!$isAdmin && $currentDriverId !== null): ?>
+              <input type="hidden" id="kayaDriverId" value="<?= (int)$currentDriverId ?>">
+            <?php endif; ?>
+          </div>
+        </div>
+        <div id="kayaCalendar"></div>
+      </div>
+
     </div>
     <?php include('vendor/inc/footer.php'); ?>
   </div>
@@ -282,23 +370,82 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
 <script src="vendor/datatables/dataTables.bootstrap4.js"></script>
 <script src="vendor/js/sb-admin.min.js"></script>
 
+<!-- FullCalendar (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
 <script>
+  // DataTable for the list
   $('#dataTable').DataTable({
     pageLength: 10,
     order: [[0,'asc']],
     columnDefs: [{ targets: -1, orderable:false, searchable:false }]
   });
 
-  // decline reason
-  document.querySelectorAll('.driver-decline-form').forEach(function(f){
-    f.addEventListener('submit', function(ev){
-      var why = prompt('Reason for declining (required):');
-      if (!why) { ev.preventDefault(); return false; }
-      f.querySelector('input[name="reason"]').value = why;
-    });
-  });
+  // FullCalendar init (below the list)
+  let calendar;
+  (function initCalendar(){
+    const calEl = document.getElementById('kayaCalendar');
+    if (!calEl) return;
 
-  // sidebar
+    const statusSel   = document.getElementById('kayaStatusFilter');
+    const driverInput = document.getElementById('kayaDriverId');
+
+    calendar = new FullCalendar.Calendar(calEl, {
+      initialView: (window.innerWidth < 768) ? 'listWeek' : 'dayGridMonth',
+      height: 'auto',
+      expandRows: true,
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+      },
+      nowIndicator: true,
+      eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: true },
+      events: function(fetchInfo, success, failure) {
+        const params = new URLSearchParams();
+        params.set('start', fetchInfo.startStr);
+        params.set('end',   fetchInfo.endStr);
+        const s = (statusSel && statusSel.value) ? statusSel.value : '';
+        if (s) params.append('status[]', s);
+        if (driverInput && driverInput.value) params.set('driver_id', driverInput.value);
+
+        // Adjust path if this page is inside /admin/: use '../api/calendar-events.php'
+        fetch('api/calendar-events.php?' + params.toString(), { credentials: 'same-origin' })
+          .then(r => r.json())
+          .then(data => success(data))
+          .catch(err => failure(err));
+      },
+      eventClick: function(info) {
+        const id = info.event.id;
+        window.location.href = 'admin-edit-booking.php?booking_id=' + encodeURIComponent(id);
+      },
+      eventDidMount: function(info){
+        const p = info.event.extendedProps || {};
+        info.el.setAttribute('title',
+          (info.event.title || '') +
+          (p.status ? ('\nStatus: ' + p.status) : '')
+        );
+      }
+    });
+
+    calendar.render();
+
+    // Filter change -> refetch
+    if (statusSel) statusSel.addEventListener('change', () => calendar.refetchEvents());
+
+    // Optional UX: clicking a row scrolls calendar to that date
+    document.querySelectorAll('#upcoming-list tbody tr[data-date]').forEach(function(row){
+      row.addEventListener('click', function(){
+        const d = row.getAttribute('data-date');
+        if (d && calendar) {
+          calendar.gotoDate(d);
+          document.getElementById('calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  })();
+
+  // sidebar sizing (unchanged)
   (function () {
     var btn = document.getElementById('sidebarToggle');
     if (!btn) return;
@@ -317,5 +464,6 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
     syncNavH(); window.addEventListener('resize', syncNavH);
   })();
 </script>
+
 </body>
 </html>

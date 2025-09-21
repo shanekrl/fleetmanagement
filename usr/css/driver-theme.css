@@ -1,0 +1,76 @@
+/* === Driver Theme (align with Admin; mobile-first) === */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+
+:root{
+  --kaya-navy:#000047;
+  --kaya-navy-600:#0a0f7a;
+  --kaya-surface:#ffffff;
+  --kaya-border:#e5e7eb;
+  --kaya-muted:#6b7280;
+  --kaya-tablehead:#eef2f7;
+  --kaya-headtext:#475569;
+  --kaya-shadow:0 8px 24px rgba(0,0,0,.06);
+}
+
+html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#f8fafc;color:#0f172a}
+.kaya-page-title{font-weight:800;font-size:1.5rem;color:var(--kaya-navy);margin:0 0 .75rem}
+
+/* NAV — reuse your admin nav include; this just smooths spacing on mobile */
+.navbar{box-shadow:0 2px 8px rgba(0,0,0,.04)}
+
+/* Cards */
+.kaya-card{background:var(--kaya-surface);border:1px solid var(--kaya-border);border-radius:1rem;box-shadow:var(--kaya-shadow);overflow:hidden}
+.kaya-card .card-header{background:var(--kaya-navy);color:#fff;border-bottom:0}
+.kaya-section{margin-bottom:1rem}
+
+/* Buttons */
+.btn-kaya-primary{background:var(--kaya-navy);border-color:var(--kaya-navy);color:#fff}
+.btn-kaya-primary:hover,.btn-kaya-primary:focus{background:var(--kaya-navy-600);border-color:var(--kaya-navy-600);color:#fff}
+
+/* Tables (match admin) */
+.table.kaya-table{margin-bottom:0}
+.kaya-table thead th{
+  background:var(--kaya-tablehead)!important;
+  color:var(--kaya-headtext)!important;
+  font-weight:600;border-top:0;border-bottom:0;text-align:center;white-space:nowrap
+}
+.kaya-table tbody td{border-top:1px solid #f1f5f9;vertical-align:middle}
+.kaya-table .actions{white-space:nowrap}
+
+/* Datatables controls + sort arrows */
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input{border:1px solid var(--kaya-border);border-radius:.5rem}
+table.dataTable thead .sorting:after,
+table.dataTable thead .sorting_asc:after,
+table.dataTable thead .sorting_desc:after{opacity:.35}
+
+/* Status badges */
+.badge{font-weight:600}
+.badge-accepted{background:#16a34a}
+.badge-pending{background:#64748b}
+.badge-declined{background:#dc2626}
+.badge-cancelled{background:#ef4444}
+.badge-completed{background:#2563eb}
+.badge-inprog{background:#9333ea}
+.badge-admin{background:#0ea5e9}
+.badge-personal{background:#f59e0b}
+
+/* Bottom mobile nav (simple, clean) */
+.kaya-bottom-nav{border-top:1px solid var(--kaya-border);background:#fff}
+.kaya-bottom-nav img{width:28px;height:28px}
+.kaya-bottom-nav .nav-link{font-size:.82rem;color:#0f172a}
+
+/* Mobile-first stacked rows for non-DataTables tables */
+@media (max-width:576px){
+  .stack-table thead{display:none}
+  .stack-table tbody tr{display:block;border:1px solid var(--kaya-border);border-radius:1rem;margin-bottom:.65rem;padding:.5rem}
+  .stack-table tbody td{display:flex;justify-content:space-between;gap:.75rem;border-top:0;padding:.35rem .5rem}
+  .stack-table tbody td::before{content:attr(data-label);font-weight:600;color:var(--kaya-muted)}
+  .stack-table .actions{justify-content:flex-end}
+}
+/* --- Driver-only overrides --- */
+.sticky-footer{ display:none !important; }        /* kill that footer everywhere on driver side */
+.table thead th,
+.dataTables_wrapper .dataTable thead th{
+  text-align:center;                              /* always center column headers */
+}

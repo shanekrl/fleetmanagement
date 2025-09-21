@@ -7,25 +7,42 @@ check_login();
 $mysqli->set_charset('utf8mb4');
 @$mysqli->query("SET collation_connection='utf8mb4_unicode_ci'");
 
+/* ---------------- Helpers ---------------- */
 function table_exists(mysqli $db, string $t): bool {
   $t = $db->real_escape_string($t);
   $r = $db->query("SHOW TABLES LIKE '{$t}'");
   return $r && $r->num_rows > 0;
 }
-function badge_for($s){ return ['badge badge-success','Completed']; }
+function badge_for($s){
+  $s = strtolower((string)$s);
+  if ($s==='completed') return ['badge badge-success','Completed'];
+  if ($s==='cancelled') return ['badge badge-danger','Cancelled'];
+  return ['badge badge-secondary', ucfirst($s ?: 'status')];
+}
 
-/* data */
+/* ---------------- Data ---------------- */
 $rows = [];
-if (table_exists($mysqli,'v_booking_grid')) {
-  $sql = "SELECT booking_id, scheduled_at, created_at, client_name, pax,
-                 pickup, dropoff, vehicle_reg_no, booking_type, driver_name,
-                 status
-          FROM v_booking_grid
-          WHERE status='completed'
-          ORDER BY COALESCE(scheduled_at, created_at) DESC, booking_id DESC";
-  if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
-} elseif (table_exists($mysqli,'bookings')) {
+/**
+ * Prefer NEW model directly (bookings + joins).
+ * Vehicle join adapts:
+ *   - tms_vehicle.v_id + v_reg_no  (new)
+ *   - vehicles.id + plate_no       (legacy fallback)
+ */
+if (table_exists($mysqli,'bookings')) {
+
+  // decide how to fetch the vehicle reg number
+  if (table_exists($mysqli,'tms_vehicle')) {
+    $vehicleSelect = "tv.v_reg_no AS vehicle_reg_no";
+    $vehicleJoin   = "LEFT JOIN tms_vehicle tv ON tv.v_id = b.vehicle_id";
+  } elseif (table_exists($mysqli,'vehicles')) {
+    $vehicleSelect = "v.plate_no AS vehicle_reg_no";
+    $vehicleJoin   = "LEFT JOIN vehicles v ON v.id = b.vehicle_id";
+  } else {
+    $vehicleSelect = "NULL AS vehicle_reg_no";
+    $vehicleJoin   = "";
+  }
+
   $sql = "SELECT b.id AS booking_id,
                  COALESCE(b.scheduled_start_at, b.created_at) AS scheduled_at,
                  b.created_at,
@@ -33,19 +50,30 @@ if (table_exists($mysqli,'v_booking_grid')) {
                  b.pax,
                  b.pickup_point  AS pickup,
                  b.dropoff_point AS dropoff,
-                 v.plate_no      AS vehicle_reg_no,
+                 {$vehicleSelect},
                  b.booking_type,
                  d.name          AS driver_name,
                  b.status
           FROM bookings b
           LEFT JOIN accounts c ON c.id=b.client_id
           LEFT JOIN accounts d ON d.id=b.driver_id
-          LEFT JOIN vehicles v ON v.id=b.vehicle_id
+          {$vehicleJoin}
           WHERE b.status='completed'
           ORDER BY COALESCE(b.scheduled_start_at, b.created_at) DESC, b.id DESC";
+
+  if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
+
+} elseif (table_exists($mysqli,'v_booking_grid')) {
+  // fallback: the view already shapes the columns we need
+  $sql = "SELECT booking_id, scheduled_at, created_at, client_name, pax,
+                 pickup, dropoff, vehicle_reg_no, booking_type, driver_name, status
+          FROM v_booking_grid
+          WHERE status='completed'
+          ORDER BY COALESCE(scheduled_at, created_at) DESC, booking_id DESC";
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
 } elseif (table_exists($mysqli,'tms_user')) {
+  // legacy-last resort
   $sql = "SELECT u_id AS booking_id,
                  FROM_UNIXTIME(NULLIF(u_car_createdat,0)) AS created_at,
                  NULL AS scheduled_at,
@@ -76,7 +104,6 @@ if (table_exists($mysqli,'v_booking_grid')) {
 
       <h1 class="kaya-page-title">Trip Appointments</h1>
 
-      <!-- Toolbar (same layout) -->
       <div class="kaya-toolbar d-flex align-items-center mb-3" style="gap:.5rem;flex-wrap:wrap;">
         <div class="btn-group" role="group" aria-label="Filters">
           <a href="admin-trip-appointment.php" class="btn kaya-tab">Upcoming</a>
@@ -112,7 +139,7 @@ if (table_exists($mysqli,'v_booking_grid')) {
                 $dt   = $r['scheduled_at'] ?: $r['created_at'];
                 $date = $dt ? date('M j, Y', strtotime($dt)) : '';
                 $time = $dt ? date('h:i A', strtotime($dt)) : '';
-                [$cls,$txt] = badge_for($r['status']);
+                [$cls,$txt] = badge_for($r['status'] ?? '');
               ?>
               <tr>
                 <td><?= $i++ ?></td>

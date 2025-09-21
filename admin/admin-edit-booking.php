@@ -67,14 +67,14 @@ if ($is_new_model) {
                 scheduled_start_at=?, status=?, notes=?, updated_at=NOW()
             WHERE id=?";
     if ($s = $mysqli->prepare($sql)) {
-      // types: s i s s s s i i s s s i  (12)
+      // NOTE: binding NULL to 'i' becomes 0 in mysqli; if you need real NULLs,
+      // you can run a separate SET or use dynamic SQL. Keeping your original pattern.
       $s->bind_param(
-        'sissss iis ssi',
+        'sisssssisssi',
         $booking_type, $pax, $contact_name, $contact_phone,
         $pickup_point, $dropoff_point, $vehicle_id, $driver_id,
         $scheduled, $status, $notes, $booking_id
       );
-      // The spaces above are for readability only; PHP ignores them.
       $s->execute(); $s->close();
     }
 
@@ -85,11 +85,12 @@ if ($is_new_model) {
   $row = null;
   if ($s = $mysqli->prepare("
         SELECT b.*,
-               d.name AS driver_name,
-               v.plate_no AS vehicle_reg_no
+               d.name       AS driver_name,
+               tv.v_reg_no  AS vehicle_reg_no,
+               tv.v_name    AS vehicle_name
           FROM bookings b
-          LEFT JOIN accounts d ON d.id=b.driver_id
-          LEFT JOIN vehicles v ON v.id=b.vehicle_id
+          LEFT JOIN accounts    d  ON d.id     = b.driver_id
+          LEFT JOIN tms_vehicle tv ON tv.v_id  = b.vehicle_id
          WHERE b.id=? LIMIT 1")) {
     $s->bind_param('i',$booking_id);
     $s->execute();
@@ -106,9 +107,17 @@ if ($is_new_model) {
       while($r=$q->fetch_assoc()) $drivers[]=$r;
     }
   }
+
+  // Vehicles come from tms_vehicle (not vehicles)
   $vehicles = [];
-  if (table_exists($mysqli,'vehicles')) {
-    if ($q=$mysqli->query("SELECT id, plate_no, name FROM vehicles ORDER BY name, plate_no")) {
+  if (table_exists($mysqli,'tms_vehicle')) {
+    if ($q=$mysqli->query("
+          SELECT v_id AS id,
+                 COALESCE(NULLIF(v_reg_no,''), CONCAT('ID-', v_id)) AS plate_no,
+                 v_name AS name
+          FROM tms_vehicle
+          WHERE deleted_at IS NULL
+          ORDER BY v_name, v_reg_no")) {
       while($r=$q->fetch_assoc()) $vehicles[]=$r;
     }
   }
@@ -117,49 +126,13 @@ if ($is_new_model) {
   $vehToDrv = [];
   $drvToVeh = [];
 
-  if (table_exists($mysqli,'vehicles')) {
-    // Prefer direct column if present
-    $driverCol = null;
-    if (column_exists($mysqli,'vehicles','driver_id')) $driverCol = 'driver_id';
-    elseif (column_exists($mysqli,'vehicles','default_driver_id')) $driverCol = 'default_driver_id';
-
-    if ($driverCol) {
-      $rs = $mysqli->query("SELECT id AS v_id, {$driverCol} AS d_id FROM vehicles WHERE {$driverCol} IS NOT NULL");
-      if ($rs) while($m=$rs->fetch_assoc()){
-        $vid=(int)$m['v_id']; $did=(int)$m['d_id'];
-        if ($vid && $did){ $vehToDrv[$vid]=$did; $drvToVeh[$did]=$vid; }
-      }
-    } else {
-      // Fallback: map via legacy tms_vehicle + tms_user using plate_no and driver name
-      $vehByPlate = [];
-      foreach ($vehicles as $v) {
-        $plate = trim((string)$v['plate_no']);
-        if ($plate!=='') $vehByPlate[strtolower($plate)] = (int)$v['id'];
-      }
-      $accByName = [];
-      if (table_exists($mysqli,'accounts')) {
-        $qr=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver'");
-        if ($qr) while($a=$qr->fetch_assoc()){
-          $nm=strtolower(trim((string)$a['name']));
-          if ($nm!=='') $accByName[$nm]=(int)$a['id'];
-        }
-      }
-      if (table_exists($mysqli,'tms_vehicle') && table_exists($mysqli,'tms_user')) {
-        $q=$mysqli->query("SELECT v.v_reg_no, u.u_fname, u.u_lname 
-                           FROM tms_vehicle v 
-                           LEFT JOIN tms_user u ON u.u_id=v.driver_user_id
-                           WHERE v.driver_user_id IS NOT NULL");
-        if ($q) while($r=$q->fetch_assoc()){
-          $plate = strtolower(trim((string)$r['v_reg_no']));
-          $name  = strtolower(trim(((string)$r['u_fname']).' '.((string)$r['u_lname'])));
-          if (isset($vehByPlate[$plate]) && isset($accByName[$name])){
-            $vid = $vehByPlate[$plate];
-            $did = $accByName[$name];
-            $vehToDrv[$vid] = $did;
-            $drvToVeh[$did] = $vid;
-          }
-        }
-      }
+  if (table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,'tms_vehicle','default_driver_id')) {
+    $rs = $mysqli->query("SELECT v_id AS v_id, default_driver_id AS d_id
+                          FROM tms_vehicle
+                          WHERE default_driver_id IS NOT NULL");
+    if ($rs) while($m=$rs->fetch_assoc()){
+      $vid=(int)$m['v_id']; $did=(int)$m['d_id'];
+      if ($vid && $did){ $vehToDrv[$vid]=$did; $drvToVeh[$did]=$vid; }
     }
   }
 
@@ -259,8 +232,7 @@ if ($is_new_model) {
                   <?php
                     $opts=['pending','awaiting_driver','assigned','accepted','in_progress','cancelled','completed'];
                     foreach($opts as $opt){
-                      $sel = ($row['status']===$opt)?'selected':'';
-                      echo "<option $sel>".htmlspecialchars($opt)."</option>";
+                      $sel = ($row['status']===$opt)?'selected':''; echo "<option $sel>".htmlspecialchars($opt)."</option>";
                     }
                   ?>
                 </select>
@@ -422,8 +394,7 @@ if (!$row) { header('Location: admin-trip-appointment.php'); exit; }
                 <?php
                   $opts=['Pending','Approved','Completed','Cancel','Maintenance','In Active','Available'];
                   foreach($opts as $opt){
-                    $sel = ($row['u_car_book_status']===$opt)?'selected':'';
-                    echo "<option $sel>".htmlspecialchars($opt)."</option>";
+                    $sel = ($row['u_car_book_status']===$opt)?'selected':''; echo "<option $sel>".htmlspecialchars($opt)."</option>";
                   }
                 ?>
               </select>

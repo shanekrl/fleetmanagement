@@ -81,7 +81,6 @@ if (table_exists($mysqli,'v_booking_grid')) {
 
       <h1 class="kaya-page-title">Trip Appointments</h1>
 
-      <!-- Toolbar (same as reference) -->
       <div class="kaya-toolbar d-flex align-items-center mb-3" style="gap:.5rem;flex-wrap:wrap;">
         <div class="btn-group" role="group" aria-label="Filters">
           <a href="admin-trip-appointment.php" class="btn kaya-tab">Upcoming</a>
