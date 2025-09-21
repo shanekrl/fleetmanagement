@@ -250,7 +250,7 @@ CREATE TABLE `login_logs` (
   `user_id` int(11) NOT NULL,
   `user_type` varchar(50) NOT NULL,
   `login_time` text NOT NULL,
-  `createdat` date NOT NULL DEFAULT current_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -471,7 +471,6 @@ CREATE TABLE `tms_syslogs` (
 --
 -- Table structure for table `tms_user`
 --
-
 CREATE TABLE `tms_user` (
   `u_id` int(11) NOT NULL,
   `u_fname` varchar(200) NOT NULL,
@@ -491,8 +490,8 @@ CREATE TABLE `tms_user` (
   `u_car_book_status` varchar(200) NOT NULL,
   `u_car_date` mediumtext NOT NULL,
   `u_car_time` mediumtext NOT NULL,
-  `createdat` int(255) NOT NULL DEFAULT unix_timestamp(),
-  `u_car_createdat` int(255) NOT NULL DEFAULT unix_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `u_car_createdat` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -524,7 +523,7 @@ CREATE TABLE `tms_user_add_driver` (
   `deleted_at` datetime DEFAULT NULL,
   `deleted_by` int(11) DEFAULT NULL,
   `u_pwd` text NOT NULL,
-  `createdat` date NOT NULL DEFAULT current_timestamp(),
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `is_archived` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

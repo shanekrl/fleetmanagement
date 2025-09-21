@@ -16,27 +16,6 @@ if ($stmt = $mysqli->prepare("SELECT CONCAT(u_fname,' ',u_lname) FROM tms_user W
   </li>
 
   <li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" href="#" id="vehiclesDropdown" role="button" data-toggle="dropdown">
-      <i class="fas fa-fw fa-bus"></i><span>Vehicles</span>
-    </a>
-    <div class="dropdown-menu" aria-labelledby="vehiclesDropdown">
-      <a class="dropdown-item" href="usr-book-vehicle.php">Book</a>
-    </div>
-  </li>
-
-  <li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" href="#" id="bookingsDropdown" role="button" data-toggle="dropdown">
-      <i class="fas fa-fw fa-book"></i><span>Bookings</span>
-    </a>
-    <div class="dropdown-menu" aria-labelledby="bookingsDropdown">
-      <a class="dropdown-item" href="user-view-booking.php">View</a>
-      <a class="dropdown-item" href="user-manage-booking.php">Manage</a>
-    </div>
-  </li>
-
-  <li class="nav-item"><a class="nav-link" href="user-give-feedback.php"><i class="fas fa-fw fa-comments"></i><span>Feedbacks</span></a></li>
-
-  <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-toggle="dropdown">
       <i class="fas fa-fw fa-user"></i><span>Settings</span>
     </a>

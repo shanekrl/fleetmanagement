@@ -38,3 +38,24 @@
     });
   })();
 </script>
+
+<script>
+  // remove unwanted driver-side items even if the old sidebar file loads
+  (function(){
+    const kill = [
+      'usr-book-vehicle.php',      // Vehicles -> Book
+      'user-view-booking.php',     // Bookings -> View
+      'user-manage-booking.php',   // Bookings -> Manage
+      'user-give-feedback.php'     // Feedbacks
+    ];
+    kill.forEach(href => {
+      document.querySelectorAll('.sidebar .nav-link[href*="'+href+'"]')
+        .forEach(a => { const li = a.closest('.nav-item'); if (li) li.remove(); });
+    });
+    // also remove the Bookings/Vehicles dropdown toggles if empty
+    document.querySelectorAll('.sidebar .nav-item.dropdown').forEach(d=>{
+      if(!d.querySelector('.dropdown-menu a')) d.remove();
+    });
+  })();
+</script>
+
