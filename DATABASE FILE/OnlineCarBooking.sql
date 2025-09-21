@@ -493,14 +493,6 @@ CREATE TABLE `tms_user` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `u_car_createdat` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `tms_user`
---
-
-INSERT INTO `tms_user` (`u_id`, `u_fname`, `u_lname`, `u_car_pax`, `u_phone`, `u_addr`, `u_category`, `u_email`, `u_pwd`, `u_car_type`, `u_car_driver`, `u_car_regno`, `u_car_bookdate`, `u_car_pickup`, `u_car_destination`, `u_car_book_status`, `u_car_date`, `u_car_time`, `createdat`, `u_car_createdat`) VALUES
-(1, 'Shane', 'Lopez', '', '09446872447', 'taga san fernando, pampanga', 'Driver', 'shaaane@mail.com', '$2y$10$6QXGwWHonKXiTY5MOiKcyuvP8r2f9wgZZ1UmV0XPg2jr.AZobo6sK', '', '', '', '', '', '', '', '', '', 1758449165, 1758449165);
-
 -- --------------------------------------------------------
 
 --
