@@ -6,5 +6,5 @@ Password: admin123
 
 **Clint Login info**
 
-Email    : user@example.com
-Password : User123!
+Email    : test@mail.com
+Password : test123

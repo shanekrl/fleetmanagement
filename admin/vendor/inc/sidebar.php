@@ -1,31 +1,32 @@
 <?php
-  $aid = $_SESSION['u_id'] ?? 0;
+function isActive($file){ return basename($_SERVER['PHP_SELF']) === $file ? 'is-active' : ''; }
 ?>
-<ul class="sidebar navbar-nav">
-  <li class="nav-item">
-    <a class="nav-link" href="user-dashboard.php">
-      <i class="fas fa-fw fa-tachometer-alt"></i>
-      <span>Dashboard</span>
-    </a>
-  </li>
+<aside id="kayaSidebar" class="kaya-rail kaya-rail--light">
+  <ul class="kaya-rail__nav">
+    <li><a class="kaya-rail__link <?= isActive('admin-dashboard.php') ?>" href="admin-dashboard.php">
+      <i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></li>
 
-  <li class="nav-item">
-    <a class="nav-link" href="appointments.php">
-      <i class="fas fa-fw fa-route"></i>
-      <span>Trips</span>
-    </a>
-  </li>
+    <li><a class="kaya-rail__link <?= isActive('admin-trip-appointment.php') ?>" href="admin-trip-appointment.php">
+      <i class="fas fa-book"></i><span>Trips</span></a></li>
 
-  <!-- Keep only Settings (you asked to remove Vehicles, Bookings, Feedbacks) -->
-  <li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" href="#" id="drvSettings" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      <i class="fas fa-fw fa-user-cog"></i>
-      <span>Settings</span>
+    <li><a class="kaya-rail__link <?= isActive('admin-manage-vehicle.php') ?>" href="admin-manage-vehicle.php">
+      <i class="fas fa-bus"></i><span>Vehicles</span></a></li>
+
+    <li><a class="kaya-rail__link <?= isActive('admin-manage-driver.php') ?>" href="admin-manage-driver.php">
+      <i class="fas fa-id-card"></i><span>Drivers</span></a></li>
+
+    <li><a class="kaya-rail__link <?= isActive('admin-view-syslogs.php') ?>" href="admin-view-syslogs.php">
+      <i class="fas fa-shield-alt"></i><span>Vehicle Telemetry</span></a></li>
+
+    <li><a class="kaya-rail__link <?= isActive('admin-reports.php') ?>" href="admin-reports.php">
+      <i class="fas fa-comments"></i><span>Reports</span></a></li>
+  </ul>
+
+  <div class="kaya-rail__footer">
+    <a class="btn btn-outline-danger btn-block kaya-logout" href="admin-logout.php">
+      <i class="fas fa-sign-out-alt mr-1"></i><span>Logout</span>
     </a>
-    <div class="dropdown-menu" aria-labelledby="drvSettings">
-      <a class="dropdown-item" href="user-view-profile.php">View Profile</a>
-      <a class="dropdown-item" href="user-update-profile.php">Update Profile</a>
-      <a class="dropdown-item" href="user-change-pwd.php">Change Password</a>
-    </div>
-  </li>
-</ul>
+  </div>
+</aside>
+
+
