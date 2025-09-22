@@ -302,13 +302,26 @@ if ($has_soft_delete && isset($_POST['purge_vehicle'])) {
 /* ----------------- FETCH vehicles ----------------- */
 $where = $has_soft_delete ? ($view==='trash' ? "v.deleted_at IS NOT NULL" : "v.deleted_at IS NULL") : "1=1";
 $vehicles = [];
-$sql = "SELECT v.v_id, v.v_name, v.v_reg_no, v.v_pass_no, v.v_category, v.v_status, v.v_dpic,
-               ".($has_soft_delete ? "v.deleted_at," : "")."
-               u.u_id AS driver_id, u.u_fname, u.u_lname
-        FROM tms_vehicle v
-        LEFT JOIN tms_user u ON ".($has_driver_fk ? "u.u_id = v.driver_user_id" : "0")."
-        WHERE $where
-        ORDER BY v.v_id DESC";
+$sql = "
+SELECT v.v_id,
+       v.v_name,
+       v.v_reg_no,
+       v.v_pass_no,
+       v.v_category,
+       v.v_status,
+       v.v_dpic,
+       ".($has_soft_delete ? "v.deleted_at," : "")."
+       d.d_u_id   AS driver_id,
+       d.u_fname,
+       d.u_lname
+FROM tms_vehicle v
+LEFT JOIN tms_user_add_driver d 
+       ON ".($has_driver_fk ? "d.d_u_id = v.default_driver_id" : "0")."
+LEFT JOIN tms_user u
+       ON u.u_id = d.u_id
+WHERE $where
+ORDER BY v.v_id DESC
+";
 if ($stmt = $mysqli->prepare($sql)) {
   $stmt->execute();
   $res = $stmt->get_result();
@@ -333,7 +346,7 @@ $q2 = $mysqli->query("
   SELECT d_u_id,
          TRIM(CONCAT(COALESCE(u_fname,''),' ',COALESCE(u_lname,''))) AS name
     FROM tms_user_add_driver
-   WHERE (deleted_at IS NULL OR deleted_at='')
+   WHERE deleted_at IS NULL
      AND u_category='Driver'
    ORDER BY name, d_u_id DESC
 ");
@@ -452,7 +465,7 @@ $categories_all    = fetch_all_categories($mysqli, $cat_table);
                           <i class="fas fa-exchange-alt"></i><span class="sr-only">Assign</span>
                         </button>
                       <?php endif; ?>
-                      <a href="admin-view-syslogs.php?reg=<?= urlencode($v['v_reg_no']) ?>" class="btn btn-sm btn-outline-secondary btn-icon" data-toggle="tooltip" title="Monitor">
+                      <a href="admin-view-syslogs.php?PlateNo=<?= urlencode($v['v_reg_no']) ?>" class="btn btn-sm btn-outline-secondary btn-icon" data-toggle="tooltip" title="Monitor">
                         <i class="fas fa-eye"></i><span class="sr-only">Monitor</span>
                       </a>
                       <button type="button" class="btn btn-sm btn-outline-danger btn-icon"

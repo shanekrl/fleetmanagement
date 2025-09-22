@@ -523,7 +523,7 @@ CREATE TABLE `tms_user_add_driver` (
 -- Dumping data for table `tms_user_add_driver`
 --
 
-INSERT INTO `tms_user_add_driver` (`d_u_id`, `u_id`, `u_fname`, `u_lname`, `u_phone`, `u_addr`, `u_car_type`, `u_car_regno`, `u_car_bookdate`, `u_car_book_status`, `u_category`, `u_email`, `deleted_at`, `deleted_by`, `u_pwd`, `createdat`, `is_archived`) VALUES
+INSERT INTO `tms_user_add_driver` (`d_u_id`, `u_id`, `u_fname`, `u_lname`, `u_phone`, `u_addr`, `u_car_type`, `u_car_regno`, `u_car_bookdate`, `u_car_book_status`, `u_category`, `u_email`, `deleted_at`, `deleted_by`, `u_pwd`, `created_at`, `is_archived`) VALUES
 (8, 0, 'Shane', 'Lopez', '09446872447', 'taga san fernando, pampanga', 'Bus', '123', '', 'Available', 'Driver', 'shaaane@mail.com', NULL, NULL, '', '2025-09-12', 0),
 (9, 0, 'Test', 'Driver', '09668226441', 'taga ac', '', '123', '', 'Available', 'Driver', 'test@mail.com', NULL, NULL, '', '2025-09-22', 0);
 
@@ -743,6 +743,35 @@ CREATE TABLE `v_vehicle_daily_metrics` (
 ,`odo_end_km` decimal(10,1)
 ,`duration_seconds` decimal(32,0)
 );
+
+
+--
+-- Table structure for table `obd_logs`
+--
+
+CREATE TABLE `obd_logs` (
+  `id` int(11) NOT NULL,
+  `speed` varchar(255) NOT NULL,
+  `rpm` varchar(255) NOT NULL,
+  `engine_load` varchar(255) NOT NULL,
+  `throttle` varchar(255) NOT NULL,
+  `intake_manifold` varchar(255) NOT NULL,
+  `maf` varchar(255) NOT NULL,
+  `coolant_temp` varchar(255) NOT NULL,
+  `intake_air_temp` varchar(255) NOT NULL,
+  `fuel_level` varchar(255) NOT NULL,
+  `fuel_type` varchar(255) NOT NULL,
+  `ambient_temp` varchar(255) NOT NULL,
+  `oil_temp` varchar(255) NOT NULL,
+  `plate_no` varchar(255) NOT NULL,
+  `latitude` varchar(255) NOT NULL,
+  `longitude` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `obd_logs`
+--
+
 
 -- --------------------------------------------------------
 
@@ -1238,18 +1267,34 @@ ALTER TABLE `tms_driver_report`
 ALTER TABLE `tms_report_media`
   ADD CONSTRAINT `fk_media_report` FOREIGN KEY (`report_id`) REFERENCES `tms_driver_report` (`report_id`) ON DELETE CASCADE;
 
---
--- Constraints for table `tms_vehicle`
---
-ALTER TABLE `tms_vehicle`
-  ADD CONSTRAINT `fk_tv_driver_user` FOREIGN KEY (`driver_user_id`) REFERENCES `tms_user` (`u_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
--- Constraints for table `vehicle_assignments`
+-- Indexes for dumped tables
 --
-ALTER TABLE `vehicle_assignments`
-  ADD CONSTRAINT `fk_va_admin` FOREIGN KEY (`assigned_by`) REFERENCES `accounts` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_va_driver` FOREIGN KEY (`driver_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Indexes for table `obd_logs`
+--
+ALTER TABLE `obd_logs`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `obd_logs`
+--
+ALTER TABLE `obd_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=506;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

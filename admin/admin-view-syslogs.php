@@ -13,16 +13,15 @@
   include('vendor/inc/checklogin.php');
   check_login();
   $aid = require_admin();
-
-  // Allow basic map overrides via query string when testing (e.g. ?lat=14.6&lng=121.0&z=12)
-  $lat  = isset($_GET['lat']) ? floatval($_GET['lat']) : 14.5995;   // Manila default
-  $lng  = isset($_GET['lng']) ? floatval($_GET['lng']) : 120.9842;
-  $zoom = isset($_GET['z'])   ? intval($_GET['z'])     : 12;
-  $mapSrc = "https://maps.google.com/maps?q={$lat},{$lng}&z={$zoom}&output=embed";
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include('vendor/inc/head.php'); // loads Bootstrap + your base CSS ?>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<style>
+    #map { height: 500px; width: 100%; }
+</style>
 <body id="page-top">
   <?php include('vendor/inc/nav.php'); ?>
 
@@ -41,12 +40,7 @@
 
           <!-- Responsive map wrapper (keeps 16:9 ratio) -->
           <div class="kaya-map">
-            <iframe
-              src="<?= htmlspecialchars($mapSrc) ?>"
-              title="Vehicle location"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              allowfullscreen></iframe>
+            <div id="map"></div>
           </div>
 
           <!-- NOTE: once GPS is wired, you can update ?lat= / ?lng= server-side
@@ -116,7 +110,7 @@
                     <dt>Fuel Level</dt><dd>45%</dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Speed</dt><dd>60 km/h</dd>
+                    <dt>Speed</dt><dd id="vehicleSpeed">60 km/h</dd>
                   </div>
                   <div class="kaya-dl__row">
                     <dt>OBD Status</dt><dd><span class="kaya-badge kaya-badge--warn">Needs Attention</span></dd>
@@ -146,9 +140,11 @@
   </div>
 
   <!-- Scripts (your footer already wires the sidebar toggle for consistency) -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+  <script src="vendor/js/maps.js"></script>
 
   <style>
     /* Keep typography consistent with your other refreshed pages */
@@ -169,7 +165,7 @@
     .kaya-card__body{ padding:1rem 1.25rem; }
 
     /* Responsive 16:9 iframe wrapper */
-    .kaya-map{ position:relative; width:100%; padding-top:56.25%; border-radius:.75rem; overflow:hidden; }
+    .kaya-map{ position:relative; width:100%;border-radius:.75rem; overflow:hidden; }
     .kaya-map iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
 
     /* Definition list as neat 2-column table */

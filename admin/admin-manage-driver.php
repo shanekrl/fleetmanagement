@@ -137,10 +137,11 @@ if ($has_soft_delete && isset($_POST['purge_driver'])) {
 
 /* ----------------- FETCH LISTS ----------------- */
 $drivers_add = [];
-$whereAdd = $has_soft_delete ? ($view==='trash' ? "deleted_at IS NOT NULL" : "deleted_at IS NULL") : "1=1";
+$whereAdd = $has_soft_delete ? ($view==='trash' ? "driver.deleted_at IS NOT NULL" : "driver.deleted_at IS NULL") : "1=1";
 if ($s=$mysqli->prepare("
-    SELECT d_u_id, u_fname, u_lname, u_phone, u_addr, '' AS u_car_type, u_car_regno, u_car_book_status, u_email
-    FROM tms_user_add_driver
+    SELECT driver.d_u_id, driver.u_fname, driver.u_lname, driver.u_phone, driver.u_addr, '' AS u_car_type, driver.u_car_regno, driver.u_car_book_status, driver.u_email,vehicles.v_reg_no
+    FROM tms_user_add_driver AS driver
+    LEFT JOIN tms_vehicle AS vehicles ON vehicles.default_driver_id = d_u_id
     WHERE u_category='Driver' AND $whereAdd
     ORDER BY d_u_id DESC")) {
   $s->execute();
@@ -298,6 +299,7 @@ foreach ($drivers_user as $d) {
               <?php $n=1; foreach($drivers as $d):
                 $name = trim(($d['u_fname']??'').' '.($d['u_lname']??''));
                 $src  = $d['_src']; $id = (int)$d['d_u_id'];
+                $v_reg_no = $d['v_reg_no'];
                 if (!empty($d['_status_class_override'])) {
                   $cls = $d['_status_class_override']; $txt = $d['u_car_book_status'];
                 } else {
@@ -322,7 +324,7 @@ foreach ($drivers_user as $d) {
                          href="driver-edit.php?d_u_id=<?= $id ?>"><i class="fas fa-pen"></i></a>
                     <?php endif; ?>
                     <a class="btn btn-outline-secondary"  title="Monitor"
-                       href="admin-view-syslogs.php?driver=<?= urlencode($name) ?>"><i class="fas fa-eye"></i></a>
+                       href="admin-view-syslogs.php?PlateNo=<?= $v_reg_no ?>"><i class="fas fa-eye"></i></a>
                     <?php if ($src==='add'): ?>
                       <button class="btn btn-outline-danger" title="Delete"
                               data-toggle="modal" data-target="#deleteDriverModal"

@@ -194,9 +194,8 @@ if (!$vehicle) { header('Location: admin-manage-vehicle.php'); exit; }
 $drivers_accounts = [];
 if (table_exists($mysqli,'accounts')) {
   $q = $mysqli->query("
-    SELECT id, COALESCE(NULLIF(TRIM(name),''), email, CONCAT('Driver #',id)) AS label
-    FROM accounts
-    WHERE role='driver' AND is_active=1
+    SELECT d_u_id AS id, COALESCE(NULLIF(TRIM(u_fname),''), u_email, CONCAT('Driver #',d_u_id)) AS label
+    FROM tms_user_add_driver
     ORDER BY label
   ");
   if ($q) while ($r=$q->fetch_assoc()) $drivers_accounts[] = $r;
@@ -255,7 +254,8 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
                          value="<?= h($vehicle['v_reg_no'] ?? '') ?>">
                 </div>
 
-                <?php if ($has_driver_fk): ?>
+                <?php if ($has_driver_fk): 
+                  ?>
                   <div class="form-group">
                     <label class="font-weight-semibold">Driver</label>
                     <div class="d-flex" style="gap:.5rem;align-items:center;">
