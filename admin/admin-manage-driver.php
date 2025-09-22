@@ -1,5 +1,4 @@
 <?php
-// ========== KAYA · Manage Drivers (Soft Delete + Union view + Account creation) ==========
 session_start();
 include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');

@@ -32,6 +32,9 @@ function updateMarkers(data) {
         let id = v.plate_no; // 🚘 always use plate_no
         let lat = parseFloat(v.latitude);
         let lng = parseFloat(v.longitude);
+        
+        console.log("Latitude:" + lat);
+        console.log("longitude:" + lng);
 
         if (isNaN(lat) || isNaN(lng)) return; // skip invalid coords
 
@@ -42,27 +45,31 @@ function updateMarkers(data) {
             <b>Fuel:</b> ${v.fuel_level}%<br>
             <b>Time:</b> ${v.created_at || "N/A"}
         `;
-        console.log(v.speed)
-        //display the logs in the card view
-        $('#vehicleSpeed').text(v.speed +" km/h");
-        //end
+
+        // Display the logs in the card view
+        $('#vehicleSpeed').text(v.speed + " km/h");
 
         if (markers[id]) {
-            markers[id].setLatLng([lat, lng]).setPopupContent(popupHtml);
+            let prevLatLng = markers[id].getLatLng();
+            let distance = map.distance(prevLatLng, L.latLng(lat, lng));
+
+            // Only update if moved more than 5 meters
+            if (distance > 5) {
+                markers[id].setLatLng([lat, lng]).setPopupContent(popupHtml);
+            }
         } else {
             // Create marker once
             let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
             marker.bindPopup(popupHtml);
             markers[id] = marker;
         }
-
     });
 }
+
 
     function getVehicleLogs() {
         let params = new URLSearchParams(window.location.search);
         let plateNo = params.get("PlateNo"); // ex: Driver=ABC1234
-        console.log(plateNo);
         if(plateNo!="" && plateNo != null){
             $.ajax({
                 url: "admin-add-obdlogs.php",
