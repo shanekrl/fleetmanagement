@@ -27,65 +27,72 @@ $(document).ready(function () {
         });
     }
 
-function updateMarkers(data) {
-    $.each(data, function (i, v) {
-        let id = v.plate_no; // 🚘 always use plate_no
-        let lat = parseFloat(v.latitude);
-        let lng = parseFloat(v.longitude);
-        
-        console.log("Latitude:" + lat);
-        console.log("longitude:" + lng);
+    function updateMarkers(data) {
+        $.each(data, function (i, v) {
+            let id = v.plate_no; // 🚘 unique key
+            let lat = parseFloat(v.latitude);
+            let lng = parseFloat(v.longitude);
 
-        if (isNaN(lat) || isNaN(lng)) return; // skip invalid coords
+            if (isNaN(lat) || isNaN(lng)) return; // skip invalid coords
 
-        let popupHtml = `
-            <b>🚘 Plate:</b> ${v.plate_no}<br>
-            <b>Speed:</b> ${v.speed} km/h<br>
-            <b>RPM:</b> ${v.rpm}<br>
-            <b>Fuel:</b> ${v.fuel_level}%<br>
-            <b>Time:</b> ${v.created_at || "N/A"}
-        `;
+            // Popup content (always tied to the marker)
+            let popupHtml = `
+                <b>🚘 Plate:</b> ${v.plate_no}<br>
+                <b>Speed:</b> ${v.speed} km/h<br>
+                <b>RPM:</b> ${v.rpm}<br>
+                <b>Fuel:</b> ${v.fuel_level}%<br>
+                <b>Time:</b> ${v.created_at || "N/A"}
+            `;
 
-        // Display the logs in the card view
-        $('#vehicleSpeed').text(v.speed + " km/h");
+            // Display the logs in the card view
+            $('#vehicleSpeed').text(v.speed + " km/h");
 
-        if (markers[id]) {
-            let prevLatLng = markers[id].getLatLng();
-            let distance = map.distance(prevLatLng, L.latLng(lat, lng));
+            if (markers[id]) {
+                let prevLatLng = markers[id].getLatLng();
+                let distance = map.distance(prevLatLng, L.latLng(lat, lng));
 
-            // Only update if moved more than 5 meters
-            if (distance > 5) {
-                markers[id].setLatLng([lat, lng]).setPopupContent(popupHtml);
+                // Only update if moved more than 5 meters
+                if (distance > 5) {
+                    markers[id].setLatLng([lat, lng]).setPopupContent(popupHtml);
+                }
+            } else {
+                // Create marker once
+                let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
+                marker.bindPopup(popupHtml);
+
+                // 👇 Handle click event to update sidebar/card
+                marker.on("click", function () {
+                    $("#vehiclePlate").text(v.plate_no);
+                    $("#vehicleSpeed").text(v.speed + " km/h");
+                    $("#vehicleRpm").text(v.rpm);
+                    $("#vehicleFuel").text(v.fuel_level + "%");
+                    $("#vehicleTime").text(v.created_at || "N/A");
+                });
+
+                markers[id] = marker;
             }
-        } else {
-            // Create marker once
-            let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
-            marker.bindPopup(popupHtml);
-            markers[id] = marker;
-        }
-    });
-}
+        });
+    }
 
 
     function getVehicleLogs() {
         let params = new URLSearchParams(window.location.search);
-        let plateNo = params.get("PlateNo"); // ex: Driver=ABC1234
-        if(plateNo!="" && plateNo != null){
-            $.ajax({
-                url: "admin-add-obdlogs.php",
-                type: "GET",
-                data: { plate_no: plateNo },
-                dataType: "json",
-                success: function (response) {
-                    if (response.status === "success") {
-                        updateMarkers(response.logs);
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error("Map AJAX Error:", error);
+        let plateNo = params.get("PlateNo"); // ex: PlateNo=ABC1234
+
+        $.ajax({
+            url: "admin-add-obdlogs.php",
+            type: "GET",
+            data: plateNo ? { plate_no: plateNo } : {},
+            dataType: "json",
+            success: function (response) {
+                if (response.status === "success") {
+                    updateMarkers(response.logs);
                 }
-            });
-        }
+            },
+            error: function (xhr, status, error) {
+                console.error("Map AJAX Error:", error);
+            }
+        });
     }
 
     // Auto refresh logs every 5 seconds

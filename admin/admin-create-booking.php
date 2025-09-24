@@ -179,6 +179,7 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
 <!DOCTYPE html>
 <html lang="en">
 <?php include('vendor/inc/head.php'); ?>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 <body id="page-top">
   <?php include('vendor/inc/nav.php'); ?>
   <div id="wrapper">
@@ -286,11 +287,16 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
             <div class="form-row">
               <div class="form-group col-md-6">
                 <label>Pickup Location</label>
-                <input type="text" class="form-control" name="pickup" placeholder="Where from?">
+                <input type="text" id="pickup" class="form-control" name="pickup" placeholder="Where from?">
+                <!-- hidden inputs to store chosen lat/lng -->
+                <input type="hidden" id="pickup_lat">
+                <input type="hidden" id="pickup_lng">
               </div>
               <div class="form-group col-md-6">
                 <label>Destination</label>
-                <input type="text" class="form-control" name="dropoff" placeholder="Where to?">
+                <input type="text"  id="dropoff" class="form-control" name="dropoff" placeholder="Where to?">
+                <input type="hidden" id="dropoff_lat">
+                <input type="hidden" id="dropoff_lng">
               </div>
             </div>
 
@@ -330,6 +336,12 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+  <!-- include jQuery UI (CSS + JS) for autocomplete UI -->
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+  <!-- leaflet-geosearch provider only (we're using provider.search) -->
+  <script src="https://unpkg.com/leaflet-geosearch/dist/geosearch.umd.js"></script>
+  <script src="vendor/js/trip_booking.js"></script>
 
   <!-- Pairing maps from PHP -->
   <script>

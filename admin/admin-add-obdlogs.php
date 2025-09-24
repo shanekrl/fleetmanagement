@@ -15,7 +15,49 @@ $json = file_get_contents("php://input");
 $data = json_decode($json, true);
 
 // Get plate_no from GET parameter
-$plate_no = $_GET['plate_no'] ?? null;
+$params_plate_no = $_GET['plate_no'] ?? null;
+
+
+// Get JSON input if any
+$json = file_get_contents("php://input");
+$data = json_decode($json, true);
+
+// If no incoming JSON, simulate random static data
+
+ if (!$data) {
+     $plates = ["ABC123", "123456"];
+     $plate  = $plates[array_rand($plates)];
+
+     $data = [
+         "basic_info" => [
+             "plate_no" => $plate
+         ],
+         "engine_performance" => [
+             "speed"           => rand(0, 120),
+             "rpm"             => rand(700, 5000),
+             "load"            => rand(20, 100),
+             "throttle"        => rand(0, 100),
+             "intake_manifold" => rand(10, 100),
+             "maf"             => rand(2, 50)
+         ],
+         "temperatures" => [
+             "coolant_temp"    => rand(70, 110),
+             "intake_air_temp" => rand(20, 60),
+             "ambient_temp"    => rand(15, 40),
+             "oil_temp"        => rand(60, 120)
+         ],
+         "air_fuel" => [
+           "fuel_level"      => rand(10, 100),
+             "fuel_type"       => "Gasoline"
+        ],
+        "location" => [
+            // Angeles University Foundation approx coordinates
+            "latitude"  => 15.1456 + (rand(-500, 500) / 100000),   
+            "longitude" => 120.5888 + (rand(-500, 500) / 100000) 
+       ]
+  ];
+}
+
 
 // If JSON exists, insert into database
 if ($data && isset($data["basic_info"]["plate_no"])) {
@@ -55,9 +97,9 @@ if ($data && isset($data["basic_info"]["plate_no"])) {
 }
 
 // If plate_no is provided, return latest data
-if ($plate_no) {
+if ($params_plate_no) {
     $sel = $mysqli->prepare("SELECT * FROM obd_logs WHERE plate_no = ? ORDER BY id DESC LIMIT 1");
-    $sel->bind_param("s", $plate_no);
+    $sel->bind_param("s", $params_plate_no);
     $sel->execute();
     $result = $sel->get_result();
 
@@ -69,15 +111,32 @@ if ($plate_no) {
 
     echo json_encode([
         "status" => "success",
-        "plate_no" => $plate_no,
+        "plate_no" => $params_plate_no,
         "logs" => $logs
     ]);
-} else {
-    echo json_encode([
-        "status" => "error",
-        "message" => "No plate_no provided"
-    ]);
-}
+    } else { //if no plate no provided then show all the cars
+        $sql = "
+            SELECT t.*
+            FROM obd_logs t
+            INNER JOIN (
+                SELECT plate_no, MAX(id) AS max_id
+                FROM obd_logs
+                GROUP BY plate_no
+            ) x ON t.plate_no = x.plate_no AND t.id = x.max_id
+            ORDER BY t.plate_no ASC
+        ";
+        $result = $mysqli->query($sql);
+
+        $logs = [];
+        while ($row = $result->fetch_assoc()) {
+            $logs[] = $row;
+        }
+
+        echo json_encode([
+            "status" => "success",
+            "logs" => $logs
+        ]);
+    }
 
 $mysqli->close();
 ?>
