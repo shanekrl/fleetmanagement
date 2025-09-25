@@ -59,39 +59,59 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
     if ($vehicle_id <= 0) $vehicle_id = null;
 
     // Initial status. If driver is chosen now, keep it conservative:
-    $status = $driver_id ? 'awaiting_driver' : 'pending';
+    $status    = $driver_id ? 'awaiting_driver' : 'pending';
+    $payment   = 'unpaid';
+    $client_id = null;
 
-    $sql = "INSERT INTO bookings
-            (booking_type, created_by, client_id, driver_id, vehicle_id,
-             pax, contact_name, contact_phone, pickup_point, dropoff_point,
-             scheduled_start_at, status, payment_status, notes, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, ?, NOW(), NOW())";
+    // 14 columns – created_at/updated_at use DB defaults
+    $sql = "INSERT INTO `bookings`
+            (`booking_type`,`created_by`,`client_id`,`driver_id`,`vehicle_id`,
+            `pax`,`contact_name`,`contact_phone`,`pickup_point`,`dropoff_point`,
+            `scheduled_start_at`,`status`,`payment_status`,`notes`)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     if ($stmt = $mysqli->prepare($sql)) {
-      $payment   = 'unpaid';
-      $client_id = null;
+      // Build (type,value) pairs to guarantee 1:1 match
+      $pairs = [
+        ['s', $booking_type],
+        ['i', $creatorId],
+        ['i', $client_id],     // nullable
+        ['i', $driver_id],     // nullable
+        ['i', $vehicle_id],    // nullable
+        ['i', $pax],
+        ['s', $customer],
+        ['s', $phone],
+        ['s', $pickup],
+        ['s', $dropoff],
+        ['s', $scheduled],
+        ['s', $status],
+        ['s', $payment],
+        ['s', $notes],
+      ];
 
-      // types: booking_type(s),
-      //        created_by(i), client_id(i), driver_id(i), vehicle_id(i), pax(i),
-      //        contact_name(s), contact_phone(s), pickup_point(s), dropoff_point(s),
-      //        scheduled_start_at(s), status(s), payment_status(s), notes(s)
-      $stmt->bind_param(
-        'siiiiisssssssss',
-        $booking_type, $creatorId, $client_id, $driver_id, $vehicle_id,
-        $pax, $customer, $phone, $pickup, $dropoff,
-        $scheduled, $status, $payment, $notes
-      );
+      $types  = '';
+      $values = [];
+      foreach ($pairs as $p) { $types .= $p[0]; $values[] = $p[1]; }
+
+      // bind_param needs references
+      $refs = [];
+      foreach ($values as $i => $v) { $refs[$i] = &$values[$i]; }
 
       $ok = false;
-      try { $ok = $stmt->execute(); }
-      catch (Throwable $e) { $err = 'Database error: '.$e->getMessage(); }
+      try {
+        $stmt->bind_param($types, ...$refs); // 14 types, 14 refs
+        $ok = $stmt->execute();
+      } catch (Throwable $e) {
+        $err = 'Database error: '.$e->getMessage();
+      }
       $stmt->close();
 
       $succ = $ok ? "Booking created." : ($err ?: "Please try again later.");
-
     } else {
-      $err = "DB error while preparing statement.";
+      $err = "DB error while preparing statement: ".$mysqli->error;
     }
+
+
 
   } else {
     // ===== LEGACY fallback => tms_user insert =====
@@ -288,7 +308,6 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
               <div class="form-group col-md-6">
                 <label>Pickup Location</label>
                 <input type="text" id="pickup" class="form-control" name="pickup" placeholder="Where from?">
-                <!-- hidden inputs to store chosen lat/lng -->
                 <input type="hidden" id="pickup_lat">
                 <input type="hidden" id="pickup_lng">
               </div>
@@ -336,16 +355,12 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
-  <!-- include jQuery UI (CSS + JS) for autocomplete UI -->
   <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-
-  <!-- leaflet-geosearch provider only (we're using provider.search) -->
   <script src="https://unpkg.com/leaflet-geosearch/dist/geosearch.umd.js"></script>
   <script src="vendor/js/trip_booking.js"></script>
 
   <!-- Pairing maps from PHP -->
   <script>
-    // Maps built from tms_vehicle.default_driver_id
     const VEH_TO_DRV = <?= json_encode($vehToDrv, JSON_UNESCAPED_UNICODE) ?>;
     const DRV_TO_VEH = <?= json_encode($drvToVeh, JSON_UNESCAPED_UNICODE) ?>;
 
@@ -353,7 +368,6 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
       var $veh = $('#vehicleSelect');
       var $drv = $('#driverSelect');
 
-      // When a vehicle is picked, auto-fill its default driver
       $veh.on('change', function(){
         var vid = $(this).val();
         if (!vid) return;
@@ -363,7 +377,6 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
         }
       });
 
-      // (Optional) when a driver is picked first, auto-select their paired vehicle
       $drv.on('change', function(){
         var uid = $(this).val();
         if (!uid) return;
