@@ -53,31 +53,29 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
   if ($isNewModel) {
     $booking_type = ($_POST['booking_type'] ?? 'admin') === 'personal' ? 'personal' : 'admin';
 
+    // these will already be auto-filled by JS when user changes vehicle/driver
     $driver_id  = (int)($_POST['driver_id'] ?? 0);
     $vehicle_id = (int)($_POST['vehicle_id'] ?? 0);
     if ($driver_id  <= 0) $driver_id  = null;
     if ($vehicle_id <= 0) $vehicle_id = null;
 
-    // Initial status. If driver is chosen now, keep it conservative:
     $status    = $driver_id ? 'awaiting_driver' : 'pending';
     $payment   = 'unpaid';
     $client_id = null;
 
-    // 14 columns – created_at/updated_at use DB defaults
     $sql = "INSERT INTO `bookings`
             (`booking_type`,`created_by`,`client_id`,`driver_id`,`vehicle_id`,
-            `pax`,`contact_name`,`contact_phone`,`pickup_point`,`dropoff_point`,
-            `scheduled_start_at`,`status`,`payment_status`,`notes`)
+             `pax`,`contact_name`,`contact_phone`,`pickup_point`,`dropoff_point`,
+             `scheduled_start_at`,`status`,`payment_status`,`notes`)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     if ($stmt = $mysqli->prepare($sql)) {
-      // Build (type,value) pairs to guarantee 1:1 match
       $pairs = [
         ['s', $booking_type],
         ['i', $creatorId],
-        ['i', $client_id],     // nullable
-        ['i', $driver_id],     // nullable
-        ['i', $vehicle_id],    // nullable
+        ['i', $client_id],
+        ['i', $driver_id],
+        ['i', $vehicle_id],
         ['i', $pax],
         ['s', $customer],
         ['s', $phone],
@@ -88,30 +86,17 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
         ['s', $payment],
         ['s', $notes],
       ];
-
-      $types  = '';
-      $values = [];
-      foreach ($pairs as $p) { $types .= $p[0]; $values[] = $p[1]; }
-
-      // bind_param needs references
-      $refs = [];
-      foreach ($values as $i => $v) { $refs[$i] = &$values[$i]; }
-
-      $ok = false;
-      try {
-        $stmt->bind_param($types, ...$refs); // 14 types, 14 refs
-        $ok = $stmt->execute();
-      } catch (Throwable $e) {
-        $err = 'Database error: '.$e->getMessage();
-      }
+      $types=''; $values=[];
+      foreach ($pairs as $p){ $types.=$p[0]; $values[]=$p[1]; }
+      $refs=[]; foreach ($values as $i=>$v){ $refs[$i]=&$values[$i]; }
+      try { $stmt->bind_param($types, ...$refs); $ok = $stmt->execute(); }
+      catch (Throwable $e){ $ok=false; $err='Database error: '.$e->getMessage(); }
       $stmt->close();
 
       $succ = $ok ? "Booking created." : ($err ?: "Please try again later.");
     } else {
       $err = "DB error while preparing statement: ".$mysqli->error;
     }
-
-
 
   } else {
     // ===== LEGACY fallback => tms_user insert =====
@@ -146,9 +131,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
         $u_car_pickup, $u_car_destination, $u_car_regno,
         $u_car_type, $u_car_driver, $u_category, $u_email, $u_pwd
       );
-      $ok = false;
       try { $ok = $stmt->execute(); }
-      catch (Throwable $e) { $err = 'Database error: '.$e->getMessage(); }
+      catch (Throwable $e) { $ok=false; $err = 'Database error: '.$e->getMessage(); }
       $stmt->close();
 
       $succ = $ok ? "Booking created." : ($err ?: "Please try again later.");
@@ -160,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_booking'])) {
 
 /* -----------------------------------------------------------
    Aux lists for selects + pairing maps
-   (NEW MODEL pulls from accounts + tms_vehicle)
+   NEW MODEL pulls from accounts + tms_vehicle
 ----------------------------------------------------------- */
 $drivers = $vehicles = [];
 if ($isNewModel && table_exists($mysqli,'accounts')) {
@@ -172,8 +156,7 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle')) {
   if ($q = $mysqli->query("
         SELECT v_id AS id,
                COALESCE(NULLIF(v_name,''),'Vehicle') AS name,
-               COALESCE(NULLIF(v_reg_no,''), CONCAT('ID-', v_id)) AS plate_no,
-               default_driver_id
+               COALESCE(NULLIF(v_reg_no,''), CONCAT('ID-', v_id)) AS plate_no
         FROM tms_vehicle
         WHERE deleted_at IS NULL
         ORDER BY v_name, v_reg_no")) {
@@ -181,17 +164,20 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle')) {
   }
 }
 
-/* Build pairing maps (Vehicle -> Driver) and (Driver -> Vehicle)
-   using tms_vehicle.default_driver_id */
+/* -------- Build pairing maps from CURRENT assignments ----------
+   Use the view v_vehicle_current_driver:
+   - driver_account_id -> accounts.id (new drivers)
+   - Works even if there’s no active row (falls back to default)
+----------------------------------------------------------------- */
 $vehToDrv = [];
 $drvToVeh = [];
-if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,'tms_vehicle','default_driver_id')) {
+if ($isNewModel && table_exists($mysqli,'v_vehicle_current_driver')) {
   $rs = $mysqli->query("
-        SELECT v_id AS v, default_driver_id AS d
-        FROM tms_vehicle
-        WHERE default_driver_id IS NOT NULL");
+      SELECT v_id, driver_account_id
+      FROM v_vehicle_current_driver
+      WHERE driver_account_id IS NOT NULL");
   if ($rs) while($m=$rs->fetch_assoc()){
-    $vid = (int)$m['v']; $did = (int)$m['d'];
+    $vid = (int)$m['v_id']; $did = (int)$m['driver_account_id'];
     if ($vid && $did) { $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
   }
 }
@@ -359,7 +345,7 @@ if ($isNewModel && table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,
   <script src="https://unpkg.com/leaflet-geosearch/dist/geosearch.umd.js"></script>
   <script src="vendor/js/trip_booking.js"></script>
 
-  <!-- Pairing maps from PHP -->
+  <!-- Pairing maps from CURRENT assignments -->
   <script>
     const VEH_TO_DRV = <?= json_encode($vehToDrv, JSON_UNESCAPED_UNICODE) ?>;
     const DRV_TO_VEH = <?= json_encode($drvToVeh, JSON_UNESCAPED_UNICODE) ?>;

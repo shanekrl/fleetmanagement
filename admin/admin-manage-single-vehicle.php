@@ -3,6 +3,7 @@ session_start();
 include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');
 check_login();
+$aid = require_admin();
 
 $mysqli->set_charset('utf8mb4');
 
@@ -26,7 +27,10 @@ function vehicle_image_url($raw){
   return 'vendor/img/vehicles/'.ltrim($raw,'/');
 }
 
-/* ----- category helpers ----- */
+/* ----- feature flags / categories ----- */
+$hasVehAssigns = table_exists($mysqli,'vehicle_assignments');
+$hasAccounts   = table_exists($mysqli,'accounts');
+
 $default_cats  = ['Bus','Sedan','SUV','Van'];
 $cat_table     = table_exists($mysqli, 'tms_vehicle_categories');
 $cat_soft      = $cat_table && column_exists($mysqli,'tms_vehicle_categories','deleted_at');
@@ -45,78 +49,21 @@ function fetch_categories(mysqli $db, bool $cat_table, bool $cat_soft, array $fa
 $vehId = isset($_GET['v_id']) ? (int)$_GET['v_id'] : 0;
 if ($vehId <= 0) { header('Location: admin-manage-vehicle.php'); exit; }
 
-/* New-schema link flag */
-$has_driver_fk = column_exists($mysqli, 'tms_vehicle', 'default_driver_id');
-
 $succ = $err = '';
 
-/* ----------------- create driver (modal POST) — NEW SCHEMA ----------------- */
-if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_driver'])) {
-  $name = trim(($_POST['u_fname'] ?? '').' '.($_POST['u_lname'] ?? ''));
-  $name = trim($name);
-  $phone = trim($_POST['u_phone'] ?? '');
-  $email = trim($_POST['u_email'] ?? '');
-  $assignNow = !empty($_POST['assign_to_vehicle']) && $has_driver_fk;
-
-  if ($name === '' && $email === '') {
-    $err = 'Please enter a name or email for the driver.';
-  } elseif (!table_exists($mysqli,'accounts')) {
-    $err = 'Accounts table is missing.';
-  } else {
-    $mysqli->begin_transaction();
-    try {
-      // avoid duplicate emails
-      $accId = null;
-      if ($email) {
-        if ($st=$mysqli->prepare("SELECT id FROM accounts WHERE LOWER(email)=LOWER(?) LIMIT 1 FOR UPDATE")) {
-          $st->bind_param('s',$email); $st->execute(); $st->bind_result($accId); $st->fetch(); $st->close();
-        }
-      }
-      if (!$accId) {
-        $pwdHash = password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT);
-        if ($st=$mysqli->prepare("INSERT INTO accounts(role,name,email,password_hash,phone,is_active) VALUES('driver',?,?,?,?,1)")) {
-          $st->bind_param('ssss',$name,$email,$pwdHash,$phone);
-          $st->execute(); $accId=$st->insert_id; $st->close();
-        } else { throw new Exception('prepare accounts insert failed'); }
-
-        // optional driver_profile seed
-        if (table_exists($mysqli,'driver_profile')) {
-          if ($p=$mysqli->prepare("INSERT INTO driver_profile(account_id,current_status) VALUES(?, 'available')")) {
-            $p->bind_param('i',$accId); $p->execute(); $p->close();
-          }
-        }
-      }
-
-      if ($assignNow && $accId) {
-        // ensure one-vehicle-per-driver (optional)
-        if ($c=$mysqli->prepare("UPDATE tms_vehicle SET default_driver_id=NULL WHERE default_driver_id=? AND v_id<>?")) {
-          $c->bind_param('ii',$accId,$vehId); $c->execute(); $c->close();
-        }
-        if ($u=$mysqli->prepare("UPDATE tms_vehicle SET default_driver_id=? WHERE v_id=?")) {
-          $u->bind_param('ii',$accId,$vehId); $u->execute(); $u->close();
-        }
-      }
-
-      $mysqli->commit();
-      $succ = 'Driver '.($email?:$name?:('ID#'.$accId)).' created'.($assignNow?' and assigned to this vehicle.':'.');
-    } catch(Throwable $e){
-      $mysqli->rollback();
-      // 1062 duplicate key (email)
-      if ($mysqli->errno === 1062) $err = 'That email is already in use.';
-      else $err = 'Could not create driver. Please try again.';
-    }
-  }
-}
-
-/* ----------------- update vehicle (POST) — NEW SCHEMA ----------------- */
-if (isset($_POST['update_veh']) || isset($_POST['upate_veh'])) { // keep typo-compatible
+/* ----------------- update vehicle (fields + assignment) ----------------- */
+if (isset($_POST['update_veh'])) {
   $v_name     = trim($_POST['v_name'] ?? '');
   $v_reg_no   = trim($_POST['v_reg_no'] ?? '');
   $v_category = trim($_POST['v_category'] ?? '');
   $v_status   = trim($_POST['v_status'] ?? '');
-  $v_dpic     = $_POST['__current_dpic'] ?? ''; // hidden field to keep current
+  $v_dpic     = $_POST['__current_dpic'] ?? '';
 
-  // upload (optional)
+  // assignment from the main form (numeric id or "0" for none)
+  $assign_driver_id = isset($_POST['assign_driver_id']) && ctype_digit((string)$_POST['assign_driver_id'])
+                      ? (int)$_POST['assign_driver_id'] : 0;
+
+  // optional image upload
   if (!empty($_FILES['v_dpic']['name']) && is_uploaded_file($_FILES['v_dpic']['tmp_name'])) {
     $allowed = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
     $mime = @mime_content_type($_FILES['v_dpic']['tmp_name']);
@@ -132,37 +79,29 @@ if (isset($_POST['update_veh']) || isset($_POST['upate_veh'])) { // keep typo-co
     }
   }
 
-  // driver from accounts.id
-  $default_driver_id = null;
-  if ($has_driver_fk) {
-    $raw = trim($_POST['default_driver_id'] ?? '');
-    if ($raw !== '' && ctype_digit($raw)) $default_driver_id = (int)$raw;
-  }
-
   $mysqli->begin_transaction();
   try {
-    if ($has_driver_fk) {
-      if ($default_driver_id) {
-        if ($c=$mysqli->prepare("UPDATE tms_vehicle SET default_driver_id=NULL WHERE default_driver_id=? AND v_id<>?")) {
-          $c->bind_param('ii',$default_driver_id,$vehId); $c->execute(); $c->close();
+    // 1) update vehicle fields
+    if ($s=$mysqli->prepare("UPDATE tms_vehicle SET v_name=?, v_reg_no=?, v_category=?, v_dpic=?, v_status=? WHERE v_id=?")) {
+      $s->bind_param('sssssi',$v_name,$v_reg_no,$v_category,$v_dpic,$v_status,$vehId);
+      $s->execute(); $s->close();
+    }
+
+    // 2) update assignment (if tables present)
+    if ($hasVehAssigns && $hasAccounts) {
+      if ($assign_driver_id === 0) {
+        // clear current assignment for this vehicle
+        if ($s=$mysqli->prepare("UPDATE vehicle_assignments SET end_at=NOW() WHERE vehicle_id=? AND end_at IS NULL")) {
+          $s->bind_param('i',$vehId); $s->execute(); $s->close();
         }
-      }
-      $sql = "UPDATE tms_vehicle
-              SET v_name=?, v_reg_no=?, v_category=?, v_dpic=?, v_status=?, default_driver_id=?
-              WHERE v_id=?";
-      if ($s=$mysqli->prepare($sql)) {
-        $drv = $default_driver_id ?: null;
-        $s->bind_param('ssssssi',$v_name,$v_reg_no,$v_category,$v_dpic,$v_status,$drv,$vehId);
-        $s->execute(); $s->close();
-      }
-    } else {
-      // If column truly not there, just save other fields
-      $sql = "UPDATE tms_vehicle
-              SET v_name=?, v_reg_no=?, v_category=?, v_dpic=?, v_status=?
-              WHERE v_id=?";
-      if ($s=$mysqli->prepare($sql)) {
-        $s->bind_param('sssssi',$v_name,$v_reg_no,$v_category,$v_dpic,$v_status,$vehId);
-        $s->execute(); $s->close();
+      } else {
+        // move driver to this vehicle: close any open for either side, then create a new one
+        if ($s=$mysqli->prepare("UPDATE vehicle_assignments SET end_at=NOW() WHERE (driver_id=? OR vehicle_id=?) AND end_at IS NULL")) {
+          $s->bind_param('ii',$assign_driver_id,$vehId); $s->execute(); $s->close();
+        }
+        if ($s=$mysqli->prepare("INSERT INTO vehicle_assignments(vehicle_id,driver_id,assigned_by,start_at) VALUES(?,?,?,NOW())")) {
+          $s->bind_param('iii',$vehId,$assign_driver_id,$aid); $s->execute(); $s->close();
+        }
       }
     }
 
@@ -174,14 +113,10 @@ if (isset($_POST['update_veh']) || isset($_POST['upate_veh'])) { // keep typo-co
   }
 }
 
-/* ----------------- fetch vehicle (with driver via accounts) ----------------- */
+/* ----------------- fetch vehicle & current assignment ----------------- */
 $vehicle = null;
-$sql = "SELECT v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic,
-               ".($has_driver_fk ? "v.default_driver_id" : "NULL AS default_driver_id").",
-               a.name AS driver_name, a.email AS driver_email
-        FROM tms_vehicle v
-        LEFT JOIN accounts a ON ".($has_driver_fk ? "a.id = v.default_driver_id" : "0")."
-        WHERE v.v_id=? LIMIT 1";
+$sql = "SELECT v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic
+        FROM tms_vehicle v WHERE v.v_id=? LIMIT 1";
 if ($s=$mysqli->prepare($sql)) {
   $s->bind_param('i',$vehId);
   $s->execute();
@@ -190,15 +125,31 @@ if ($s=$mysqli->prepare($sql)) {
 }
 if (!$vehicle) { header('Location: admin-manage-vehicle.php'); exit; }
 
-/* ----------------- driver list from accounts ----------------- */
-$drivers_accounts = [];
-if (table_exists($mysqli,'accounts')) {
-  $q = $mysqli->query("
-    SELECT d_u_id AS id, COALESCE(NULLIF(TRIM(u_fname),''), u_email, CONCAT('Driver #',d_u_id)) AS label
-    FROM tms_user_add_driver
-    ORDER BY label
+$current_driver_id = 0;
+$current_driver_name = '';
+if ($hasVehAssigns) {
+  $q = $mysqli->prepare("
+    SELECT va.driver_id, a.name
+      FROM vehicle_assignments va
+      JOIN accounts a ON a.id = va.driver_id
+     WHERE va.vehicle_id=? AND va.end_at IS NULL
+     LIMIT 1
   ");
-  if ($q) while ($r=$q->fetch_assoc()) $drivers_accounts[] = $r;
+  $q->bind_param('i',$vehId); $q->execute();
+  $q->bind_result($current_driver_id,$current_driver_name); $q->fetch(); $q->close();
+}
+
+/* ----------------- driver list from accounts (available or on this car) ----------------- */
+$drivers_acc = [];
+if ($hasAccounts) {
+  $q = $mysqli->query("
+    SELECT a.id, a.name,
+           (SELECT vehicle_id FROM vehicle_assignments WHERE driver_id=a.id AND end_at IS NULL LIMIT 1) AS current_vehicle_id
+      FROM accounts a
+     WHERE a.role='driver' AND a.is_active=1
+     ORDER BY a.name, a.id DESC
+  ");
+  if ($q) while($r=$q->fetch_assoc()) $drivers_acc[]=$r;
 }
 
 /* ----------------- categories for EDIT select ----------------- */
@@ -211,9 +162,7 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
 <html lang="en">
 <?php include('vendor/inc/head.php'); ?>
 <body id="page-top">
-
   <?php include("vendor/inc/nav.php"); ?>
-
   <div id="wrapper">
     <?php include("vendor/inc/sidebar.php"); ?>
 
@@ -230,59 +179,35 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
           </div>
         </div>
 
-        <?php if($succ): ?>
-          <script>setTimeout(function(){ swal("Success!", "<?= h($succ) ?>", "success"); }, 80);</script>
-        <?php endif; ?>
-        <?php if($err): ?>
-          <script>setTimeout(function(){ swal("Failed!", "<?= h($err) ?>", "error"); }, 80);</script>
-        <?php endif; ?>
+        <?php if($succ): ?><script>setTimeout(function(){ swal("Success!", "<?= h($succ) ?>", "success"); }, 80);</script><?php endif; ?>
+        <?php if($err):  ?><script>setTimeout(function(){ swal("Failed!", "<?= h($err) ?>", "error"); }, 80);</script><?php endif; ?>
 
         <section class="kaya-card p-3 p-md-4">
           <form method="POST" enctype="multipart/form-data">
             <div class="row">
-              <!-- Left column -->
               <div class="col-lg-8">
                 <div class="form-group">
                   <label class="font-weight-semibold">Vehicle Name</label>
-                  <input type="text" name="v_name" required class="form-control"
-                         value="<?= h($vehicle['v_name'] ?? '') ?>">
+                  <input type="text" name="v_name" required class="form-control" value="<?= h($vehicle['v_name'] ?? '') ?>">
                 </div>
 
                 <div class="form-group">
                   <label class="font-weight-semibold">Vehicle Registration Number</label>
-                  <input type="text" name="v_reg_no" class="form-control"
-                         value="<?= h($vehicle['v_reg_no'] ?? '') ?>">
+                  <input type="text" name="v_reg_no" class="form-control" value="<?= h($vehicle['v_reg_no'] ?? '') ?>">
                 </div>
 
-                <?php if ($has_driver_fk): 
-                  ?>
-                  <div class="form-group">
-                    <label class="font-weight-semibold">Driver</label>
-                    <div class="d-flex" style="gap:.5rem;align-items:center;">
-                      <select class="form-control" name="default_driver_id" id="default_driver_id">
-                        <option value="">— None —</option>
-                        <?php
-                          $current = (int)($vehicle['default_driver_id'] ?? 0);
-                          foreach ($drivers_accounts as $d) {
-                            $sel = ($current===(int)$d['id']) ? 'selected' : '';
-                            echo '<option value="'.(int)$d['id'].'" '.$sel.'>'.h($d['label']).'</option>';
-                          }
-                        ?>
-                      </select>
-                      <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="modal" data-target="#createDriverModal">
-                        <i class="fas fa-user-plus mr-1"></i> New
-                      </button>
-                    </div>
-                    <small class="text-muted d-block mt-1">
-                      Uses <code>accounts</code> (role=<em>driver</em>) and saves to <code>tms_vehicle.default_driver_id</code>.
-                    </small>
-                  </div>
-                <?php else: ?>
-                  <div class="form-group">
-                    <label class="font-weight-semibold">Driver (unlinked)</label>
-                    <input type="text" class="form-control" placeholder="Add column tms_vehicle.default_driver_id to link a driver">
-                  </div>
-                <?php endif; ?>
+                <div class="form-group">
+                  <label class="font-weight-semibold">Driver</label>
+                  <select class="form-control" name="assign_driver_id">
+                    <option value="0">— None —</option>
+                    <?php foreach($drivers_acc as $d):
+                      if (empty($d['current_vehicle_id']) || (int)$d['current_vehicle_id']===$vehId):
+                        $sel = ((int)$d['id'] === (int)$current_driver_id) ? 'selected' : '';
+                    ?>
+                      <option value="<?= (int)$d['id'] ?>" <?= $sel ?>><?= h($d['name'] ?: ('Driver #'.(int)$d['id'])) ?></option>
+                    <?php endif; endforeach; ?>
+                  </select>
+                </div>
 
                 <div class="form-row">
                   <div class="form-group col-md-6">
@@ -291,8 +216,7 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
                       <?php
                         $curr = $vehicle['v_category'] ?? '';
                         foreach ($categories_active as $c) {
-                          $name = $c['name'];
-                          $sel = ($name===$curr)?'selected':'';
+                          $name = $c['name']; $sel = ($name===$curr)?'selected':'';
                           echo "<option $sel>".h($name)."</option>";
                         }
                       ?>
@@ -326,7 +250,6 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
                 </div>
               </div>
 
-              <!-- Right column: image -->
               <div class="col-lg-4 mt-4 mt-lg-0">
                 <div class="card shadow-sm" style="border-radius:.75rem; overflow:hidden;">
                   <?php if ($img): ?>
@@ -349,58 +272,7 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
         </section>
 
       </div>
-
       <?php include("vendor/inc/footer.php"); ?>
-    </div>
-  </div>
-
-  <!-- Create Driver Modal (accounts) -->
-  <div class="modal fade" id="createDriverModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-      <form method="post">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Create Driver</h5>
-            <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" name="create_driver" value="1">
-            <div class="form-row">
-              <div class="form-group col-md-6">
-                <label>First Name</label>
-                <input type="text" class="form-control" name="u_fname">
-              </div>
-              <div class="form-group col-md-6">
-                <label>Last Name</label>
-                <input type="text" class="form-control" name="u_lname">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group col-md-6">
-                <label>Phone</label>
-                <input type="text" class="form-control" name="u_phone">
-              </div>
-              <div class="form-group col-md-6">
-                <label>Email</label>
-                <input type="email" class="form-control" name="u_email">
-              </div>
-            </div>
-            <?php if ($has_driver_fk): ?>
-              <div class="custom-control custom-checkbox">
-                <input type="checkbox" class="custom-control-input" id="assign_to_vehicle" name="assign_to_vehicle" checked>
-                <label class="custom-control-label" for="assign_to_vehicle">Assign to this vehicle after creating</label>
-              </div>
-            <?php endif; ?>
-            <small class="text-muted d-block mt-2">
-              Creates a driver in <code>accounts</code> (role=<em>driver</em>) and optionally links it to this vehicle.
-            </small>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-kaya-primary" type="submit">Create</button>
-            <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Cancel</button>
-          </div>
-        </div>
-      </form>
     </div>
   </div>
 

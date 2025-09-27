@@ -4,6 +4,8 @@ include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');
 check_login();
 
+$mysqli->set_charset('utf8mb4');
+
 /* ---------- helpers ---------- */
 function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function status_badge_class($s){
@@ -14,147 +16,99 @@ function status_badge_class($s){
   if ($s==='maintenance') return 'badge badge-warning';
   return 'badge badge-secondary';
 }
-function column_exists(mysqli $db, string $table, string $col): bool {
-  $t = $db->real_escape_string($table);
-  $c = $db->real_escape_string($col);
+function col_exists(mysqli $db, $t, $c){
+  $t = $db->real_escape_string($t);
+  $c = $db->real_escape_string($c);
   $r = $db->query("SHOW COLUMNS FROM `{$t}` LIKE '{$c}'");
-  return $r && $r->num_rows > 0;
+  return $r && $r->num_rows>0;
 }
 
 /* ---------- get id ---------- */
 $vId = isset($_GET['v_id']) ? (int)$_GET['v_id'] : 0;
 if ($vId <= 0) { header('Location: admin-manage-vehicle.php'); exit; }
 
-/* ---------- soft delete support ---------- */
-$has_soft_delete = column_exists($mysqli, 'tms_vehicle', 'deleted_at');
-$aid = 0;
-if (function_exists('require_admin')) { $aid = require_admin(); }
-
-/* ---------- POST: delete / restore ---------- */
-if ($_SERVER['REQUEST_METHOD']==='POST') {
-  if (isset($_POST['delete_vehicle']) && isset($_POST['v_id'])) {
-    $toDel = (int)$_POST['v_id'];
-    if ($has_soft_delete) {
-      // soft delete
-      if ($stmt = $mysqli->prepare("UPDATE tms_vehicle SET deleted_at = NOW(), deleted_by = ? WHERE v_id = ?")) {
-        $stmt->bind_param('ii', $aid, $toDel);
-        $stmt->execute();
-        $stmt->close();
-      }
-      header('Location: admin-manage-vehicle.php?deleted=1'); exit;
-    } else {
-      // hard delete (fallback)
-      if ($stmt = $mysqli->prepare("DELETE FROM tms_vehicle WHERE v_id=?")) {
-        $stmt->bind_param('i', $toDel);
-        $stmt->execute();
-        $stmt->close();
-      }
-      header('Location: admin-manage-vehicle.php?deleted=1'); exit;
-    }
-  }
-
-  if ($has_soft_delete && isset($_POST['restore_vehicle']) && isset($_POST['v_id'])) {
-    $toRes = (int)$_POST['v_id'];
-    if ($stmt = $mysqli->prepare("UPDATE tms_vehicle SET deleted_at = NULL, deleted_by = NULL WHERE v_id = ?")) {
-      $stmt->bind_param('i', $toRes);
-      $stmt->execute();
-      $stmt->close();
-    }
-    header('Location: admin-view-vehicle.php?v_id='.$toRes.'&restored=1'); exit;
-  }
-}
-
-/* ---------- fetch vehicle + driver ---------- */
-$veh = null;
-$sql = "SELECT v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic,
-               v.v_pass_no, v.driver_user_id,
-               ".($has_soft_delete ? "v.deleted_at, v.deleted_by," : "")."
-               u.u_id AS driver_id, u.u_fname, u.u_lname, u.u_phone, u.u_email
+/* ---------- fetch vehicle + current driver (accounts) + fallback (add_driver) ---------- */
+$sql = "SELECT
+          v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic,
+          v.v_pass_no, v.default_driver_id
         FROM tms_vehicle v
-        LEFT JOIN tms_user u ON u.u_id = v.driver_user_id
-        WHERE v.v_id = ? LIMIT 1";
-if ($s = $mysqli->prepare($sql)) {
-  $s->bind_param('i', $vId);
-  $s->execute();
-  $veh = $s->get_result()->fetch_assoc();
-  $s->close();
+        WHERE v.v_id=?";
+$veh=null;
+if($st=$mysqli->prepare($sql)){
+  $st->bind_param('i',$vId);
+  $st->execute();
+  $veh=$st->get_result()->fetch_assoc();
+  $st->close();
 }
-if (!$veh) { header('Location: admin-manage-vehicle.php'); exit; }
+if(!$veh){ header('Location: admin-manage-vehicle.php'); exit; }
 
-$is_deleted = $has_soft_delete && !empty($veh['deleted_at']);
+/* active assignment (vehicle_assignments) */
+$assign = [
+  'driver_id'=>null,'name'=>null,'email'=>null,'phone'=>null
+];
+$q = $mysqli->prepare("
+  SELECT a.id AS driver_id, a.name, a.email, a.phone
+  FROM vehicle_assignments va
+  JOIN accounts a ON a.id=va.driver_id
+  WHERE va.vehicle_id=? AND va.end_at IS NULL
+  LIMIT 1
+");
+$q->bind_param('i',$vId);
+$q->execute();
+if($r=$q->get_result()->fetch_assoc()) $assign=$r;
+$q->close();
 
-/* ---------- image url resolver ---------- */
+/* fallback from tms_user_add_driver (legacy) */
+$fallback = null;
+if(!empty($veh['default_driver_id'])){
+  $dId = (int)$veh['default_driver_id'];
+  if($rs=$mysqli->query("SELECT u_fname,u_lname,u_email AS email,u_phone AS phone
+                         FROM tms_user_add_driver WHERE d_u_id={$dId}")){
+    $fallback=$rs->fetch_assoc();
+  }
+}
+
+/* drivers list (accounts) for picker */
+$drivers=[];
+if($rs=$mysqli->query("SELECT id,name,email,phone FROM accounts
+                       WHERE role='driver' AND is_active=1 ORDER BY name")){
+  while($row=$rs->fetch_assoc()) $drivers[]=$row;
+}
+
+/* build image url */
 function vehicle_image_url($raw){
   if (!$raw) return '';
-  // if it already looks like /path or http(s), return as-is
   if (preg_match('~^(https?:)?//~', $raw) || strpos($raw, '/') === 0) return $raw;
-  // our create form saves like "vendor/img/vehicles/xxx.jpg"
   if (strpos($raw, 'vendor/') === 0) return $raw;
-  // legacy: only filename -> assume vehicles folder
   return 'vendor/img/vehicles/'.ltrim($raw,'/');
 }
 $img = vehicle_image_url($veh['v_dpic'] ?? '');
-$driverName = ($veh['driver_id']) ? trim(($veh['u_fname'] ?? '').' '.($veh['u_lname'] ?? '')) : '—';
-$driverContact = [];
-if (!empty($veh['u_phone'])) $driverContact[] = $veh['u_phone'];
-if (!empty($veh['u_email'])) $driverContact[] = $veh['u_email'];
-$driverContact = implode(' · ', $driverContact);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include('vendor/inc/head.php'); ?>
 <body id="page-top">
-
 <?php include('vendor/inc/nav.php'); ?>
-
 <div id="wrapper">
   <?php include('vendor/inc/sidebar.php'); ?>
-
   <div id="content-wrapper">
     <div class="container-fluid">
+      <h1 class="kaya-page-title">Vehicle Details</h1>
 
-      <!-- Title -->
-      <h1 class="kaya-page-title">
-        Vehicle Details
-        <?php if ($is_deleted): ?>
-          <span class="badge badge-danger ml-2">Deleted</span>
-        <?php endif; ?>
-      </h1>
-
-      <!-- Toolbar -->
       <div class="kaya-toolbar d-flex align-items-center mb-3">
         <div class="ml-auto kaya-actions">
           <a href="admin-manage-vehicle.php" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left mr-1"></i> Back
           </a>
-
           <a href="admin-manage-single-vehicle.php?v_id=<?= (int)$veh['v_id'] ?>" class="btn btn-kaya-primary">
             <i class="fas fa-pen mr-1"></i> Edit
           </a>
-
-          <?php if ($is_deleted): ?>
-            <form method="post" class="d-inline" style="margin:0;">
-              <input type="hidden" name="v_id" value="<?= (int)$veh['v_id'] ?>">
-              <button name="restore_vehicle" class="btn btn-success">
-                <i class="fas fa-undo mr-1"></i> Restore
-              </button>
-            </form>
-          <?php else: ?>
-            <form method="post" class="d-inline" style="margin:0;"
-                  onsubmit="return confirm('Delete this vehicle? You can restore it later.');">
-              <input type="hidden" name="v_id" value="<?= (int)$veh['v_id'] ?>">
-              <button name="delete_vehicle" class="btn btn-kaya-danger-outline">
-                <i class="fas fa-trash mr-1"></i> Delete
-              </button>
-            </form>
-          <?php endif; ?>
         </div>
       </div>
 
-      <!-- Details -->
       <section class="kaya-card p-3 p-md-4">
         <div class="row">
-          <!-- Left: meta/details -->
           <div class="col-lg-8">
             <div class="mb-3">
               <h2 class="mb-1" style="font-weight:700;color:#000047">
@@ -172,50 +126,88 @@ $driverContact = implode(' · ', $driverContact);
             <div class="table-responsive">
               <table class="table table-borderless kaya-table mb-0">
                 <tbody>
-                  <tr>
-                    <th style="width:220px;color:#6b7280;">Vehicle Name</th>
-                    <td><?= h($veh['v_name'] ?: '—') ?></td>
-                  </tr>
-                  <tr>
-                    <th style="color:#6b7280;">Registration Number</th>
-                    <td><?= h($veh['v_reg_no'] ?: '—') ?></td>
-                  </tr>
-                  <tr>
-                    <th style="color:#6b7280;">Driver</th>
-                    <td>
-                      <?= h($driverName) ?>
-                      <?php if ($veh['driver_id']): ?>
-                        <?php if ($driverContact): ?>
-                          <div class="text-muted small"><?= h($driverContact) ?></div>
-                        <?php endif; ?>
+                <tr>
+                  <th style="width:220px;color:#6b7280;">Vehicle Name</th>
+                  <td><?= h($veh['v_name'] ?: '—') ?></td>
+                </tr>
+                <tr>
+                  <th style="color:#6b7280;">Registration Number</th>
+                  <td><?= h($veh['v_reg_no'] ?: '—') ?></td>
+                </tr>
+                <tr>
+                  <th style="color:#6b7280;">Driver</th>
+                  <td>
+                    <?php if($assign['driver_id']): ?>
+                      <div class="mb-1"><strong><?= h($assign['name']) ?></strong></div>
+                      <div class="text-muted small">
+                        <?= h($assign['phone'] ?: '') ?>
+                        <?= ($assign['phone'] && $assign['email'])?' · ':'' ?>
+                        <?= h($assign['email'] ?: '') ?>
+                      </div>
+                    <?php elseif($fallback): ?>
+                      <div class="mb-1"><strong><?= h(trim(($fallback['u_fname']??'').' '.($fallback['u_lname']??''))) ?></strong></div>
+                      <div class="text-muted small">
+                        <?= h(($fallback['phone']??'')) ?>
+                        <?= (!empty($fallback['phone']) && !empty($fallback['email']))?' · ':'' ?>
+                        <?= h(($fallback['email']??'')) ?>
+                        <span class="badge badge-light ml-2">legacy</span>
+                      </div>
+                    <?php else: ?>
+                      — 
+                    <?php endif; ?>
+
+                    <div class="mt-3">
+                      <button class="btn btn-sm btn-outline-primary" type="button"
+                              data-toggle="collapse" data-target="#assignBox">
+                        <i class="fas fa-exchange-alt mr-1"></i> Assign / Swap Driver
+                      </button>
+                      <?php if($assign['driver_id']): ?>
+                        <form method="post" action="vehicle-assign-driver.php" class="d-inline"
+                              onsubmit="return confirm('Unassign current driver?');">
+                          <input type="hidden" name="vehicle_id" value="<?= (int)$veh['v_id'] ?>">
+                          <input type="hidden" name="action" value="unassign">
+                          <button class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-unlink mr-1"></i> Unassign
+                          </button>
+                        </form>
                       <?php endif; ?>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th style="color:#6b7280;">Category</th>
-                    <td><?= h($veh['v_category'] ?: '—') ?></td>
-                  </tr>
-                  <tr>
-                    <th style="color:#6b7280;">Capacity (Pax)</th>
-                    <td><?= h((string)($veh['v_pass_no'] ?? '—')) ?></td>
-                  </tr>
-                  <tr>
-                    <th style="color:#6b7280;">Status</th>
-                    <td>
-                      <span class="<?= status_badge_class($veh['v_status']) ?> px-2 py-1">
-                        <?= h($veh['v_status'] ?: 'Unknown') ?>
-                      </span>
-                      <?php if ($is_deleted): ?>
-                        <span class="badge badge-danger ml-2">Deleted</span>
-                      <?php endif; ?>
-                    </td>
-                  </tr>
+                    </div>
+
+                    <div id="assignBox" class="collapse mt-3">
+                      <form method="post" action="vehicle-assign-driver.php" class="form-inline">
+                        <input type="hidden" name="vehicle_id" value="<?= (int)$veh['v_id'] ?>">
+                        <input type="hidden" name="action" value="assign">
+                        <select name="driver_id" class="form-control mr-2" required style="min-width:260px;">
+                          <option value="">— Select driver account —</option>
+                          <?php foreach($drivers as $d): ?>
+                            <option value="<?= (int)$d['id'] ?>"><?= h($d['name']) ?><?= $d['email']?' · '.h($d['email']):'' ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                        <button class="btn btn-sm btn-primary">Save</button>
+                      </form>
+                      <div class="text-muted small mt-2">
+                        This writes to <code>vehicle_assignments</code> (ends any active pairing, then creates a new one).
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th style="color:#6b7280;">Category</th>
+                  <td><?= h($veh['v_category'] ?: '—') ?></td>
+                </tr>
+                <tr>
+                  <th style="color:#6b7280;">Capacity (Pax)</th>
+                  <td><?= h((string)($veh['v_pass_no'] ?? '—')) ?></td>
+                </tr>
+                <tr>
+                  <th style="color:#6b7280;">Status</th>
+                  <td><span class="<?= status_badge_class($veh['v_status']) ?> px-2 py-1"><?= h($veh['v_status'] ?: 'Unknown') ?></span></td>
+                </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-          <!-- Right: image -->
           <div class="col-lg-4 mt-4 mt-lg-0">
             <div class="card shadow-sm" style="border-radius:.75rem; overflow:hidden;">
               <?php if ($img): ?>
@@ -240,7 +232,6 @@ $driverContact = implode(' · ', $driverContact);
   </div>
 </div>
 
-<!-- Vendor JS -->
 <script src="vendor/jquery/jquery.min.js"></script>
 <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
