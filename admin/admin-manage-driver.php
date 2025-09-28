@@ -137,12 +137,12 @@ if ($has_soft_delete && isset($_POST['purge_driver'])) {
 /* ----------------- FETCH LISTS ----------------- */
 $drivers_add = [];
 $whereAdd = $has_soft_delete ? ($view==='trash' ? "driver.deleted_at IS NOT NULL" : "driver.deleted_at IS NULL") : "1=1";
-if ($s=$mysqli->prepare("
-    SELECT driver.d_u_id, driver.u_fname, driver.u_lname, driver.u_phone, driver.u_addr, '' AS u_car_type, driver.u_car_regno, driver.u_car_book_status, driver.u_email,vehicles.v_reg_no
-    FROM tms_user_add_driver AS driver
-    LEFT JOIN tms_vehicle AS vehicles ON vehicles.default_driver_id = d_u_id
-    WHERE u_category='Driver' AND $whereAdd
-    ORDER BY d_u_id DESC")) {
+  if ($s=$mysqli->prepare("
+      SELECT driver.d_u_id, driver.u_fname, driver.u_lname, driver.u_phone, driver.u_addr,
+            '' AS u_car_type, driver.u_car_regno, driver.u_car_book_status, driver.u_email
+      FROM tms_user_add_driver AS driver
+      WHERE u_category='Driver' AND $whereAdd
+      ORDER BY d_u_id DESC")) {
   $s->execute();
   $r=$s->get_result();
   while($row=$r->fetch_assoc()){ $row['_src']='add'; $drivers_add[]=$row; }
@@ -298,7 +298,6 @@ foreach ($drivers_user as $d) {
               <?php $n=1; foreach($drivers as $d):
                 $name = trim(($d['u_fname']??'').' '.($d['u_lname']??''));
                 $src  = $d['_src']; $id = (int)$d['d_u_id'];
-                $v_reg_no = $d['v_reg_no'];
                 if (!empty($d['_status_class_override'])) {
                   $cls = $d['_status_class_override']; $txt = $d['u_car_book_status'];
                 } else {
@@ -322,8 +321,8 @@ foreach ($drivers_user as $d) {
                       <a class="btn btn-outline-secondary" title="Edit"
                          href="driver-edit.php?d_u_id=<?= $id ?>"><i class="fas fa-pen"></i></a>
                     <?php endif; ?>
-                    <a class="btn btn-outline-secondary"  title="Monitor"
-                       href="admin-view-syslogs.php?PlateNo=<?= $v_reg_no ?>"><i class="fas fa-eye"></i></a>
+                    <!--<a class="btn btn-outline-secondary"  title="Monitor"
+                       href="admin-view-syslogs.php?PlateNo=<?= $v_reg_no ?>"><i class="fas fa-eye"></i></a> -->
                     <?php if ($src==='add'): ?>
                       <button class="btn btn-outline-danger" title="Delete"
                               data-toggle="modal" data-target="#deleteDriverModal"
@@ -389,11 +388,11 @@ foreach ($drivers_user as $d) {
                     <label>Set Password (login)</label>
                     <input type="password" name="login_password" class="form-control" minlength="6" required>
                   </div>
-                  <div class="form-group col-md-6">
+                  <!--<div class="form-group col-md-6">
                     <small class="text-muted d-block mt-4">
                       A driver account will be created in <code>accounts</code> and linked in <code>driver_profile</code>.
                     </small>
-                  </div>
+                  </div> -->
                 </div>
 
                 <input type="hidden" name="u_category" value="Driver">

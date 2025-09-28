@@ -25,41 +25,91 @@ function table_exists(mysqli $db, string $table): bool {
 $has_soft_delete = column_exists($mysqli,'tms_user_add_driver','deleted_at');
 
 /* Helper copied: find assigned vehicle label */
+/* Helper: resolve assigned vehicle using the view (with legacy fallbacks) */
 function find_assigned_vehicle(mysqli $db, array $drv): ?array {
-  $email = strtolower(trim($drv['u_email'] ?? ''));
-  if ($email && table_exists($db,'accounts') && table_exists($db,'tms_vehicle')) {
+  $mk = fn($row)=>['id'=>(int)$row['v_id'],
+                   'label'=>trim(($row['v_name']?:'Vehicle').' ('.$row['v_reg_no'].')')];
+
+  if (!table_exists($db,'tms_vehicle')) return null;
+
+  $legacyId = (int)($drv['d_u_id'] ?? 0);
+  $email    = strtolower(trim($drv['u_email'] ?? ''));
+  $accId    = null;
+
+  // resolve accounts.id for this driver (by email)
+  if ($email && table_exists($db,'accounts')) {
     if ($st = $db->prepare("SELECT id FROM accounts WHERE LOWER(email)=? LIMIT 1")) {
-      $st->bind_param('s',$email); $st->execute(); $st->bind_result($accId);
-      if ($st->fetch()) { $st->close();
-        if (column_exists($db,'tms_vehicle','driver_id')) {
-          if ($q=$db->prepare("SELECT v_id, v_name, v_reg_no FROM tms_vehicle WHERE driver_id=? LIMIT 1")) {
-            $q->bind_param('i',$accId); $q->execute(); $res=$q->get_result();
-            if ($v=$res->fetch_assoc()) return ['id'=>(int)$v['v_id'], 'label'=>trim(($v['v_name']?:'Vehicle').' ('.$v['v_reg_no'].')')];
-            $q->close();
-          }
-        }
-        if (column_exists($db,'tms_vehicle','default_driver_id')) {
-          if ($q=$db->prepare("SELECT v_id, v_name, v_reg_no FROM tms_vehicle WHERE default_driver_id=? LIMIT 1")) {
-            $q->bind_param('i',$accId); $q->execute(); $res=$q->get_result();
-            if ($v=$res->fetch_assoc()) return ['id'=>(int)$v['v_id'], 'label'=>trim(($v['v_name']?:'Vehicle').' ('.$v['v_reg_no'].')')];
-            $q->close();
-          }
-        }
-      } else { $st->close(); }
+      $st->bind_param('s',$email); $st->execute(); $st->bind_result($accId); $st->fetch(); $st->close();
     }
   }
-  if (table_exists($db,'tms_vehicle') && column_exists($db,'tms_vehicle','driver_user_id')) {
-    $legacyId = (int)($drv['d_u_id'] ?? 0);
-    if ($legacyId > 0) {
-      if ($q=$db->prepare("SELECT v_id, v_name, v_reg_no FROM tms_vehicle WHERE driver_user_id=? LIMIT 1")) {
-        $q->bind_param('i',$legacyId); $q->execute(); $res=$q->get_result();
-        if ($v=$res->fetch_assoc()) return ['id'=>(int)$v['v_id'], 'label'=>trim(($v['v_name']?:'Vehicle').' ('.$v['v_reg_no'].')')];
-        $q->close();
-      }
+
+  // --- NEW: prefer the driver→vehicle view ---
+  if ($accId && table_exists($db,'v_driver_current_vehicle')) {
+    if ($q=$db->prepare("SELECT v_id, v_name, v_reg_no FROM v_driver_current_vehicle WHERE driver_account_id=? LIMIT 1")) {
+      $q->bind_param('i',$accId); $q->execute(); $res=$q->get_result();
+      if ($v=$res->fetch_assoc()) { $q->close(); return $mk($v); }
+      $q->close();
+    }
+  }
+
+  // Fallback: live row in vehicle_assignments
+  if ($accId && table_exists($db,'vehicle_assignments')) {
+    $sql = "SELECT v.v_id, v.v_name, v.v_reg_no
+              FROM vehicle_assignments va
+              JOIN tms_vehicle v ON v.v_id = va.vehicle_id
+             WHERE va.driver_id=? AND va.end_at IS NULL
+             ORDER BY va.start_at DESC LIMIT 1";
+    if ($q = $db->prepare($sql)) {
+      $q->bind_param('i',$accId); $q->execute(); $res=$q->get_result();
+      if ($v=$res->fetch_assoc()) { $q->close(); return $mk($v); }
+      $q->close();
+    }
+  }
+
+  // Legacy fallbacks (keep as-is)
+  if ($legacyId > 0 && column_exists($db,'tms_vehicle','default_driver_id')) {
+    if ($q=$db->prepare("SELECT v_id, v_name, v_reg_no FROM tms_vehicle WHERE default_driver_id=? LIMIT 1")) {
+      $q->bind_param('i',$legacyId); $q->execute(); $res=$q->get_result();
+      if ($v=$res->fetch_assoc()) { $q->close(); return $mk($v); }
+      $q->close();
+    }
+  }
+  if ($legacyId > 0 && column_exists($db,'tms_vehicle','driver_user_id')) {
+    if ($q=$db->prepare("SELECT v_id, v_name, v_reg_no FROM tms_vehicle WHERE driver_user_id=? LIMIT 1")) {
+      $q->bind_param('i',$legacyId); $q->execute(); $res=$q->get_result();
+      if ($v=$res->fetch_assoc()) { $q->close(); return $mk($v); }
+      $q->close();
+    }
+  }
+
+  // Optional: last booking fallbacks (unchanged)
+  if ($accId && table_exists($db,'bookings')) {
+    $sql="SELECT v.v_id, v.v_name, v.v_reg_no
+            FROM bookings b JOIN tms_vehicle v ON v.v_id=b.vehicle_id
+           WHERE b.driver_id=? AND b.vehicle_id IS NOT NULL
+           ORDER BY COALESCE(b.updated_at,b.created_at) DESC LIMIT 1";
+    if ($q=$db->prepare($sql)) {
+      $q->bind_param('i',$accId); $q->execute(); $res=$q->get_result();
+      if ($v=$res->fetch_assoc()) { $q->close(); return $mk($v); }
+      $q->close();
+    }
+  }
+  if ($accId && table_exists($db,'tms_bookings')) {
+    $sql="SELECT v.v_id, v.v_name, v.v_reg_no
+            FROM tms_bookings b JOIN tms_vehicle v ON v.v_id=b.vehicle_id
+           WHERE b.driver_id=? AND b.vehicle_id IS NOT NULL
+           ORDER BY b.scheduled_at DESC LIMIT 1";
+    if ($q=$db->prepare($sql)) {
+      $q->bind_param('i',$accId); $q->execute(); $res=$q->get_result();
+      if ($v=$res->fetch_assoc()) { $q->close(); return $mk($v); }
+      $q->close();
     }
   }
   return null;
 }
+
+
+
 
 /* SAVE (we no longer edit vehicle/type — set it to empty) */
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_driver'])) {

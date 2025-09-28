@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 27, 2025 at 05:56 AM
+-- Generation Time: Sep 28, 2025 at 05:09 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.1.25
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -47,7 +47,8 @@ INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`,
 (1, 'admin', 'Admin', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO', NULL, 1, '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
 (2, 'driver', 'Shane Lopez', 'shaaane@mail.com', '$2y$10$MWD3iKYEN5eQOz6HKPkGV.jSQ.s4nIBgu39NRqVFKW4z.ppsMem7G', NULL, 1, '2025-09-12 20:14:29', '2025-09-13 19:58:42'),
 (4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', 1, '2025-09-22 05:09:31', '2025-09-22 05:09:31'),
-(5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 1, '2025-09-26 20:53:29', '2025-09-27 09:19:13');
+(5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 1, '2025-09-26 20:53:29', '2025-09-27 09:19:13'),
+(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 1, '2025-09-28 15:16:43', '2025-09-28 15:16:43');
 
 -- --------------------------------------------------------
 
@@ -240,7 +241,8 @@ CREATE TABLE `driver_profile` (
 INSERT INTO `driver_profile` (`account_id`, `license_no`, `address`, `notes`, `current_status`, `hired_at`) VALUES
 (2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL),
 (4, '123', 'taga ac', NULL, 'available', NULL),
-(5, '123', 'somewhere', NULL, 'available', NULL);
+(5, '123', 'somewhere', NULL, 'available', NULL),
+(6, '12345', 'taga ac din', NULL, 'available', NULL);
 
 -- --------------------------------------------------------
 
@@ -522,7 +524,10 @@ INSERT INTO `obd_logs` (`id`, `speed`, `rpm`, `engine_load`, `throttle`, `intake
 (219, '56', '3979', '74', '34', '64', '12', '72', '51', '13', 'Gasoline', '27', '70', '123456', '15.1411', '120.59132'),
 (220, '1', '3730', '76', '37', '33', '20', '82', '21', '80', 'Gasoline', '36', '107', 'ABC123', '15.14329', '120.5926'),
 (221, '21', '3991', '89', '2', '97', '20', '90', '20', '52', 'Gasoline', '26', '68', 'ABC123', '15.14376', '120.58384'),
-(222, '56', '917', '40', '48', '78', '11', '106', '57', '70', 'Gasoline', '39', '119', 'ABC123', '15.14255', '120.58661');
+(222, '56', '917', '40', '48', '78', '11', '106', '57', '70', 'Gasoline', '39', '119', 'ABC123', '15.14255', '120.58661'),
+(223, '30', '2578', '73', '91', '91', '29', '94', '57', '93', 'Gasoline', '22', '66', '123456', '15.15033', '120.58477'),
+(224, '88', '2198', '25', '97', '36', '27', '84', '34', '43', 'Gasoline', '29', '109', 'ABC123', '15.14691', '120.58746'),
+(225, '110', '1239', '87', '66', '16', '11', '109', '32', '92', 'Gasoline', '27', '94', 'ABC123', '15.14617', '120.58965');
 
 -- --------------------------------------------------------
 
@@ -791,7 +796,8 @@ CREATE TABLE `tms_user_add_driver` (
 INSERT INTO `tms_user_add_driver` (`d_u_id`, `u_id`, `u_fname`, `u_lname`, `u_phone`, `u_addr`, `u_car_type`, `u_car_regno`, `u_car_bookdate`, `u_car_book_status`, `u_category`, `u_email`, `deleted_at`, `deleted_by`, `u_pwd`, `created_at`, `is_archived`) VALUES
 (8, 0, 'Shane', 'Lopez', '09446872447', 'taga san fernando, pampanga', 'Bus', '123', '', 'Available', 'Driver', 'shaaane@mail.com', NULL, NULL, '', '2025-09-12 00:00:00', 0),
 (9, 0, 'Test', 'Driver', '09668226441', 'taga ac', '', '123', '', 'Available', 'Driver', 'test@mail.com', NULL, NULL, '', '2025-09-22 00:00:00', 0),
-(10, 0, 'Alex', 'Turner', '09942317653', 'somewhere', '', '123', '', 'Available', 'Driver', '505@mail.com', NULL, NULL, '', '2025-09-26 20:53:29', 0);
+(10, 0, 'Alex', 'Turner', '09942317653', 'somewhere', '', '123', '', 'Available', 'Driver', '505@mail.com', NULL, NULL, '', '2025-09-26 20:53:29', 0),
+(13, 0, 'Noah', 'Enguerra', '09123456789', 'taga ac din', '', '12345', '', 'Available', 'Driver', 'noah@mail.com', NULL, NULL, '', '2025-09-28 15:16:43', 0);
 
 -- --------------------------------------------------------
 
@@ -803,7 +809,9 @@ CREATE TABLE `tms_vehicle` (
   `v_id` int(10) UNSIGNED NOT NULL,
   `v_name` varchar(200) NOT NULL,
   `v_reg_no` varchar(200) NOT NULL,
-  `v_pass_no` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `make_id` int(11) DEFAULT NULL,
+  `model_id` int(11) DEFAULT NULL,
+  `color` varchar(50) DEFAULT NULL,
   `v_driver` varchar(200) NOT NULL DEFAULT '',
   `v_category` varchar(200) NOT NULL,
   `driver_user_id` int(11) DEFAULT NULL,
@@ -818,9 +826,10 @@ CREATE TABLE `tms_vehicle` (
 -- Dumping data for table `tms_vehicle`
 --
 
-INSERT INTO `tms_vehicle` (`v_id`, `v_name`, `v_reg_no`, `v_pass_no`, `v_driver`, `v_category`, `driver_user_id`, `v_dpic`, `deleted_at`, `deleted_by`, `v_status`, `default_driver_id`) VALUES
-(1, 'C 180 Avantgarde', '123456', 4, '', 'Sedan', 1, 'vendor/img/vehicles/veh_1758021325_7528.webp', NULL, NULL, 'Available', 8),
-(2, 'Toyota Vios 1.3 E', 'NBM 4276', 4, '', 'Sedan', NULL, 'vendor/img/vehicles/veh_1758925257_7662.png', NULL, NULL, 'Available', 10);
+INSERT INTO `tms_vehicle` (`v_id`, `v_name`, `v_reg_no`, `make_id`, `model_id`, `color`, `v_driver`, `v_category`, `driver_user_id`, `v_dpic`, `deleted_at`, `deleted_by`, `v_status`, `default_driver_id`) VALUES
+(1, 'C 180 Avantgarde', '123456', NULL, NULL, NULL, '', 'Sedan', 1, 'vendor/img/vehicles/veh_1758021325_7528.webp', NULL, NULL, 'Available', 8),
+(2, 'Toyota Vios 1.3 E', 'NBM 4276', NULL, NULL, NULL, '', 'Sedan', NULL, 'vendor/img/vehicles/veh_1758925257_7662.png', NULL, NULL, 'Available', 10),
+(3, 'Toyota Fortuner G', 'NEE 7103', NULL, NULL, NULL, '', 'SUV', NULL, 'vendor/img/vehicles/veh_1759045781_4022.jpg', NULL, NULL, 'Available', NULL);
 
 -- --------------------------------------------------------
 
@@ -844,6 +853,77 @@ INSERT INTO `tms_vehicle_categories` (`id`, `name`, `is_active`, `deleted_at`) V
 (2, 'Sedan', 1, NULL),
 (3, 'SUV', 1, NULL),
 (4, 'Van', 1, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tms_vehicle_makes`
+--
+
+CREATE TABLE `tms_vehicle_makes` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `deleted_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tms_vehicle_makes`
+--
+
+INSERT INTO `tms_vehicle_makes` (`id`, `name`, `is_active`, `deleted_at`) VALUES
+(1, 'Toyota', 1, NULL),
+(2, 'Suzuki', 1, NULL),
+(3, 'Nissan', 1, NULL),
+(4, 'Hyundai', 1, NULL),
+(5, 'Kia', 1, NULL),
+(6, 'Isuzu', 1, NULL),
+(7, 'Mitsubishi', 1, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tms_vehicle_models`
+--
+
+CREATE TABLE `tms_vehicle_models` (
+  `id` int(11) NOT NULL,
+  `make_id` int(11) NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `deleted_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tms_vehicle_models`
+--
+
+INSERT INTO `tms_vehicle_models` (`id`, `make_id`, `name`, `is_active`, `deleted_at`) VALUES
+(1, 1, 'Hiace Commuter', 1, NULL),
+(2, 1, 'Hiace GL Grandia', 1, NULL),
+(3, 1, 'Hiace Super Grandia', 1, NULL),
+(4, 1, 'Innova', 1, NULL),
+(5, 1, 'Avanza', 1, NULL),
+(6, 1, 'Rush', 1, NULL),
+(8, 2, 'Ertiga', 1, NULL),
+(9, 2, 'APV', 1, NULL),
+(10, 2, 'Dzire', 1, NULL),
+(11, 2, 'Celerio', 1, NULL),
+(12, 2, 'Swift', 1, NULL),
+(13, 2, 'Alto', 1, NULL),
+(14, 3, 'Urvan / NV350', 1, NULL),
+(15, 4, 'Starex', 1, NULL),
+(16, 4, 'Grand Starex', 1, NULL),
+(17, 4, 'Accent', 1, NULL),
+(18, 4, 'Reina', 1, NULL),
+(19, 7, 'Xpander', 1, NULL),
+(20, 7, 'Montero Sport', 1, NULL),
+(21, 7, 'Adventure', 1, NULL),
+(22, 7, 'Mirage G4', 1, NULL),
+(23, 5, 'Carnival', 1, NULL),
+(24, 5, 'Rio', 1, NULL),
+(25, 6, 'Crosswind', 1, NULL),
+(26, 6, 'MU-X', 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -895,7 +975,8 @@ CREATE TABLE `vehicle_assignments` (
 
 INSERT INTO `vehicle_assignments` (`id`, `vehicle_id`, `driver_id`, `assigned_by`, `start_at`, `end_at`) VALUES
 (1, 1, 2, 1, '2025-09-27 10:36:01', NULL),
-(2, 2, 5, 1, '2025-09-27 10:36:01', NULL);
+(2, 2, 5, 1, '2025-09-27 10:36:01', NULL),
+(4, 3, 6, 1, '2025-09-28 15:49:41', NULL);
 
 -- --------------------------------------------------------
 
@@ -916,6 +997,20 @@ CREATE TABLE `v_booking_grid` (
 ,`driver_name` varchar(120)
 ,`status` enum('pending','awaiting_driver','accepted','rejected','cancelled','in_progress','completed')
 ,`driver_id` int(10) unsigned
+);
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `v_driver_current_vehicle`
+-- (See below for the actual view)
+--
+CREATE TABLE `v_driver_current_vehicle` (
+`driver_account_id` int(10) unsigned
+,`driver_name` varchar(120)
+,`v_id` int(10) unsigned
+,`v_name` varchar(200)
+,`v_reg_no` varchar(200)
 );
 
 -- --------------------------------------------------------
@@ -996,7 +1091,7 @@ CREATE TABLE `v_vehicle_current_driver` (
 `v_id` int(10) unsigned
 ,`driver_account_id` int(10) unsigned
 ,`driver_name` varchar(120)
-,`add_driver_id` int(11)
+,`add_driver_id` int(10) unsigned
 ,`add_driver_fname` varchar(50)
 ,`add_driver_lname` varchar(50)
 );
@@ -1021,11 +1116,37 @@ CREATE TABLE `v_vehicle_daily_metrics` (
 -- --------------------------------------------------------
 
 --
+-- Stand-in structure for view `v_vehicle_display`
+-- (See below for the actual view)
+--
+CREATE TABLE `v_vehicle_display` (
+`v_id` int(10) unsigned
+,`display_name` varchar(221)
+,`v_reg_no` varchar(200)
+,`v_category` varchar(200)
+,`color` varchar(50)
+,`v_dpic` varchar(200)
+,`make_id` int(11)
+,`model_id` int(11)
+);
+
+-- --------------------------------------------------------
+
+--
 -- Structure for view `v_booking_grid`
 --
 DROP TABLE IF EXISTS `v_booking_grid`;
 
 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_booking_grid`  AS SELECT `b`.`id` AS `booking_id`, `b`.`scheduled_start_at` AS `scheduled_at`, `b`.`created_at` AS `created_at`, coalesce(nullif(`b`.`contact_name`,''),'') AS `client_name`, cast(`b`.`pax` as decimal(10,2)) AS `pax`, `b`.`pickup_point` AS `pickup`, `b`.`dropoff_point` AS `dropoff`, `v`.`v_reg_no` AS `vehicle_reg_no`, `b`.`booking_type` AS `booking_type`, `a`.`name` AS `driver_name`, `b`.`status` AS `status`, `b`.`driver_id` AS `driver_id` FROM ((`bookings` `b` left join `accounts` `a` on(`a`.`id` = `b`.`driver_id`)) left join `tms_vehicle` `v` on(`v`.`v_id` = `b`.`vehicle_id`)) ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `v_driver_current_vehicle`
+--
+DROP TABLE IF EXISTS `v_driver_current_vehicle`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_driver_current_vehicle`  AS SELECT `a`.`id` AS `driver_account_id`, `a`.`name` AS `driver_name`, `v`.`v_id` AS `v_id`, `v`.`v_name` AS `v_name`, `v`.`v_reg_no` AS `v_reg_no` FROM ((`accounts` `a` left join `vehicle_assignments` `va` on(`va`.`driver_id` = `a`.`id` and `va`.`end_at` is null)) left join `tms_vehicle` `v` on(`v`.`v_id` = `va`.`vehicle_id`)) WHERE `a`.`role` = 'driver' ;
 
 -- --------------------------------------------------------
 
@@ -1070,7 +1191,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `v_vehicle_current_driver`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v_vehicle_current_driver`  AS SELECT `v`.`v_id` AS `v_id`, `va`.`driver_id` AS `driver_account_id`, `a`.`name` AS `driver_name`, `v`.`default_driver_id` AS `add_driver_id`, `ad`.`u_fname` AS `add_driver_fname`, `ad`.`u_lname` AS `add_driver_lname` FROM (((`tms_vehicle` `v` left join `vehicle_assignments` `va` on(`va`.`vehicle_id` = `v`.`v_id` and `va`.`end_at` is null)) left join `accounts` `a` on(`a`.`id` = `va`.`driver_id`)) left join `tms_user_add_driver` `ad` on(`ad`.`d_u_id` = `v`.`default_driver_id`)) ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_vehicle_current_driver`  AS SELECT `v`.`v_id` AS `v_id`, `va`.`driver_id` AS `driver_account_id`, `a`.`name` AS `driver_name`, coalesce(`ad_by_email`.`d_u_id`,`ad_by_legacy`.`d_u_id`) AS `add_driver_id`, coalesce(`ad_by_email`.`u_fname`,`ad_by_legacy`.`u_fname`) AS `add_driver_fname`, coalesce(`ad_by_email`.`u_lname`,`ad_by_legacy`.`u_lname`) AS `add_driver_lname` FROM ((((`tms_vehicle` `v` left join `vehicle_assignments` `va` on(`va`.`vehicle_id` = `v`.`v_id` and `va`.`end_at` is null)) left join `accounts` `a` on(`a`.`id` = `va`.`driver_id`)) left join `tms_user_add_driver` `ad_by_email` on(`a`.`email` is not null and `ad_by_email`.`deleted_at` is null and `ad_by_email`.`u_email` <> '' and lcase(`ad_by_email`.`u_email`) = lcase(`a`.`email`))) left join `tms_user_add_driver` `ad_by_legacy` on(`ad_by_legacy`.`deleted_at` is null and (`ad_by_legacy`.`d_u_id` = `v`.`default_driver_id` or `ad_by_legacy`.`d_u_id` = `v`.`driver_user_id`))) ;
 
 -- --------------------------------------------------------
 
@@ -1080,6 +1201,15 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW 
 DROP TABLE IF EXISTS `v_vehicle_daily_metrics`;
 
 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_vehicle_daily_metrics`  AS SELECT `br`.`vehicle_id` AS `vehicle_id`, cast(coalesce(`br`.`pickup_button_at`,`br`.`dropoff_button_at`) as date) AS `service_date`, count(0) AS `trips`, sum(coalesce(`br`.`distance_km`,0)) AS `distance_km`, sum(coalesce(`br`.`fuel_used_liters`,0)) AS `fuel_used_liters`, min(`br`.`odo_start_km`) AS `odo_start_km`, max(`br`.`odo_end_km`) AS `odo_end_km`, sum(coalesce(`br`.`duration_seconds`,0)) AS `duration_seconds` FROM `booking_runs` AS `br` WHERE `br`.`vehicle_id` is not null GROUP BY `br`.`vehicle_id`, cast(coalesce(`br`.`pickup_button_at`,`br`.`dropoff_button_at`) as date) ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `v_vehicle_display`
+--
+DROP TABLE IF EXISTS `v_vehicle_display`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_vehicle_display`  AS SELECT `v`.`v_id` AS `v_id`, coalesce(nullif(`v`.`v_name`,''),concat(`m`.`name`,' ',`mo`.`name`)) AS `display_name`, `v`.`v_reg_no` AS `v_reg_no`, `v`.`v_category` AS `v_category`, `v`.`color` AS `color`, `v`.`v_dpic` AS `v_dpic`, `v`.`make_id` AS `make_id`, `v`.`model_id` AS `model_id` FROM ((`tms_vehicle` `v` left join `tms_vehicle_makes` `m` on(`m`.`id` = `v`.`make_id`)) left join `tms_vehicle_models` `mo` on(`mo`.`id` = `v`.`model_id`)) ;
 
 --
 -- Indexes for dumped tables
@@ -1143,19 +1273,39 @@ ALTER TABLE `tms_user`
 -- Indexes for table `tms_user_add_driver`
 --
 ALTER TABLE `tms_user_add_driver`
-  ADD PRIMARY KEY (`d_u_id`);
+  ADD PRIMARY KEY (`d_u_id`),
+  ADD KEY `idx_tuad_email` (`u_email`(190)),
+  ADD KEY `idx_tuad_did` (`d_u_id`);
 
 --
 -- Indexes for table `tms_vehicle`
 --
 ALTER TABLE `tms_vehicle`
-  ADD PRIMARY KEY (`v_id`);
+  ADD PRIMARY KEY (`v_id`),
+  ADD KEY `fk_vehicle_make` (`make_id`),
+  ADD KEY `fk_vehicle_model` (`model_id`);
+
+--
+-- Indexes for table `tms_vehicle_makes`
+--
+ALTER TABLE `tms_vehicle_makes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `name` (`name`);
+
+--
+-- Indexes for table `tms_vehicle_models`
+--
+ALTER TABLE `tms_vehicle_models`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_make_model` (`make_id`,`name`);
 
 --
 -- Indexes for table `vehicle_assignments`
 --
 ALTER TABLE `vehicle_assignments`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_va_active` (`vehicle_id`,`end_at`),
+  ADD KEY `idx_va_driver_active` (`driver_id`,`end_at`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -1165,7 +1315,7 @@ ALTER TABLE `vehicle_assignments`
 -- AUTO_INCREMENT for table `accounts`
 --
 ALTER TABLE `accounts`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `bookings`
@@ -1195,7 +1345,7 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT for table `obd_logs`
 --
 ALTER TABLE `obd_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=223;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=226;
 
 --
 -- AUTO_INCREMENT for table `telemetry_alerts`
@@ -1219,19 +1369,48 @@ ALTER TABLE `tms_user`
 -- AUTO_INCREMENT for table `tms_user_add_driver`
 --
 ALTER TABLE `tms_user_add_driver`
-  MODIFY `d_u_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `d_u_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `tms_vehicle`
 --
 ALTER TABLE `tms_vehicle`
-  MODIFY `v_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `v_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `tms_vehicle_makes`
+--
+ALTER TABLE `tms_vehicle_makes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- AUTO_INCREMENT for table `tms_vehicle_models`
+--
+ALTER TABLE `tms_vehicle_models`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `vehicle_assignments`
 --
 ALTER TABLE `vehicle_assignments`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `tms_vehicle`
+--
+ALTER TABLE `tms_vehicle`
+  ADD CONSTRAINT `fk_vehicle_make` FOREIGN KEY (`make_id`) REFERENCES `tms_vehicle_makes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_vehicle_model` FOREIGN KEY (`model_id`) REFERENCES `tms_vehicle_models` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Constraints for table `tms_vehicle_models`
+--
+ALTER TABLE `tms_vehicle_models`
+  ADD CONSTRAINT `fk_model_make` FOREIGN KEY (`make_id`) REFERENCES `tms_vehicle_makes` (`id`) ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -4,7 +4,10 @@ Email	: admin@gmail.com
 Password: admin123
 
 
-**Clint Login info**
+**Driver Login info**
 
 Email    : test@mail.com
 Password : test123
+
+Email    : noah@mail.com
+Password : tinolaslander
