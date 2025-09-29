@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 28, 2025 at 05:09 PM
+-- Generation Time: Sep 29, 2025 at 05:19 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.1.25
 
@@ -48,7 +48,8 @@ INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`,
 (2, 'driver', 'Shane Lopez', 'shaaane@mail.com', '$2y$10$MWD3iKYEN5eQOz6HKPkGV.jSQ.s4nIBgu39NRqVFKW4z.ppsMem7G', NULL, 1, '2025-09-12 20:14:29', '2025-09-13 19:58:42'),
 (4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', 1, '2025-09-22 05:09:31', '2025-09-22 05:09:31'),
 (5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 1, '2025-09-26 20:53:29', '2025-09-27 09:19:13'),
-(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 1, '2025-09-28 15:16:43', '2025-09-28 15:16:43');
+(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 1, '2025-09-28 15:16:43', '2025-09-28 15:16:43'),
+(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', 1, '2025-09-29 04:27:49', '2025-09-29 04:27:49');
 
 -- --------------------------------------------------------
 
@@ -101,7 +102,8 @@ CREATE TABLE `bookings` (
 
 INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver_id`, `vehicle_id`, `pax`, `contact_name`, `contact_phone`, `pickup_point`, `dropoff_point`, `pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`, `scheduled_start_at`, `scheduled_end_at`, `status`, `payment_status`, `notes`, `created_at`, `updated_at`) VALUES
 (1, 'admin', 1, NULL, NULL, 1, 3, NULL, '+639171234567', '100 Main St, Town', 'Airport Terminal 1', NULL, NULL, NULL, NULL, '2025-08-12 14:00:00', NULL, 'cancelled', 'unpaid', NULL, '2025-09-12 20:14:29', '2025-09-22 04:38:16'),
-(2, 'admin', 1, NULL, 2, 1, 1, 'Felicity Morelli', '09988233611', 'Angeles University Foundation', 'SM City Clark', NULL, NULL, NULL, NULL, '2025-09-25 13:44:00', NULL, 'awaiting_driver', 'unpaid', '', '2025-09-25 12:44:46', '2025-09-27 09:19:13');
+(2, 'admin', 1, NULL, 2, 1, 1, 'Felicity Morelli', '09988233611', 'Angeles University Foundation', 'SM City Clark', NULL, NULL, NULL, NULL, '2025-09-25 13:44:00', NULL, 'completed', 'unpaid', '', '2025-09-25 12:44:46', '2025-09-29 04:19:13'),
+(3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'awaiting_driver', 'unpaid', 'chello', '2025-09-29 04:18:15', '2025-09-29 04:18:15');
 
 -- --------------------------------------------------------
 
@@ -133,7 +135,16 @@ INSERT INTO `booking_events` (`id`, `booking_id`, `actor_id`, `actor_role`, `eve
 (9, 1, 1, 'admin', 'restore', '[]', '2025-09-22 04:24:43'),
 (10, 1, 1, 'admin', 'cancel', '[]', '2025-09-22 04:25:00'),
 (11, 1, 1, 'admin', 'restore', '[]', '2025-09-22 04:36:25'),
-(12, 1, 1, 'admin', 'cancel', '[]', '2025-09-22 04:38:16');
+(12, 1, 1, 'admin', 'cancel', '[]', '2025-09-22 04:38:16'),
+(13, 2, 1, 'admin', 'cancel', '[]', '2025-09-29 02:58:20'),
+(14, 2, 1, 'admin', 'restore', '[]', '2025-09-29 02:58:40'),
+(15, 2, 1, 'admin', 'cancel', '[]', '2025-09-29 03:02:06'),
+(16, 2, 1, 'admin', 'cancel', '[]', '2025-09-29 03:04:32'),
+(17, 2, 1, 'admin', 'restore', '[]', '2025-09-29 04:13:28'),
+(18, 2, 1, 'admin', 'cancel', '[]', '2025-09-29 04:13:37'),
+(19, 2, 1, 'admin', 'restore', '[]', '2025-09-29 04:18:50'),
+(20, 2, 1, 'admin', 'assign', '[]', '2025-09-29 04:19:02'),
+(21, 2, 1, 'admin', 'complete_trip', '[]', '2025-09-29 04:19:13');
 
 -- --------------------------------------------------------
 
@@ -231,18 +242,52 @@ CREATE TABLE `driver_profile` (
   `address` varchar(255) DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `current_status` enum('available','on_trip','off') NOT NULL DEFAULT 'available',
-  `hired_at` date DEFAULT NULL
+  `hired_at` date DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `driver_profile`
 --
 
-INSERT INTO `driver_profile` (`account_id`, `license_no`, `address`, `notes`, `current_status`, `hired_at`) VALUES
-(2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL),
-(4, '123', 'taga ac', NULL, 'available', NULL),
-(5, '123', 'somewhere', NULL, 'available', NULL),
-(6, '12345', 'taga ac din', NULL, 'available', NULL);
+INSERT INTO `driver_profile` (`account_id`, `license_no`, `address`, `notes`, `current_status`, `hired_at`, `created_at`, `updated_at`) VALUES
+(2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 04:19:13'),
+(4, '123', 'taga ac', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(5, '123', 'somewhere', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(6, '12345', 'taga ac din', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(7, '123', 'taga idk somewhere friendship', NULL, 'available', NULL, '2025-09-29 04:27:49', '2025-09-29 04:27:49');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `driver_profile_backup_20250929`
+--
+
+CREATE TABLE `driver_profile_backup_20250929` (
+  `account_id` int(10) UNSIGNED NOT NULL,
+  `license_no` varchar(64) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `current_status` enum('available','on_trip','off') NOT NULL DEFAULT 'available',
+  `hired_at` date DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `driver_profile_backup_20250929`
+--
+
+INSERT INTO `driver_profile_backup_20250929` (`account_id`, `license_no`, `address`, `notes`, `current_status`, `hired_at`, `created_at`, `updated_at`) VALUES
+(2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(4, '123', 'taga ac', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(5, '123', 'somewhere', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(6, '12345', 'taga ac din', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18');
 
 -- --------------------------------------------------------
 
@@ -527,7 +572,33 @@ INSERT INTO `obd_logs` (`id`, `speed`, `rpm`, `engine_load`, `throttle`, `intake
 (222, '56', '917', '40', '48', '78', '11', '106', '57', '70', 'Gasoline', '39', '119', 'ABC123', '15.14255', '120.58661'),
 (223, '30', '2578', '73', '91', '91', '29', '94', '57', '93', 'Gasoline', '22', '66', '123456', '15.15033', '120.58477'),
 (224, '88', '2198', '25', '97', '36', '27', '84', '34', '43', 'Gasoline', '29', '109', 'ABC123', '15.14691', '120.58746'),
-(225, '110', '1239', '87', '66', '16', '11', '109', '32', '92', 'Gasoline', '27', '94', 'ABC123', '15.14617', '120.58965');
+(225, '110', '1239', '87', '66', '16', '11', '109', '32', '92', 'Gasoline', '27', '94', 'ABC123', '15.14617', '120.58965'),
+(226, '119', '4418', '95', '53', '76', '43', '84', '20', '51', 'Gasoline', '18', '61', 'ABC123', '15.14265', '120.59324'),
+(227, '27', '2572', '77', '14', '20', '13', '104', '59', '25', 'Gasoline', '22', '77', 'ABC123', '15.14231', '120.59207'),
+(228, '93', '3583', '38', '37', '17', '18', '106', '33', '31', 'Gasoline', '40', '75', '123456', '15.14592', '120.58418'),
+(229, '111', '824', '100', '83', '50', '16', '97', '22', '64', 'Gasoline', '35', '103', 'ABC123', '15.14139', '120.58407'),
+(230, '94', '993', '20', '83', '46', '30', '73', '28', '63', 'Gasoline', '27', '113', '123456', '15.14415', '120.58874'),
+(231, '116', '857', '46', '21', '53', '40', '97', '28', '31', 'Gasoline', '40', '75', 'ABC123', '15.14716', '120.58468'),
+(232, '82', '2273', '22', '23', '33', '32', '104', '42', '32', 'Gasoline', '23', '80', 'ABC123', '15.14277', '120.59341'),
+(233, '51', '3064', '32', '22', '72', '45', '105', '29', '84', 'Gasoline', '37', '85', '123456', '15.14366', '120.59092'),
+(234, '0', '4283', '83', '69', '46', '19', '102', '26', '95', 'Gasoline', '40', '107', '123456', '15.14485', '120.58612'),
+(235, '40', '949', '55', '12', '88', '38', '92', '53', '85', 'Gasoline', '27', '107', 'ABC123', '15.1503', '120.58498'),
+(236, '114', '3714', '81', '31', '34', '16', '87', '51', '35', 'Gasoline', '26', '93', 'ABC123', '15.14208', '120.59019'),
+(237, '7', '738', '53', '65', '20', '7', '86', '22', '20', 'Gasoline', '28', '63', '123456', '15.14773', '120.59203'),
+(238, '97', '2764', '36', '45', '82', '9', '90', '33', '14', 'Gasoline', '24', '90', 'ABC123', '15.14482', '120.59274'),
+(239, '25', '4084', '57', '80', '45', '47', '79', '36', '25', 'Gasoline', '29', '90', '123456', '15.14785', '120.59153'),
+(240, '101', '2961', '70', '9', '27', '25', '104', '31', '36', 'Gasoline', '25', '85', 'ABC123', '15.14898', '120.58443'),
+(241, '76', '1356', '84', '61', '77', '41', '75', '42', '50', 'Gasoline', '25', '91', '123456', '15.14993', '120.59169'),
+(242, '61', '1927', '90', '95', '53', '41', '96', '20', '99', 'Gasoline', '16', '94', 'ABC123', '15.14239', '120.58917'),
+(243, '38', '4573', '23', '59', '57', '44', '76', '57', '57', 'Gasoline', '38', '66', '123456', '15.1415', '120.58493'),
+(244, '99', '3295', '25', '3', '27', '22', '95', '45', '11', 'Gasoline', '32', '102', '123456', '15.14772', '120.58442'),
+(245, '66', '2507', '35', '24', '91', '30', '94', '27', '22', 'Gasoline', '25', '105', 'ABC123', '15.14536', '120.58957'),
+(246, '117', '3621', '100', '55', '37', '10', '103', '25', '15', 'Gasoline', '39', '100', 'ABC123', '15.15038', '120.58815'),
+(247, '25', '958', '59', '35', '77', '39', '78', '54', '35', 'Gasoline', '36', '70', 'ABC123', '15.14363', '120.58969'),
+(248, '58', '1076', '63', '32', '55', '32', '76', '54', '58', 'Gasoline', '29', '99', '123456', '15.14985', '120.5858'),
+(249, '5', '3681', '76', '68', '46', '12', '74', '50', '41', 'Gasoline', '19', '81', '123456', '15.14692', '120.58582'),
+(250, '26', '2501', '29', '62', '25', '3', '95', '22', '77', 'Gasoline', '35', '81', '123456', '15.14731', '120.59375'),
+(251, '66', '2817', '83', '1', '12', '18', '86', '21', '20', 'Gasoline', '35', '77', '123456', '15.14659', '120.58992');
 
 -- --------------------------------------------------------
 
@@ -797,7 +868,8 @@ INSERT INTO `tms_user_add_driver` (`d_u_id`, `u_id`, `u_fname`, `u_lname`, `u_ph
 (8, 0, 'Shane', 'Lopez', '09446872447', 'taga san fernando, pampanga', 'Bus', '123', '', 'Available', 'Driver', 'shaaane@mail.com', NULL, NULL, '', '2025-09-12 00:00:00', 0),
 (9, 0, 'Test', 'Driver', '09668226441', 'taga ac', '', '123', '', 'Available', 'Driver', 'test@mail.com', NULL, NULL, '', '2025-09-22 00:00:00', 0),
 (10, 0, 'Alex', 'Turner', '09942317653', 'somewhere', '', '123', '', 'Available', 'Driver', '505@mail.com', NULL, NULL, '', '2025-09-26 20:53:29', 0),
-(13, 0, 'Noah', 'Enguerra', '09123456789', 'taga ac din', '', '12345', '', 'Available', 'Driver', 'noah@mail.com', NULL, NULL, '', '2025-09-28 15:16:43', 0);
+(13, 0, 'Noah', 'Enguerra', '09123456789', 'taga ac din', '', '12345', '', 'Available', 'Driver', 'noah@mail.com', NULL, NULL, '', '2025-09-28 15:16:43', 0),
+(14, 0, 'Keihle', 'Pascual', '09784563214', 'taga idk somewhere friendship', '', '123', '', 'Available', 'Driver', 'kei@mail.com', NULL, NULL, '', '2025-09-29 04:27:49', 0);
 
 -- --------------------------------------------------------
 
@@ -829,7 +901,9 @@ CREATE TABLE `tms_vehicle` (
 INSERT INTO `tms_vehicle` (`v_id`, `v_name`, `v_reg_no`, `make_id`, `model_id`, `color`, `v_driver`, `v_category`, `driver_user_id`, `v_dpic`, `deleted_at`, `deleted_by`, `v_status`, `default_driver_id`) VALUES
 (1, 'C 180 Avantgarde', '123456', NULL, NULL, NULL, '', 'Sedan', 1, 'vendor/img/vehicles/veh_1758021325_7528.webp', NULL, NULL, 'Available', 8),
 (2, 'Toyota Vios 1.3 E', 'NBM 4276', NULL, NULL, NULL, '', 'Sedan', NULL, 'vendor/img/vehicles/veh_1758925257_7662.png', NULL, NULL, 'Available', 10),
-(3, 'Toyota Fortuner G', 'NEE 7103', NULL, NULL, NULL, '', 'SUV', NULL, 'vendor/img/vehicles/veh_1759045781_4022.jpg', NULL, NULL, 'Available', NULL);
+(3, 'Toyota Fortuner G', 'NEE 7103', NULL, NULL, NULL, '', 'SUV', NULL, 'vendor/img/vehicles/veh_1759045781_4022.jpg', NULL, NULL, 'Available', NULL),
+(4, '', 'WOW 505', 1, 5, 'Black', '', 'Sedan', NULL, '', NULL, NULL, 'Available', NULL),
+(5, '', 'UUU 123', 8, 27, 'Green', '', 'Sedan', NULL, '', NULL, NULL, 'Available', NULL);
 
 -- --------------------------------------------------------
 
@@ -878,7 +952,8 @@ INSERT INTO `tms_vehicle_makes` (`id`, `name`, `is_active`, `deleted_at`) VALUES
 (4, 'Hyundai', 1, NULL),
 (5, 'Kia', 1, NULL),
 (6, 'Isuzu', 1, NULL),
-(7, 'Mitsubishi', 1, NULL);
+(7, 'Mitsubishi', 1, NULL),
+(8, 'Honda', 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -923,7 +998,8 @@ INSERT INTO `tms_vehicle_models` (`id`, `make_id`, `name`, `is_active`, `deleted
 (23, 5, 'Carnival', 1, NULL),
 (24, 5, 'Rio', 1, NULL),
 (25, 6, 'Crosswind', 1, NULL),
-(26, 6, 'MU-X', 1, NULL);
+(26, 6, 'MU-X', 1, NULL),
+(27, 8, 'Civic', 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -1240,6 +1316,12 @@ ALTER TABLE `booking_offers`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `driver_profile`
+--
+ALTER TABLE `driver_profile`
+  ADD PRIMARY KEY (`account_id`);
+
+--
 -- Indexes for table `notifications`
 --
 ALTER TABLE `notifications`
@@ -1315,19 +1397,19 @@ ALTER TABLE `vehicle_assignments`
 -- AUTO_INCREMENT for table `accounts`
 --
 ALTER TABLE `accounts`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `booking_events`
 --
 ALTER TABLE `booking_events`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `booking_offers`
@@ -1345,7 +1427,7 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT for table `obd_logs`
 --
 ALTER TABLE `obd_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=226;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=252;
 
 --
 -- AUTO_INCREMENT for table `telemetry_alerts`
@@ -1369,25 +1451,25 @@ ALTER TABLE `tms_user`
 -- AUTO_INCREMENT for table `tms_user_add_driver`
 --
 ALTER TABLE `tms_user_add_driver`
-  MODIFY `d_u_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `d_u_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `tms_vehicle`
 --
 ALTER TABLE `tms_vehicle`
-  MODIFY `v_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `v_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `tms_vehicle_makes`
 --
 ALTER TABLE `tms_vehicle_makes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tms_vehicle_models`
 --
 ALTER TABLE `tms_vehicle_models`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `vehicle_assignments`
@@ -1398,6 +1480,12 @@ ALTER TABLE `vehicle_assignments`
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `driver_profile`
+--
+ALTER TABLE `driver_profile`
+  ADD CONSTRAINT `fk_driver_profile_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `tms_vehicle`
