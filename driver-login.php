@@ -7,7 +7,7 @@ include('admin/vendor/inc/config.php');
 <head>
   <?php include("vendor/inc/head.php");?>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/login.css"><!-- keep if you need; styles below will override -->
+  <link rel="stylesheet" href="css/login.css">
 
   <style>
     :root{ --kaya-ink:#000047; --kaya-nav:#0A0F2C; --kaya-border:#e5e7eb; }
@@ -57,27 +57,27 @@ include('admin/vendor/inc/config.php');
   <aside class="left-side">
     <div class="left-content">
       <div class="brand">KAYA</div>
-      <h1 class="hero-title">Admin Console</h1>
-      <p class="hero-sub">Monitor trips, manage vehicles and drivers, and keep the whole fleet running.</p>
+      <h1 class="hero-title">Driver Portal</h1>
+      <p class="hero-sub">See assigned trips, start and complete rides, and view your schedule.</p>
     </div>
   </aside>
 
   <main class="right-side">
     <div class="login-form-box">
-      <h2 class="login-title">Admin Login</h2>
+      <h2 class="login-title">Driver Login</h2>
 
       <?php if(isset($_SESSION['error'])): ?>
         <div class="alert alert-danger mb-3"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
       <?php endif; ?>
 
       <form action="login-process.php" method="post" autocomplete="off">
-        <input type="hidden" name="expect_role" value="admin">
+        <input type="hidden" name="expect_role" value="driver">
 
         <div class="kaya-field">
           <label for="email">Email</label>
           <div class="kaya-ctrl">
             <i class="fas fa-envelope left-icon"></i>
-            <input type="email" class="kaya-input" id="email" name="email" required placeholder="admin@example.com">
+            <input type="email" class="kaya-input" id="email" name="email" required placeholder="driver@example.com">
           </div>
         </div>
 
