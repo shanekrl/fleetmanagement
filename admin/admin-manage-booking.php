@@ -71,6 +71,26 @@ if (table_exists($mysqli,'v_booking_grid')) {
 <!DOCTYPE html>
 <html lang="en">
 <?php include('vendor/inc/head.php'); ?>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+</style>
+<style>
+  /* Sidebar normalize */
+  #kayaSidebar{ width:14.5rem; } body.sidebar-toggled #kayaSidebar{ width:6rem; }
+  #kayaSidebar .nav-link{ font-size:.95rem; line-height:1.25rem; } 
+  #kayaSidebar .nav-item .nav-link i { font-size:1rem; }
+  .sidebar{ max-width:14.5rem; }
+
+  .btn.kaya-tab { background:#fff; border:1px solid #bfc6da; color:#000047; }
+  .btn-group .btn.kaya-tab.active{
+    border-color:#000047 !important; color:#000047 !important; background:#fff !important;
+    box-shadow: inset 0 -2px 0 #000047;
+  }
+  .btn-group .btn.kaya-tab:not(.active){ border-color:#d9deee !important; background:#fff !important; }
+  .btn-group .btn.kaya-tab:not(.active):hover{ border-color:#b9c2dd !important; background:#f6f8ff !important; }
+</style>
 <body id="page-top">
 <?php include('vendor/inc/nav.php'); ?>
 <div id="wrapper">
@@ -82,13 +102,17 @@ if (table_exists($mysqli,'v_booking_grid')) {
       <h1 class="kaya-page-title">Trip Appointments</h1>
 
       <div class="kaya-toolbar d-flex align-items-center mb-3" style="gap:.5rem;flex-wrap:wrap;">
+        <!-- LEFT: filters group -->
         <div class="btn-group" role="group" aria-label="Filters">
           <a href="admin-trip-appointment.php" class="btn kaya-tab">Upcoming</a>
           <a href="admin-view-booking.php"   class="btn kaya-tab">Completed</a>
-        </div>
-        <div class="kaya-actions ml-auto btn-group" role="group" aria-label="Actions" style="flex-wrap:nowrap;gap:.5rem;">
-          <a href="admin-create-booking.php" class="btn btn-kaya-primary">New Trip</a>
           <a href="admin-manage-booking.php" class="btn kaya-tab active">Cancelled</a>
+        </div>
+        <!-- RIGHT: actions -->
+        <div class="kaya-actions ml-auto btn-group" role="group" aria-label="Actions" style="flex-wrap:nowrap;gap:.5rem;">
+          <a href="admin-trip-appointment.php#new" class="btn btn-kaya-primary">
+            <i class="fas fa-plus mr-1"></i> New Trip
+          </a>
         </div>
       </div>
 

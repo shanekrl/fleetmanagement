@@ -276,7 +276,9 @@ foreach ($drivers_user as $d) {
                 <i class="fas fa-trash mr-1"></i> Trash
               </a>
             <?php endif; ?>
-            <button class="btn btn-kaya-primary" data-toggle="modal" data-target="#addDriverModal">New Driver</button>
+            <button class="btn btn-kaya-primary" data-toggle="modal" data-target="#addDriverModal">
+              <i class="fas fa-plus mr-1"></i> New Driver
+            </button>
           <?php endif; ?>
         </div>
       </div>

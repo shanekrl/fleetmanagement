@@ -29,8 +29,7 @@ if ($vId <= 0) { header('Location: admin-manage-vehicle.php'); exit; }
 
 /* ---------- fetch vehicle + current driver (accounts) + fallback (add_driver) ---------- */
 $sql = "SELECT
-          v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic,
-          v.v_pass_no, v.default_driver_id
+          v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic, v.default_driver_id
         FROM tms_vehicle v
         WHERE v.v_id=?";
 $veh=null;
@@ -194,10 +193,6 @@ $img = vehicle_image_url($veh['v_dpic'] ?? '');
                 <tr>
                   <th style="color:#6b7280;">Category</th>
                   <td><?= h($veh['v_category'] ?: '—') ?></td>
-                </tr>
-                <tr>
-                  <th style="color:#6b7280;">Capacity (Pax)</th>
-                  <td><?= h((string)($veh['v_pass_no'] ?? '—')) ?></td>
                 </tr>
                 <tr>
                   <th style="color:#6b7280;">Status</th>

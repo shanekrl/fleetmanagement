@@ -18,6 +18,12 @@ function table_exists(mysqli $db, string $t): bool {
   $r = $db->query("SHOW TABLES LIKE '{$t}'");
   return $r && $r->num_rows > 0;
 }
+function column_exists(mysqli $db, string $table, string $col): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `{$t}` LIKE '{$c}'");
+  return $r && $r->num_rows > 0;
+}
 function badge_for($s){
   $s = strtolower((string)$s);
   switch ($s) {
@@ -51,6 +57,83 @@ if (!$isAdmin && isset($_SESSION['u_id'])) {
         }
       }
     }
+  }
+}
+
+/* ===== AJAX: create booking from modal (same page) ===== */
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking'])) {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $isNewModel = table_exists($mysqli,'bookings');
+
+  // who is the creator (first admin account)
+  $creatorId = 1;
+  if (table_exists($mysqli,'accounts')) {
+    if ($rs = $mysqli->query("SELECT id FROM accounts WHERE role='admin' ORDER BY id LIMIT 1")) {
+      if ($row = $rs->fetch_assoc()) $creatorId = (int)$row['id'];
+    }
+  }
+
+  // inputs
+  $sched_date  = trim($_POST['sched_date'] ?? '');
+  $sched_time  = trim($_POST['sched_time'] ?? '');
+  $scheduled   = ($sched_date && $sched_time) ? ($sched_date.' '.$sched_time.':00') : null;
+
+  $customer    = trim($_POST['customer'] ?? '');
+  $phone       = trim($_POST['phone'] ?? '');
+  $pax         = max(1, (int)($_POST['pax'] ?? 1));
+  $pickup      = trim($_POST['pickup'] ?? '');
+  $dropoff     = trim($_POST['dropoff'] ?? '');
+  $pickup_lat  = trim($_POST['pickup_lat'] ?? '');
+  $pickup_lng  = trim($_POST['pickup_lng'] ?? '');
+  $dropoff_lat = trim($_POST['dropoff_lat'] ?? '');
+  $dropoff_lng = trim($_POST['dropoff_lng'] ?? '');
+
+  $booking_type= ($_POST['booking_type'] ?? 'admin') === 'personal' ? 'personal' : 'admin';
+  $driver_id   = (int)($_POST['driver_id'] ?? 0) ?: null;
+  $vehicle_id  = (int)($_POST['vehicle_id'] ?? 0) ?: null;
+  $notes       = trim($_POST['notes'] ?? '');
+
+  try {
+    if ($isNewModel) {
+      // NOTE: if you later add lat/lng columns to bookings, extend this INSERT.
+      $sql = "INSERT INTO bookings
+              (booking_type,created_by,client_id,driver_id,vehicle_id,
+               pax,contact_name,contact_phone,pickup_point,dropoff_point,
+               scheduled_start_at,status,payment_status,notes)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      if ($s=$mysqli->prepare($sql)) {
+        $status  = $driver_id ? 'awaiting_driver' : 'pending';
+        $payment = 'unpaid';
+        $client_id = null;
+        $s->bind_param(
+          'siiiiissssssss',
+          $booking_type,$creatorId,$client_id,$driver_id,$vehicle_id,
+          $pax,$customer,$phone,$pickup,$dropoff,
+          $scheduled,$status,$payment,$notes
+        );
+        $ok = $s->execute(); $id = $s->insert_id; $s->close();
+        echo json_encode(['ok'=>$ok?1:0,'id'=>$id]); exit;
+      }
+      echo json_encode(['ok'=>0,'error'=>'Prepare failed']); exit;
+    } else {
+      // legacy fallback (tms_user)
+      $q = $mysqli->prepare("INSERT INTO tms_user
+        (u_fname,u_lname,u_car_date,u_car_time,u_car_pax,u_car_pickup,u_car_destination,
+         u_car_regno,u_car_type,u_car_driver,u_category,u_email,u_pwd,u_car_book_status)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending')");
+      $empty=''; $email=''; $pwd=password_hash(bin2hex(random_bytes(4)), PASSWORD_DEFAULT);
+      $paxS = (string)$pax;
+      $reg=$empty; $type=$empty; $drv=$empty; $cat='User';
+      $q->bind_param('ssssissssssss',
+        $customer,$empty,$sched_date,$sched_time,$paxS,$pickup,$dropoff,
+        $reg,$type,$drv,$cat,$email,$pwd
+      );
+      $ok=$q->execute(); $id=$q->insert_id; $q->close();
+      echo json_encode(['ok'=>$ok?1:0,'id'=>$id]); exit;
+    }
+  } catch(Throwable $e){
+    echo json_encode(['ok'=>0,'error'=>'DB error']); exit;
   }
 }
 
@@ -107,6 +190,23 @@ if (table_exists($mysqli,'v_booking_grid')) {
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 }
 
+/* ===== Pairing maps for auto Vehicle<->Driver ===== */
+$vehToDrv = [];
+$drvToVeh = [];
+if (table_exists($mysqli,'v_vehicle_current_driver')) {
+  $rs = $mysqli->query("SELECT v_id, driver_account_id FROM v_vehicle_current_driver WHERE driver_account_id IS NOT NULL");
+  if ($rs) while($m=$rs->fetch_assoc()){
+    $vid = (int)$m['v_id']; $did = (int)$m['driver_account_id'];
+    if ($vid && $did) { $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
+  }
+} elseif (table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,'tms_vehicle','default_driver_id')) {
+  $rs = $mysqli->query("SELECT v_id AS v_id, default_driver_id AS driver_account_id FROM tms_vehicle WHERE default_driver_id IS NOT NULL");
+  if ($rs) while($m=$rs->fetch_assoc()){
+    $vid = (int)$m['v_id']; $did = (int)$m['driver_account_id'];
+    if ($vid && $did) { $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
+  }
+}
+
 define('ACTION_ENDPOINT', 'booking_actions.php');
 ?>
 <!DOCTYPE html>
@@ -114,75 +214,35 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
   <style>
       .kaya-page-title{font-weight:800;font-size:2rem;line-height:1.1;color:#000047;margin:0 0 1rem}
 
-      /* REVERTED: outline-only tabs (no fill even when active) */
-      .btn.kaya-tab { background:#fff; border:1px solid #000047; color:#000047; }
-      .btn-group .btn.kaya-tab.active,
-      .btn.kaya-tab.active,
-      .btn.kaya-tab:active,
-      .btn.kaya-tab:focus {
-        background:#fff !important;
-        color:#000047 !important;
-        border:1px solid #000047 !important;
-        box-shadow:none !important;
-        background-image:none !important;
+      /* Outline-only tabs, consistent color */
+      .btn.kaya-tab { background:#fff; border:1px solid #bfc6da; color:#000047; }
+      .btn-group .btn.kaya-tab.active{
+        border-color:#000047 !important; color:#000047 !important; background:#fff !important;
+        box-shadow: inset 0 -2px 0 #000047;
       }
+      .btn-group .btn.kaya-tab:not(.active){ border-color:#d9deee !important; background:#fff !important; }
+      .btn-group .btn.kaya-tab:not(.active):hover{ border-color:#b9c2dd !important; background:#f6f8ff !important; }
 
       .fc .fc-toolbar-title { font-weight:800; color:#000047; }
       #kayaCalendar { min-height:520px; }
-    </style>
 
-    <style>
-    /* Keep outline look for both */
-    .btn.kaya-tab { background:#fff; border:1px solid #bfc6da; color:#0a0e2a; }
+      
 
-    /* Subdue the NON-active tab (Completed on this page) */
-    .btn-group .btn.kaya-tab:not(.active){
-      border-color:#c7cfdf;
-      color:#0a0e2a99;   /* softer text */
-      background:#fff;
-      box-shadow:none;
-    }
-    .btn-group .btn.kaya-tab:not(.active):hover{
-      border-color:#9aa3bd;
-      color:#0a0e2a;     /* sharpen on hover */
-      background:#f6f8ff;
-    }
-
-    /* Make the active tab (Upcoming) stand out a bit more */
-    .btn-group .btn.kaya-tab.active{
-      border-color:#000047 !important;
-      color:#000047 !important;
-      background:#fff !important;
-      box-shadow: inset 0 -2px 0 #000047; /* subtle underline */
-    }
+      /* Map picker modal sizing */
+      #kayaMap { width:100%; height:420px; }
+      .nominatim-results { max-height:160px; overflow:auto; border:1px solid #eaecef; border-radius:.25rem; }
+      .geocode-item { cursor:pointer; padding:.375rem .5rem; border-bottom:1px solid #f1f3f7; }
+      .geocode-item:last-child{ border-bottom:0; }
+      .geocode-item:hover { background:#f6f8ff; }
   </style>
-<style>
-  /* Same text color for both tabs */
-  .btn-group .btn.kaya-tab,
-  .btn-group .btn.kaya-tab:not(.active),
-  .btn.kaya-tab {
-    color: #000047 !important;   /* force normal text */
-    opacity: 1 !important;       /* cancel any dimming */
-  }
-
-  /* Borders: dark for active, gray for non-active */
-  .btn-group .btn.kaya-tab.active {
-    border: 1px solid #000047 !important;
-    background: #fff !important;
-  }
-  .btn-group .btn.kaya-tab:not(.active) {
-    border: 1px solid #d9deee !important;   /* only the border is grayed out */
-    background: #fff !important;
-  }
-  .btn-group .btn.kaya-tab:not(.active):hover {
-    border-color: #b9c2dd !important;
-    background: #f6f8ff !important;
-  }
-</style>
-
-
 
 <?php include('vendor/inc/head.php'); ?>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <body id="page-top">
 <?php include('vendor/inc/nav.php'); ?>
 
@@ -195,14 +255,17 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
       <h1 class="kaya-page-title">Trip Appointments</h1>
 
       <div class="kaya-toolbar d-flex align-items-center mb-3" style="gap:.5rem;flex-wrap:wrap;">
+        <!-- LEFT: filters (Upcoming, Completed, Cancelled) -->
         <div class="btn-group" role="group" aria-label="Filters">
-          <!-- keep .active for routing; CSS ensures outline-only look -->
           <a href="admin-trip-appointment.php" class="btn kaya-tab active">Upcoming</a>
           <a href="admin-view-booking.php"   class="btn kaya-tab">Completed</a>
+          <a href="admin-manage-booking.php" class="btn kaya-tab">Cancelled</a>
         </div>
+        <!-- RIGHT: actions -->
         <div class="kaya-actions ml-auto btn-group" role="group" aria-label="Actions" style="flex-wrap:nowrap;gap:.5rem;">
-          <a href="admin-create-booking.php" class="btn btn-kaya-primary">New Trip</a>
-          <a href="admin-manage-booking.php" class="btn btn-kaya-danger-outline">Cancelled</a>
+          <button type="button" class="btn btn-kaya-primary" data-toggle="modal" data-target="#newTripModal">
+            <i class="fas fa-plus mr-1"></i> New Trip
+          </button>
         </div>
       </div>
 
@@ -357,6 +420,156 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
         <div id="kayaCalendar"></div>
       </div>
 
+      <!-- New Trip Modal -->
+      <div class="modal fade" id="newTripModal" tabindex="-1" role="dialog" aria-labelledby="newTripLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+          <div class="modal-content">
+            <form id="newTripForm">
+              <div class="modal-header">
+                <h5 class="modal-title" id="newTripLabel">Create Trip</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" name="ajax_create_booking" value="1">
+
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>Date</label>
+                    <input type="date" required class="form-control" name="sched_date">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>Time</label>
+                    <input type="time" required class="form-control" name="sched_time">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>Customer</label>
+                    <input type="text" required class="form-control" name="customer">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>Phone</label>
+                    <input type="text" class="form-control" name="phone" placeholder="+63…">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-3">
+                    <label>Pax</label>
+                    <input type="number" class="form-control" name="pax" min="1" value="1">
+                  </div>
+                  <div class="form-group col-md-5">
+                    <label>Vehicle</label>
+                    <select class="form-control" name="vehicle_id" id="modalVehicleSelect">
+                      <option value="">— None —</option>
+                      <?php if (table_exists($mysqli,'tms_vehicle')):
+                        $q=$mysqli->query("SELECT v_id AS id, COALESCE(NULLIF(v_name,''),'Vehicle') AS name,
+                                                  COALESCE(NULLIF(v_reg_no,''), CONCAT('ID-', v_id)) AS plate_no
+                                           FROM tms_vehicle WHERE deleted_at IS NULL
+                                           ORDER BY v_name, v_reg_no");
+                        if ($q) while($v=$q->fetch_assoc()): ?>
+                          <option value="<?= (int)$v['id'] ?>"><?= htmlspecialchars(($v['name']?:'Vehicle').' · '.$v['plate_no']) ?></option>
+                      <?php endwhile; endif; ?>
+                    </select>
+                  </div>
+                  <div class="form-group col-md-4">
+                    <label>Driver</label>
+                    <select class="form-control" name="driver_id" id="modalDriverSelect">
+                      <option value="">— None —</option>
+                      <?php if (table_exists($mysqli,'accounts')):
+                        $q=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver' AND is_active=1 ORDER BY name");
+                        if ($q) while($d=$q->fetch_assoc()): ?>
+                          <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
+                      <?php endwhile; endif; ?>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>Pickup</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="pickup" name="pickup" placeholder="Type or use map">
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="pickup">
+                          <i class="fas fa-map-marker-alt"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="pickup_lat" name="pickup_lat">
+                    <input type="hidden" id="pickup_lng" name="pickup_lng">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>Destination</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="dropoff" name="dropoff" placeholder="Type or use map">
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="dropoff">
+                          <i class="fas fa-map-pin"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="dropoff_lat" name="dropoff_lat">
+                    <input type="hidden" id="dropoff_lng" name="dropoff_lng">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-4">
+                    <label>Booking Type</label>
+                    <select name="booking_type" class="form-control">
+                      <option value="admin">Admin</option>
+                      <option value="personal">Personal</option>
+                    </select>
+                  </div>
+                  <div class="form-group col-md-8">
+                    <label>Notes</label>
+                    <input type="text" class="form-control" name="notes" placeholder="Optional notes">
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-kaya-primary">
+                  <i class="fas fa-save mr-1"></i> Create Booking
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Picker Modal (shared for Pickup/Destination) -->
+      <div class="modal fade" id="mapModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="fas fa-map-marked-alt mr-1"></i> Choose Location</h5>
+              <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group mb-2">
+                <div class="input-group">
+                  <input id="geoQuery" type="text" class="form-control" placeholder="Search address / place">
+                  <div class="input-group-append">
+                    <button id="btnGeoSearch" class="btn btn-outline-secondary" type="button"><i class="fas fa-search"></i></button>
+                  </div>
+                </div>
+                <div id="geoResults" class="nominatim-results mt-2"></div>
+              </div>
+              <div id="kayaMap"></div>
+              <small class="text-muted d-block mt-2">Drag the marker to fine-tune. We’ll reverse-geocode and fill the text field.</small>
+            </div>
+            <div class="modal-footer">
+              <button type="button" id="btnUsePoint" class="btn btn-kaya-primary"><i class="fas fa-check mr-1"></i> Use this point</button>
+              <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
     <?php include('vendor/inc/footer.php'); ?>
   </div>
@@ -372,8 +585,18 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
 
 <!-- FullCalendar (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+<!-- Location suggestions + map -->
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+  // Pairing maps made available to JS
+  const VEH_TO_DRV = <?= json_encode($vehToDrv, JSON_UNESCAPED_UNICODE) ?>;
+  const DRV_TO_VEH = <?= json_encode($drvToVeh, JSON_UNESCAPED_UNICODE) ?>;
+
   // DataTable for the list
   $('#dataTable').DataTable({
     pageLength: 10,
@@ -409,7 +632,6 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
         if (s) params.append('status[]', s);
         if (driverInput && driverInput.value) params.set('driver_id', driverInput.value);
 
-        // Adjust path if this page is inside /admin/: use '../api/calendar-events.php'
         fetch('api/calendar-events.php?' + params.toString(), { credentials: 'same-origin' })
           .then(r => r.json())
           .then(data => success(data))
@@ -430,10 +652,8 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
 
     calendar.render();
 
-    // Filter change -> refetch
     if (statusSel) statusSel.addEventListener('change', () => calendar.refetchEvents());
 
-    // Optional UX: clicking a row scrolls calendar to that date
     document.querySelectorAll('#upcoming-list tbody tr[data-date]').forEach(function(row){
       row.addEventListener('click', function(){
         const d = row.getAttribute('data-date');
@@ -445,7 +665,7 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
     });
   })();
 
-  // sidebar sizing (unchanged)
+  // sidebar sizing
   (function () {
     var btn = document.getElementById('sidebarToggle');
     if (!btn) return;
@@ -463,7 +683,334 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
     }
     syncNavH(); window.addEventListener('resize', syncNavH);
   })();
+
+  // 🔁 Auto-pair Vehicle <-> Driver in the MODAL
+  (function(){
+    var $veh = $('#modalVehicleSelect');
+    var $drv = $('#modalDriverSelect');
+
+    $veh.on('change', function(){
+      var vid = $(this).val();
+      if (!vid) return;
+      if (VEH_TO_DRV && Object.prototype.hasOwnProperty.call(VEH_TO_DRV, vid)) {
+        var want = String(VEH_TO_DRV[vid]);
+        if (String($drv.val()) !== want) $drv.val(want).trigger('change');
+      }
+    });
+    $drv.on('change', function(){
+      var did = $(this).val();
+      if (!did) return;
+      if (DRV_TO_VEH && Object.prototype.hasOwnProperty.call(DRV_TO_VEH, did)) {
+        var want = String(DRV_TO_VEH[did]);
+        if (String($veh.val()) !== want) $veh.val(want).trigger('change');
+      }
+    });
+  })();
+
+  /* =============================================================
+     Location Suggestions + Map Picker
+     - Uses Photon (Komoot) first; falls back to Nominatim
+     ============================================================= */
+
+  // ---------- Helpers to format addresses ----------
+  function composePhotonLabel(f){
+    if (!f || !f.properties) return '';
+    const p = f.properties;
+    const parts = [];
+    if (p.name) parts.push(p.name);
+    if (p.street) parts.push(p.street + (p.housenumber ? ' ' + p.housenumber : ''));
+    if (p.suburb || p.district || p.city) parts.push(p.suburb || p.district || p.city);
+    if (p.state) parts.push(p.state);
+    if (p.country) parts.push(p.country);
+    return parts.filter(Boolean).join(', ');
+  }
+  function composeNominatimLabel(rec){
+    return rec && rec.display_name ? rec.display_name : '';
+  }
+
+  // ---- Philippines bias (bounds + default center) ----
+  const PH_BOUNDS = { // lon/lat
+    west: 116.0, south: 4.4, east: 127.0, north: 21.3
+  };
+  const PH_CENTER = { lat: 14.5995, lon: 120.9842 }; // Manila
+  const PH_BBOX_STR = [PH_BOUNDS.west, PH_BOUNDS.south, PH_BOUNDS.east, PH_BOUNDS.north].join(',');
+
+
+  // ---------- Forward search ----------
+  function photonSearch(q, limit=8){
+  // Photon supports lat/lon (ranking) and bbox (filtering)
+  const url =
+    'https://photon.komoot.io/api/?' +
+    'q=' + encodeURIComponent(q) +
+    '&limit=' + limit +
+    '&lat=' + encodeURIComponent(PH_CENTER.lat) +
+    '&lon=' + encodeURIComponent(PH_CENTER.lon) +
+    '&bbox=' + encodeURIComponent(PH_BBOX_STR) +
+    '&lang=en';
+  return fetch(url, {mode:'cors'})
+    .then(r => r.json())
+    .then(json => (json && json.features) ? json.features : []);
+}
+
+  function nominatimSearch(q, limit=8){
+    // Restrict to Philippines + bias with viewbox
+    const url =
+      'https://nominatim.openstreetmap.org/search?' +
+      'format=jsonv2' +
+      '&limit=' + limit +
+      '&countrycodes=ph' +
+      '&viewbox=' + [
+        PH_BOUNDS.west, PH_BOUNDS.north,  // left,top
+        PH_BOUNDS.east, PH_BOUNDS.south   // right,bottom
+      ].join(',') +
+      '&bounded=1' +
+      '&q=' + encodeURIComponent(q);
+    return fetch(url, {mode:'cors', headers:{'Accept':'application/json','Accept-Language':'en-PH'}})
+      .then(r => r.json());
+  }
+
+
+  // ---------- Reverse geocode ----------
+  function nominatimReverse(lat, lon){
+    const url =
+      'https://nominatim.openstreetmap.org/reverse?' +
+      'format=jsonv2' +
+      '&lat=' + encodeURIComponent(lat) +
+      '&lon=' + encodeURIComponent(lon) +
+      '&accept-language=en-PH';
+    return fetch(url,{mode:'cors', headers:{'Accept':'application/json'}})
+      .then(r=>r.json())
+      .then(rec=>composeNominatimLabel(rec));
+  }
+
+  function reverseNice(lat, lon){
+    // Try Photon first; its reverse endpoint is rate-limited/not consistent, so go straight to Nominatim here
+    return nominatimReverse(lat,lon).catch(()=>lat.toFixed(6)+', '+lon.toFixed(6));
+  }
+
+  // === Live autocomplete for the modal search box ===
+  (function enableGeoAutocomplete(){
+    if ($('#geoQuery').data('geo-autocomplete')) return;
+    $('#geoQuery').data('geo-autocomplete', 1);
+
+    function toPhotonItem(f){
+      const label = composePhotonLabel(f);
+      return { label, value: label, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] };
+    }
+    function toNominatimItem(rec){
+      const label = composeNominatimLabel(rec);
+      return { label, value: label, lat: parseFloat(rec.lat), lon: parseFloat(rec.lon) };
+    }
+
+    $('#geoQuery').autocomplete({
+      minLength: 2,
+      delay: 250,
+      source: function(req, resp){
+        photonSearch(req.term, 8).then(features=>{
+          if (features && features.length) return resp(features.map(toPhotonItem));
+          return nominatimSearch(req.term, 8).then(list=>resp((list||[]).map(toNominatimItem)));
+        }).catch(()=>{
+          nominatimSearch(req.term, 8).then(list=>resp((list||[]).map(toNominatimItem)))
+            .catch(()=>resp([]));
+        });
+      },
+      select: function(e, ui){
+        if (!ui || !ui.item) return;
+        const lat = parseFloat(ui.item.lat), lon = parseFloat(ui.item.lon);
+        setMarker(lat, lon);
+        lastPicked = { label: ui.item.value, lat: lat, lng: lon };
+        setTimeout(()=>$('#geoQuery').select(), 0);
+      },
+      open: function(){ $('.ui-autocomplete').css('z-index', 2000); }
+    });
+
+    $('#geoQuery').on('keydown', function(e){ if (e.key === 'Enter') e.preventDefault(); });
+  })();
+
+  // ---------- Autocomplete on Pickup / Destination fields ----------
+  function attachAutocomplete($input, $lat, $lng){
+    if ($input.data('kaya-autocomplete')) return;
+    $input.data('kaya-autocomplete', 1);
+
+    $input.autocomplete({
+      minLength: 2,
+      delay: 250,
+      source: function(req, resp){
+        photonSearch(req.term, 8).then(features=>{
+          if (features && features.length){
+            resp(features.map(f=>{
+              const label = composePhotonLabel(f);
+              return { label: label, value: label, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] };
+            }));
+          } else {
+            nominatimSearch(req.term,8).then(list=>{
+              resp((list||[]).map(it=>({label: composeNominatimLabel(it), value: composeNominatimLabel(it), lat: it.lat, lon: it.lon})));
+            }).catch(()=>resp([]));
+          }
+        }).catch(()=>{
+          nominatimSearch(req.term,8).then(list=>{
+            resp((list||[]).map(it=>({label: composeNominatimLabel(it), value: composeNominatimLabel(it), lat: it.lat, lon: it.lon})));
+          }).catch(()=>resp([]));
+        });
+      },
+      select: function(e, ui){
+        if (ui && ui.item){
+          $lat.val(parseFloat(ui.item.lat).toFixed(8));
+          $lng.val(parseFloat(ui.item.lon).toFixed(8));
+        }
+      },
+      open: function(){ $('.ui-autocomplete').css('z-index', 2000); }
+    });
+    $input.on('input', function(){ $lat.val(''); $lng.val(''); });
+  }
+
+  // Init autocomplete when modal is shown (fields live inside the modal)
+  $('#newTripModal').on('shown.bs.modal', function(){
+    attachAutocomplete($('#pickup'),  $('#pickup_lat'),  $('#pickup_lng'));
+    attachAutocomplete($('#dropoff'), $('#dropoff_lat'), $('#dropoff_lng'));
+  });
+
+  // ===== Map Picker (pin-drop) – readable labels =====
+  var Lmap, Lmarker, pickingFor='pickup';
+  var lastCenter = {lat:14.5995, lng:120.9842, zoom:12};
+  var lastPicked = {label:'', lat:null, lng:null};
+
+  function initMap(){
+    if (Lmap) { setTimeout(()=>Lmap.invalidateSize(), 100); return; }
+    Lmap = L.map('kayaMap').setView([lastCenter.lat,lastCenter.lng], lastCenter.zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    }).addTo(Lmap);
+    Lmarker = L.marker(Lmap.getCenter(), {draggable:true}).addTo(Lmap);
+
+    Lmap.on('moveend', function(){
+      lastCenter={lat:Lmap.getCenter().lat,lng:Lmap.getCenter().lng,zoom:Lmap.getZoom()};
+    });
+
+    Lmarker.on('dragend', function(){
+      var p = Lmarker.getLatLng();
+      reverseNice(p.lat, p.lng).then(function(lbl){
+        lastPicked = {label: lbl || '', lat: p.lat, lng: p.lng};
+      });
+    });
+  }
+
+  function setMarker(lat,lng){
+    Lmarker.setLatLng([lat,lng]);
+    Lmap.setView([lat,lng], Math.max(15,Lmap.getZoom()));
+    reverseNice(lat,lng).then(function(lbl){
+      lastPicked = {label: lbl || '', lat: lat, lng: lng};
+    });
+  }
+
+  $('#mapModal').on('shown.bs.modal', function(ev){
+    var btn = $(ev.relatedTarget);
+    pickingFor = (btn && btn.data('for')) ? String(btn.data('for')) : 'pickup';
+    initMap();
+
+    var lat = $('#'+pickingFor+'_lat').val();
+    var lng = $('#'+pickingFor+'_lng').val();
+    if (lat && lng) {
+      setMarker(parseFloat(lat), parseFloat(lng));
+    } else {
+      var text = $('#'+pickingFor).val();
+      if (text && text.length>3){
+        photonSearch(text,1).then(function(r){
+          if (r && r[0]) setMarker(r[0].geometry.coordinates[1], r[0].geometry.coordinates[0]);
+          else return nominatimSearch(text,1).then(function(n){ if (n && n[0]) setMarker(parseFloat(n[0].lat), parseFloat(n[0].lon)); });
+        }).catch(function(){
+          nominatimSearch(text,1).then(function(n){ if (n && n[0]) setMarker(parseFloat(n[0].lat), parseFloat(n[0].lon)); });
+        }).finally(function(){
+          setTimeout(()=>Lmap.invalidateSize(), 150);
+        });
+        return;
+      }
+      Lmap.setView([lastCenter.lat,lastCenter.lng], lastCenter.zoom);
+      Lmarker.setLatLng(Lmap.getCenter());
+      lastPicked = {label:'', lat:Lmap.getCenter().lat, lng:Lmap.getCenter().lng};
+    }
+    setTimeout(()=>Lmap.invalidateSize(), 150);
+  });
+
+  $('#btnGeoSearch').on('click', function(){
+    var q = $('#geoQuery').val().trim();
+    var $list = $('#geoResults').empty();
+    if (!q) return;
+    $list.text('Searching…');
+    photonSearch(q,10).then(function(features){
+      if (!features || !features.length) throw new Error('no-photon');
+      $list.empty();
+      features.forEach(function(f){
+        var label = composePhotonLabel(f);
+        var lat = f.geometry.coordinates[1], lon = f.geometry.coordinates[0];
+        var $it = $('<div class="geocode-item"></div>').text(label);
+        $it.on('click', function(){ setMarker(lat, lon); lastPicked = {label: label, lat: lat, lng: lon}; });
+        $list.append($it);
+      });
+    }).catch(function(){
+      nominatimSearch(q,10).then(function(list){
+        $list.empty();
+        if (!list || !list.length){ $list.text('No results.'); return; }
+        list.forEach(function(r){
+          var label = composeNominatimLabel(r);
+          var lat = parseFloat(r.lat), lon = parseFloat(r.lon);
+          var $it = $('<div class="geocode-item"></div>').text(label);
+          $it.on('click', function(){ setMarker(lat, lon); lastPicked = {label: label, lat: lat, lng: lon}; });
+          $list.append($it);
+        });
+      }).catch(function(){ $list.text('Search failed.'); });
+    });
+  });
+
+  $('#btnUsePoint').on('click', function(){
+    var pos = Lmarker.getLatLng();
+    var apply = function(lbl){
+      var labelToUse = lbl || lastPicked.label || $('#'+pickingFor).val() || (pos.lat.toFixed(6)+', '+pos.lng.toFixed(6));
+      $('#'+pickingFor).val(labelToUse);
+      $('#'+pickingFor+'_lat').val(pos.lat.toFixed(8));
+      $('#'+pickingFor+'_lng').val(pos.lng.toFixed(8));
+      $('#mapModal').modal('hide');
+    };
+    if (lastPicked.lat===pos.lat && lastPicked.lng===pos.lng && lastPicked.label){
+      apply(lastPicked.label);
+    } else {
+      reverseNice(pos.lat,pos.lng).then(apply).catch(function(){ apply(''); });
+    }
+  });
+
+  // Modal submit -> AJAX to this page
+  (function(){
+    var form = document.getElementById('newTripForm');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(form);
+      fetch('admin-trip-appointment.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: fd
+      }).then(r=>r.json()).then(function(res){
+        if (res && res.ok) {
+          $('#newTripModal').modal('hide');
+          swal("Created!", "Booking has been created.", "success");
+          setTimeout(function(){ location.reload(); }, 800);
+        } else {
+          swal("Oops", (res && res.error) ? res.error : "Failed to create booking.", "error");
+        }
+      }).catch(function(){
+        swal("Oops", "Network / server error.", "error");
+      });
+    });
+
+    if (location.hash === '#new') { $('#newTripModal').modal('show'); }
+  })();
 </script>
+
+<style>
+  footer.sticky-footer{ background:transparent!important; height:0!important; border:0!important; box-shadow:none!important; }
+  footer.sticky-footer .container, footer.sticky-footer .copyright{ display:none!important; }
+  #wrapper #content-wrapper{ padding-bottom:0!important; }
+</style>
 
 </body>
 </html>

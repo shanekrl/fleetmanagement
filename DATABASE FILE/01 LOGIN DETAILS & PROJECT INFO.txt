@@ -11,3 +11,6 @@ Password : test123
 
 Email    : noah@mail.com
 Password : tinolaslander
+
+Email    : kei@mail.com
+Password : autogg
