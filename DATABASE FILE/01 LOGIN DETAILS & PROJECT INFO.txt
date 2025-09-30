@@ -14,3 +14,6 @@ Password : tinolaslander
 
 Email    : kei@mail.com
 Password : autogg
+
+Email    : r.cabral@gmail.com
+Password : cabral123

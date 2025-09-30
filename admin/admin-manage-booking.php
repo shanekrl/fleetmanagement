@@ -160,15 +160,11 @@ if (table_exists($mysqli,'v_booking_grid')) {
                         onsubmit="return confirm('Restore this booking to queue?');">
                     <input type="hidden" name="action" value="admin_restore">
                     <input type="hidden" name="id"     value="<?= (int)$r['booking_id'] ?>">
-                    <button class="btn btn-sm btn-outline-primary" title="Restore"><i class="fas fa-undo"></i></button>
+                    <button class="btn btn-sm btn-outline-primary" title="Restore">
+                      <i class="fas fa-undo"></i>
+                    </button>
                   </form>
-                  <!-- Delete permanently -->
-                  <form method="post" action="<?= ACTION_ENDPOINT ?>" class="d-inline"
-                        onsubmit="return confirm('Permanently delete this booking?');">
-                    <input type="hidden" name="action" value="admin_delete">
-                    <input type="hidden" name="id"     value="<?= (int)$r['booking_id'] ?>">
-                    <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
-                  </form>
+                  <!-- Delete removed by request -->
                 </td>
               </tr>
               <?php endforeach; ?>

@@ -49,6 +49,7 @@ $model_table   = table_exists($mysqli,'tms_vehicle_models');
 $mm_soft_make  = $make_table && column_exists($mysqli,'tms_vehicle_makes','deleted_at');
 $mm_soft_model = $model_table && column_exists($mysqli,'tms_vehicle_models','deleted_at');
 
+
 /* ----------------- fetch helpers ----------------- */
 function fetch_categories(mysqli $db, bool $has, bool $soft, array $fallback): array {
   if (!$has) return array_map(fn($n)=>['id'=>null,'name'=>$n], $fallback);
@@ -56,27 +57,47 @@ function fetch_categories(mysqli $db, bool $has, bool $soft, array $fallback): a
   $out=[]; if($q=$db->query("SELECT id,name FROM tms_vehicle_categories $where ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
   return $out ?: array_map(fn($n)=>['id'=>null,'name'=>$n], $fallback);
 }
-function fetch_all_categories(mysqli $db, bool $has): array {
+function fetch_all_categories(mysqli $db, bool $has, bool $soft): array {
   if(!$has) return [];
-  $out=[]; if($q=$db->query("SELECT id,name,is_active,deleted_at FROM tms_vehicle_categories ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
-  return $out;
-}
-function fetch_makes(mysqli $db, bool $onlyActive=true): array {
-  $where = $onlyActive ? "WHERE is_active=1 AND deleted_at IS NULL" : "";
-  $out=[]; if($q=$db->query("SELECT id,name,is_active,deleted_at FROM tms_vehicle_makes $where ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
-  return $out;
-}
-function fetch_models_by_make(mysqli $db, int $makeId, bool $onlyActive=true): array {
-  $where = $onlyActive ? "AND is_active=1 AND deleted_at IS NULL" : "";
-  $out=[]; if($q=$db->query("SELECT id,make_id,name,is_active,deleted_at FROM tms_vehicle_models WHERE make_id={$makeId} $where ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
-  return $out;
-}
-function fetch_all_models_grouped(mysqli $db): array {
   $out=[];
-  $q=$db->query("SELECT id,make_id,name,is_active,deleted_at FROM tms_vehicle_models ORDER BY name");
+  $cols = $soft ? "id,name,is_active,deleted_at" : "id,name,is_active";
+  $where = $soft ? "WHERE deleted_at IS NULL" : "";
+  $q = $db->query("SELECT $cols FROM tms_vehicle_categories $where ORDER BY name");
   if($q) while($r=$q->fetch_assoc()) $out[]=$r;
   return $out;
 }
+
+function fetch_makes(mysqli $db, bool $onlyActive=true, bool $soft=false): array {
+  $where = $onlyActive
+    ? ("WHERE is_active=1" . ($soft ? " AND deleted_at IS NULL" : ""))
+    : "";
+  $cols = "id,name,is_active" . ($soft ? ",deleted_at" : "");
+  $out=[];
+  if($q=$db->query("SELECT $cols FROM tms_vehicle_makes $where ORDER BY name"))
+    while($r=$q->fetch_assoc()) $out[]=$r;
+  return $out;
+}
+
+function fetch_models_by_make(mysqli $db, int $makeId, bool $onlyActive=true, bool $soft=false): array {
+  $where = $onlyActive
+    ? ("AND is_active=1" . ($soft ? " AND deleted_at IS NULL" : ""))
+    : "";
+  $cols = "id,make_id,name,is_active" . ($soft ? ",deleted_at" : "");
+  $out=[];
+  if($q=$db->query("SELECT $cols FROM tms_vehicle_models WHERE make_id={$makeId} $where ORDER BY name"))
+    while($r=$q->fetch_assoc()) $out[]=$r;
+  return $out;
+}
+
+function fetch_all_models_grouped(mysqli $db, bool $soft=false): array {
+  $cols = "id,make_id,name,is_active" . ($soft ? ",deleted_at" : "");
+  $where = $soft ? "" /* we list all; if you want only active, filter in UI */ : "";
+  $out=[];
+  $q=$db->query("SELECT $cols FROM tms_vehicle_models $where ORDER BY name");
+  if($q) while($r=$q->fetch_assoc()) $out[]=$r;
+  return $out;
+}
+
 
 /* ----------------- view mode ----------------- */
 $view = (isset($_GET['view']) && $_GET['view']==='trash' && $hasSoftDelete) ? 'trash' : 'active';
@@ -136,19 +157,30 @@ if (isset($_POST['create_vehicle'])) {
   }
 }
 
-/* ----------------- Makes/Models CRUD (simple soft delete via deleted_at) ----------------- */
+/* ----------------- Makes/Models CRUD (creation and edit!) ----------------- */
 if (isset($_POST['create_make']) && $make_table) {
   $name = trim($_POST['make_name'] ?? '');
-  if ($name!=='') $mysqli->query("INSERT IGNORE INTO tms_vehicle_makes(name,is_active) VALUES ('".$mysqli->real_escape_string($name)."',1)");
+  if ($name!=='') {
+    $mysqli->query("INSERT IGNORE INTO tms_vehicle_makes(name,is_active) VALUES ('".$mysqli->real_escape_string($name)."',1)");
+  }
+  header('Location: admin-manage-vehicle.php#manageMakesModelsModal');
+  exit;
 }
-if (isset($_POST['delete_make']) && $make_table) {
-  $id = (int)($_POST['make_id'] ?? 0);
-  if ($mm_soft_make) $mysqli->query("UPDATE tms_vehicle_makes SET deleted_at=NOW() WHERE id=$id");
-  else $mysqli->query("DELETE FROM tms_vehicle_makes WHERE id=$id");
-}
-if (isset($_POST['restore_make']) && $make_table && $mm_soft_make) {
-  $id = (int)($_POST['make_id'] ?? 0);
-  $mysqli->query("UPDATE tms_vehicle_makes SET deleted_at=NULL WHERE id=$id");
+
+// UPDATE (rename) make
+if (isset($_POST['update_make']) && $make_table) {
+  $id   = (int)($_POST['make_id'] ?? 0);
+  $name = trim($_POST['make_name_edit'] ?? '');
+  if ($id > 0 && $name !== '') {
+    $esc = $mysqli->real_escape_string($name);
+    // prevent dupes (case-insensitive)
+    $dup = $mysqli->query("SELECT 1 FROM tms_vehicle_makes WHERE id<>$id AND LOWER(name)=LOWER('{$esc}') LIMIT 1");
+    if (!$dup || $dup->num_rows === 0) {
+      $mysqli->query("UPDATE tms_vehicle_makes SET name='{$esc}', is_active=1 WHERE id={$id}");
+    }
+  }
+  header('Location: admin-manage-vehicle.php#manageMakesModelsModal');
+  exit;
 }
 
 if (isset($_POST['create_model']) && $model_table) {
@@ -157,16 +189,76 @@ if (isset($_POST['create_model']) && $model_table) {
   if ($mid>0 && $name!=='') {
     $mysqli->query("INSERT IGNORE INTO tms_vehicle_models(make_id,name,is_active) VALUES ($mid,'".$mysqli->real_escape_string($name)."',1)");
   }
+  header('Location: admin-manage-vehicle.php#manageMakesModelsModal');
+  exit;
 }
-if (isset($_POST['delete_model']) && $model_table) {
-  $id = (int)($_POST['model_id'] ?? 0);
-  if ($mm_soft_model) $mysqli->query("UPDATE tms_vehicle_models SET deleted_at=NOW() WHERE id=$id");
-  else $mysqli->query("DELETE FROM tms_vehicle_models WHERE id=$id");
+
+// UPDATE (rename + optionally move to another make) model
+if (isset($_POST['update_model']) && $model_table) {
+  $id       = (int)($_POST['model_id'] ?? 0);
+  $name     = trim($_POST['model_name_edit'] ?? '');
+  $makeId   = (int)($_POST['model_make_id_edit'] ?? 0);
+  if ($id > 0 && $name !== '' && $makeId > 0) {
+    $esc = $mysqli->real_escape_string($name);
+    // unique per-make (case-insensitive)
+    $dup = $mysqli->query("SELECT 1 FROM tms_vehicle_models WHERE id<>$id AND make_id={$makeId} AND LOWER(name)=LOWER('{$esc}') LIMIT 1");
+    if (!$dup || $dup->num_rows === 0) {
+      $mysqli->query("UPDATE tms_vehicle_models SET name='{$esc}', make_id={$makeId}, is_active=1 WHERE id={$id}");
+    }
+  }
+  header('Location: admin-manage-vehicle.php#manageMakesModelsModal');
+  exit;
 }
-if (isset($_POST['restore_model']) && $model_table && $mm_soft_model) {
-  $id = (int)($_POST['model_id'] ?? 0);
-  $mysqli->query("UPDATE tms_vehicle_models SET deleted_at=NULL WHERE id=$id");
+
+
+/* ----------------- Categories CRUD ----------------- */
+if ($cat_table) {
+  // CREATE
+  if (isset($_POST['create_category'])) {
+    $name = trim($_POST['category_name'] ?? '');
+    if ($name !== '') {
+      // prevent dupes (case-insensitive)
+      $esc = $mysqli->real_escape_string($name);
+      $exists = $mysqli->query("SELECT id FROM tms_vehicle_categories WHERE deleted_at IS NULL AND LOWER(name)=LOWER('{$esc}') LIMIT 1");
+      if ($exists && $exists->num_rows === 0) {
+        // if a soft-deleted row with same name exists, purge it to avoid unique conflicts, else insert fresh
+        $mysqli->query("DELETE FROM tms_vehicle_categories WHERE deleted_at IS NOT NULL AND LOWER(name)=LOWER('{$esc}')");
+        $mysqli->query("INSERT INTO tms_vehicle_categories(name,is_active) VALUES ('{$esc}',1)");
+      }
+    }
+    header('Location: admin-manage-vehicle.php#manageCategoriesModal');
+    exit;
+  }
 }
+
+// UPDATE (rename) category and keep vehicles in sync
+if (isset($_POST['update_category']) && $cat_table) {
+  $catId = (int)($_POST['category_id'] ?? 0);
+  $newName = trim($_POST['category_name_edit'] ?? '');
+  if ($catId > 0 && $newName !== '') {
+    $escNew = $mysqli->real_escape_string($newName);
+
+    // get old name (needed to sync tms_vehicle.v_category which stores text)
+    $res = $mysqli->query("SELECT name FROM tms_vehicle_categories WHERE id={$catId} LIMIT 1");
+    if ($res && ($row = $res->fetch_assoc())) {
+      $oldName = $row['name'];
+
+      // ensure no duplicate (case-insensitive) among active rows
+      $dup = $mysqli->query("SELECT 1 FROM tms_vehicle_categories WHERE id<>$catId AND LOWER(name)=LOWER('{$escNew}') LIMIT 1");
+      if (!$dup || $dup->num_rows === 0) {
+        // update category
+        $mysqli->query("UPDATE tms_vehicle_categories SET name='{$escNew}', is_active=1 WHERE id={$catId}");
+
+        // sync vehicles showing the old text label
+        $escOld = $mysqli->real_escape_string($oldName);
+        $mysqli->query("UPDATE tms_vehicle SET v_category='{$escNew}' WHERE LOWER(v_category)=LOWER('{$escOld}')");
+      }
+    }
+  }
+  header('Location: admin-manage-vehicle.php#manageCategoriesModal');
+  exit;
+}
+
 
 /* --- DELETE / RESTORE / PURGE vehicle --- */
 if (isset($_POST['delete_vehicle'])) {
@@ -218,24 +310,62 @@ if ($stmt=$mysqli->prepare($sql)) {
 }
 
 /* ----------------- FETCH drivers (accounts only) ----------------- */
+/* ----------------- FETCH drivers (accounts only) ----------------- */
 $drivers_acc=[];
 if ($hasAccounts) {
+  // Include a driver if:
+  //  - they have no tms_user_add_driver row, OR
+  //  - they have an active (deleted_at IS NULL) row.
+  // Exclude if the only matching rows are soft-deleted.
+  $emailFilter = "
+    AND (
+      a.email IS NULL OR a.email = ''
+      OR NOT EXISTS (
+        SELECT 1
+        FROM tms_user_add_driver ad0
+        WHERE ad0.u_email <> '' AND LOWER(ad0.u_email) = LOWER(a.email)
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM tms_user_add_driver ad1
+        WHERE ad1.u_email <> '' AND LOWER(ad1.u_email) = LOWER(a.email)
+          AND ad1.deleted_at IS NULL
+      )
+    )
+  ";
+
   if ($hasViewVehDrv) {
-    $q=$mysqli->query("SELECT a.id,a.name,(SELECT v_id FROM v_vehicle_current_driver WHERE driver_account_id=a.id LIMIT 1) AS current_vehicle_id
-                       FROM accounts a WHERE a.role='driver' AND a.is_active=1 ORDER BY a.name,a.id DESC");
+    $q = $mysqli->query("
+      SELECT a.id, a.name,
+             (SELECT v_id FROM v_vehicle_current_driver
+              WHERE driver_account_id = a.id LIMIT 1) AS current_vehicle_id
+      FROM accounts a
+      WHERE a.role='driver' AND a.is_active=1
+      $emailFilter
+      ORDER BY a.name, a.id DESC
+    ");
   } else {
-    $q=$mysqli->query("SELECT a.id,a.name,(SELECT vehicle_id FROM vehicle_assignments WHERE driver_id=a.id AND end_at IS NULL LIMIT 1) AS current_vehicle_id
-                       FROM accounts a WHERE a.role='driver' AND a.is_active=1 ORDER BY a.name,a.id DESC");
+    $q = $mysqli->query("
+      SELECT a.id, a.name,
+             (SELECT vehicle_id FROM vehicle_assignments
+              WHERE driver_id=a.id AND end_at IS NULL LIMIT 1) AS current_vehicle_id
+      FROM accounts a
+      WHERE a.role='driver' AND a.is_active=1
+      $emailFilter
+      ORDER BY a.name, a.id DESC
+    ");
   }
-  if ($q) while($r=$q->fetch_assoc()) $drivers_acc[]=$r;
+
+  if ($q) while ($r = $q->fetch_assoc()) $drivers_acc[] = $r;
 }
 
+
 /* ----------------- lists for UI ----------------- */
-$categories_active = fetch_categories($mysqli,$cat_table,$cat_soft,$default_cats);
-$categories_all    = fetch_all_categories($mysqli,$cat_table);
-$makes_active      = $make_table  ? fetch_makes($mysqli,true) : [];
-$makes_all         = $make_table  ? fetch_makes($mysqli,false): [];
-$models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
+$categories_all    = fetch_all_categories($mysqli,$cat_table,$cat_soft);
+$categories_active = fetch_categories($mysqli,$cat_table,$cat_soft,$default_cats); // <-- add this
+$makes_active      = $make_table  ? fetch_makes($mysqli,true,$mm_soft_make)  : [];
+$makes_all         = $make_table  ? fetch_makes($mysqli,false,$mm_soft_make) : [];
+$models_all        = $model_table ? fetch_all_models_grouped($mysqli,$mm_soft_model) : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -320,11 +450,6 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
                     <a href="admin-view-vehicle.php?v_id=<?= $vid ?>" class="btn btn-sm btn-outline-secondary btn-icon" title="View"><i class="fas fa-info-circle"></i></a>
                     <?php if ($view!=='trash'): ?>
                       <a href="admin-manage-single-vehicle.php?v_id=<?= $vid ?>" class="btn btn-sm btn-outline-secondary btn-icon" title="Edit"><i class="fas fa-pencil-alt"></i></a>
-                      <button type="button" class="btn btn-sm btn-outline-secondary btn-icon"
-                              data-toggle="modal" data-target="#assignDriverModal"
-                              data-vehicle-id="<?= $vid ?>"
-                              data-current-driver-id="<?= (int)($v['driver_account_id']??0) ?>"
-                              title="Assign / Change Driver"><i class="fas fa-exchange-alt"></i></button>
                       <a href="admin-view-syslogs.php?PlateNo=<?= urlencode($v['v_reg_no']) ?>" class="btn btn-sm btn-outline-secondary btn-icon" title="Monitor"><i class="fas fa-eye"></i></a>
                       <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
                               data-toggle="modal" data-target="#deleteVehicleModal"
@@ -431,23 +556,27 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
                     <input type="text" name="category_name" class="form-control" placeholder="New category name" required>
                     <button class="btn btn-kaya-primary" type="submit">Add</button>
                   </form>
-                  <div class="list-group">
-                    <?php foreach ($categories_all as $c): ?>
-                      <div class="list-group-item d-flex align-items-center justify-content-between">
-                        <div><strong><?= h($c['name']) ?></strong>
-                          <?php if (!empty($c['deleted_at'])): ?><span class="badge badge-danger ml-2">Deleted</span>
-                          <?php elseif (!$c['is_active']): ?><span class="badge badge-secondary ml-2">Inactive</span><?php endif; ?>
-                        </div>
-                        <div>
-                          <?php if (!empty($c['deleted_at'])): ?>
-                            <form method="post" class="d-inline"><input type="hidden" name="restore_category" value="1"><input type="hidden" name="category_id" value="<?= (int)$c['id'] ?>"><button class="btn btn-sm btn-success">Restore</button></form>
-                          <?php else: ?>
-                            <form method="post" onsubmit="return confirm('Remove this category?');" class="d-inline m-0"><input type="hidden" name="delete_category" value="1"><input type="hidden" name="category_id" value="<?= (int)$c['id'] ?>"><button class="btn btn-sm btn-outline-danger">Delete</button></form>
-                          <?php endif; ?>
-                        </div>
-                      </div>
-                    <?php endforeach; ?>
-                  </div>
+
+                  <?php foreach ($categories_all as $c): ?>
+                    <div class="list-group-item d-flex align-items-center justify-content-between">
+                      <form method="post" class="d-flex w-100 kaya-inline-edit" data-scope="category" style="gap:.5rem;align-items:center;">
+                        <input type="hidden" name="update_category" value="1">
+                        <input type="hidden" name="category_id" value="<?= (int)$c['id'] ?>">
+
+                        <input type="text"
+                              name="category_name_edit"
+                              class="form-control"
+                              value="<?= h($c['name']) ?>"
+                              required
+                              readonly
+                              data-original="<?= h($c['name']) ?>">
+
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-row">Edit</button>
+                        <button class="btn btn-sm btn-kaya-primary btn-save-row d-none">Save</button>
+                        <button type="button" class="btn btn-sm btn-light btn-cancel-row d-none">Cancel</button>
+                      </form>
+                    </div>
+                  <?php endforeach; ?>
                 <?php else: ?>
                   <div class="alert alert-info mb-0">Create <code>tms_vehicle_categories</code> table to manage categories here. Defaults are used otherwise.</div>
                 <?php endif; ?>
@@ -474,83 +603,92 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
                         <input type="text" name="make_name" class="form-control" placeholder="Add make (e.g., Toyota)" required>
                         <button class="btn btn-sm btn-kaya-primary">Add</button>
                       </form>
-                      <div class="list-group" style="max-height:320px;overflow:auto">
-                        <?php foreach($makes_all as $m): ?>
-                          <div class="list-group-item d-flex align-items-center justify-content-between">
-                            <div>
-                              <strong><?= h($m['name']) ?></strong>
-                              <?php if (!empty($m['deleted_at'])): ?><span class="badge badge-danger ml-2">Deleted</span><?php endif; ?>
-                            </div>
-                            <div>
-                              <?php if (!empty($m['deleted_at'])): ?>
-                                <form method="post" class="d-inline">
-                                  <input type="hidden" name="restore_make" value="1">
-                                  <input type="hidden" name="make_id" value="<?= (int)$m['id'] ?>">
-                                  <button class="btn btn-sm btn-success">Restore</button>
-                                </form>
-                              <?php else: ?>
-                                <form method="post" class="d-inline" onsubmit="return confirm('Delete this make? Models remain but will be hidden if filtered by active state.');">
-                                  <input type="hidden" name="delete_make" value="1">
-                                  <input type="hidden" name="make_id" value="<?= (int)$m['id'] ?>">
-                                  <button class="btn btn-sm btn-outline-danger">Delete</button>
-                                </form>
-                              <?php endif; ?>
-                            </div>
-                          </div>
-                        <?php endforeach; ?>
-                      </div>
+
+                      <?php foreach ($makes_all as $m): ?>
+                        <div class="list-group-item d-flex align-items-center justify-content-between">
+                          <form method="post" class="d-flex w-100 kaya-inline-edit" data-scope="make" style="gap:.5rem;align-items:center;">
+                            <input type="hidden" name="update_make" value="1">
+                            <input type="hidden" name="make_id" value="<?= (int)$m['id'] ?>">
+
+                            <input type="text"
+                                  name="make_name_edit"
+                                  class="form-control"
+                                  value="<?= h($m['name']) ?>"
+                                  required
+                                  readonly
+                                  data-original="<?= h($m['name']) ?>">
+
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-row">Edit</button>
+                            <button class="btn btn-sm btn-kaya-primary btn-save-row d-none">Save</button>
+                            <button type="button" class="btn btn-sm btn-light btn-cancel-row d-none">Cancel</button>
+                          </form>
+                        </div>
+                      <?php endforeach; ?>
                     </div>
                     <div class="col-md-7 mt-4 mt-md-0">
                       <h6 class="mb-2">Models</h6>
-                      <form method="post" class="mb-2">
+
+                      <!-- Add new model (same style as "Makes") -->
+                      <form method="post" class="mb-2 d-flex" style="gap:.5rem">
                         <input type="hidden" name="create_model" value="1">
-                        <div class="form-row">
-                          <div class="form-group col-5">
-                            <select class="form-control" name="model_make_id" required>
-                              <option value="">— Choose make —</option>
-                              <?php foreach($makes_active as $m): ?>
-                                <option value="<?= (int)$m['id'] ?>"><?= h($m['name']) ?></option>
-                              <?php endforeach; ?>
-                            </select>
-                          </div>
-                          <div class="form-group col-5">
-                            <input type="text" name="model_name" class="form-control" placeholder="New model (e.g., Avanza)" required>
-                          </div>
-                          <div class="form-group col-2">
-                            <button class="btn btn-kaya-primary btn-block">Add</button>
-                          </div>
-                        </div>
+                        <select class="form-control" name="model_make_id" style="max-width:200px" required>
+                          <option value="">Choose make…</option>
+                          <?php foreach($makes_active as $m): ?>
+                            <option value="<?= (int)$m['id'] ?>"><?= h($m['name']) ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                        <input type="text" name="model_name" class="form-control" placeholder="Add model (e.g., Corolla)" required>
+                        <button class="btn btn-sm btn-kaya-primary">Add</button>
                       </form>
-                      <div class="table-responsive" style="max-height:320px;overflow:auto">
-                        <table class="table table-sm">
-                          <thead><tr><th>Make</th><th>Model</th><th class="text-right">Actions</th></tr></thead>
-                          <tbody>
-                            <?php
-                              $makeMap=[]; foreach($makes_all as $m) $makeMap[$m['id']]=$m['name'];
-                              foreach($models_all as $mo):
-                            ?>
-                              <tr>
-                                <td><?= h($makeMap[$mo['make_id']] ?? ('#'.$mo['make_id'])) ?></td>
-                                <td><?= h($mo['name']) ?> <?= !empty($mo['deleted_at'])?'<span class="badge badge-danger ml-1">Deleted</span>':'' ?></td>
-                                <td class="text-right">
-                                  <?php if (!empty($mo['deleted_at'])): ?>
-                                    <form method="post" class="d-inline">
-                                      <input type="hidden" name="restore_model" value="1">
-                                      <input type="hidden" name="model_id" value="<?= (int)$mo['id'] ?>">
-                                      <button class="btn btn-sm btn-success">Restore</button>
-                                    </form>
-                                  <?php else: ?>
-                                    <form method="post" class="d-inline" onsubmit="return confirm('Delete this model?');">
-                                      <input type="hidden" name="delete_model" value="1">
-                                      <input type="hidden" name="model_id" value="<?= (int)$mo['id'] ?>">
-                                      <button class="btn btn-sm btn-outline-danger">Delete</button>
-                                    </form>
-                                  <?php endif; ?>
-                                </td>
-                              </tr>
-                            <?php endforeach; ?>
-                          </tbody>
-                        </table>
+
+                      <?php
+                        // map make_id => make name once for quick lookup
+                        $makeMap=[]; foreach($makes_all as $m) $makeMap[$m['id']] = $m['name'];
+                      ?>
+
+                      <!-- Editable list, one form per model (just like Makes) -->
+                      <div class="list-group" style="max-height:60vh;overflow:auto;border-radius:.5rem;border:1px solid #e5e7eb">
+                        <?php foreach($models_all as $mo): if (!empty($mo['deleted_at'])) continue; ?>
+                          <div class="list-group-item d-flex align-items-center justify-content-between">
+                            <form method="post"
+                                  class="d-flex w-100 kaya-inline-edit"
+                                  data-scope="model"
+                                  style="gap:.5rem;align-items:center;">
+                              <input type="hidden" name="update_model" value="1">
+                              <input type="hidden" name="model_id" value="<?= (int)$mo['id'] ?>">
+
+                              <!-- Make (select) -->
+                              <select class="form-control"
+                                      name="model_make_id_edit"
+                                      style="max-width:200px"
+                                      required
+                                      disabled
+                                      data-original="<?= (int)$mo['make_id'] ?>">
+                                <?php foreach($makes_active as $m): ?>
+                                  <option value="<?= (int)$m['id'] ?>"
+                                    <?= (int)$m['id'] === (int)$mo['make_id'] ? 'selected' : '' ?>>
+                                    <?= h($m['name']) ?>
+                                  </option>
+                                <?php endforeach; ?>
+                              </select>
+
+                              <!-- Model name (input) -->
+                              <input type="text"
+                                    name="model_name_edit"
+                                    class="form-control"
+                                    style="max-width:260px"
+                                    value="<?= h($mo['name']) ?>"
+                                    required
+                                    readonly
+                                    data-original="<?= h($mo['name']) ?>">
+
+                              <!-- Buttons (same pattern as Makes) -->
+                              <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-row">Edit</button>
+                              <button class="btn btn-sm btn-kaya-primary btn-save-row d-none">Save</button>
+                              <button type="button" class="btn btn-sm btn-light btn-cancel-row d-none">Cancel</button>
+                            </form>
+                          </div>
+                        <?php endforeach; ?>
                       </div>
                     </div>
                   </div>
@@ -558,31 +696,6 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
               </div>
               <div class="modal-footer"><button class="btn btn-outline-secondary" data-dismiss="modal">Close</button></div>
             </div>
-          </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Assign/Change Driver Modal -->
-        <?php if ($view!=='trash'): ?>
-        <div class="modal fade" id="assignDriverModal" tabindex="-1" role="dialog" aria-hidden="true">
-          <div class="modal-dialog" role="document">
-            <form method="POST">
-              <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title">Assign / Change Driver</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
-                <div class="modal-body">
-                  <input type="hidden" name="assign_driver" value="1">
-                  <input type="hidden" name="assign_vehicle_id" id="assign_vehicle_id">
-                  <label>Driver</label>
-                  <select class="form-control" name="assign_driver_id" id="assign_driver_id">
-                    <option value="0">— None —</option>
-                  </select>
-                </div>
-                <div class="modal-footer">
-                  <button type="submit" class="btn btn-kaya-primary">Save</button>
-                  <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
-                </div>
-              </div>
-            </form>
           </div>
         </div>
         <?php endif; ?>
@@ -628,9 +741,35 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
   <script src="js/sb-admin.min.js"></script>
 
   <script>
-    const DRIVERS_ACC = <?= json_encode($drivers_acc, JSON_UNESCAPED_UNICODE) ?>;
     const MODELS_ALL = <?= json_encode($models_all, JSON_UNESCAPED_UNICODE) ?>; // [{id,make_id,name,...}]
   </script>
+
+  <script>
+  $(function () {
+    // 1) Open the modal if URL hash points to it
+    function openModalFromHash() {
+      var h = window.location.hash;
+      if (!h) return;
+      var $m = $(h);
+      if ($m.length && $m.hasClass('modal')) $m.modal('show');
+    }
+    openModalFromHash();
+
+    // 2) When a modal closes, strip the hash so it won't reopen on refresh
+    $('.modal').on('hidden.bs.modal', function () {
+      if (window.location.hash) {
+        history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      }
+    });
+
+    // 3) When you click a button that opens a modal, set the hash to that modal id
+    //    (so it survives the POST->redirect)
+    $('[data-toggle="modal"][data-target^="#"]').on('click', function () {
+      var target = $(this).data('target');
+      if (target) history.replaceState(null, null, target);
+    });
+  });
+</script>
 
   <script>
     $(function(){
@@ -640,23 +779,6 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
       // Delete modal pick
       $('#deleteVehicleModal').on('show.bs.modal', function (e) {
         var id = $(e.relatedTarget).data('vehicle-id'); if (id) $('#delete_vehicle_id').val(id);
-      });
-
-      // Assign modal options
-      $('#assignDriverModal').on('show.bs.modal', function(e){
-        var $btn=$(e.relatedTarget);
-        var vehicleId=parseInt($btn.data('vehicle-id'),10)||0;
-        var currentDriverId=parseInt($btn.data('current-driver-id'),10)||0;
-        $('#assign_vehicle_id').val(vehicleId);
-        var $sel=$('#assign_driver_id').empty().append($('<option/>').val('0').text('— None —'));
-        DRIVERS_ACC
-          .filter(d => !d.current_vehicle_id || parseInt(d.current_vehicle_id,10)===vehicleId)
-          .sort((a,b)=>(a.name||'').localeCompare(b.name||''))
-          .forEach(d=>{
-            var opt=$('<option/>').val('acc:'+d.id).text(d.name||('Driver #'+d.id));
-            if (parseInt(d.id,10)===currentDriverId) opt.attr('selected',true);
-            $sel.append(opt);
-          });
       });
 
       // Dependent model dropdown in Create
@@ -671,5 +793,47 @@ $models_all        = $model_table ? fetch_all_models_grouped($mysqli) : [];
       $('#make_id_create').on('change', function(){ rebuildModelOptions($('#model_id_create'), $(this).val()); });
     });
   </script>
+  <script>
+    // Inline edit toggler for categories/makes/models
+    $(document).on('click', '.btn-edit-row', function(){
+      const $form = $(this).closest('.kaya-inline-edit');
+      $form.addClass('editing');
+
+      // enable fields
+      $form.find('input[readonly]').prop('readonly', false);
+      $form.find('select:disabled').prop('disabled', false);
+
+      // show Save/Cancel, hide Edit
+      $form.find('.btn-save-row, .btn-cancel-row').removeClass('d-none');
+      $form.find('.btn-edit-row').addClass('d-none');
+
+      // focus first field
+      const $first = $form.find('input[type="text"], select').first();
+      if ($first.is('input')) $first.select();
+      $first.trigger('focus');
+    });
+
+    $(document).on('click', '.btn-cancel-row', function(){
+      const $form = $(this).closest('.kaya-inline-edit');
+
+      // restore original values from data-original
+      $form.find('[data-original]').each(function(){
+        const $el = $(this);
+        const orig = $el.attr('data-original');
+        $el.val(orig);
+      });
+
+      // disable fields again
+      $form.find('input[type="text"]').prop('readonly', true);
+      $form.find('select').prop('disabled', true);
+
+      // swap buttons back
+      $form.find('.btn-save-row, .btn-cancel-row').addClass('d-none');
+      $form.find('.btn-edit-row').removeClass('d-none');
+
+      $form.removeClass('editing');
+    });
+  </script>
+
 </body>
 </html>

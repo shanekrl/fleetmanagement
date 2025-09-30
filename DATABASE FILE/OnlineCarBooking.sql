@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 29, 2025 at 04:21 PM
+-- Generation Time: Sep 30, 2025 at 08:07 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.1.25
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -49,7 +49,12 @@ INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`,
 (4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', 1, '2025-09-22 05:09:31', '2025-09-22 05:09:31'),
 (5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 1, '2025-09-26 20:53:29', '2025-09-27 09:19:13'),
 (6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 1, '2025-09-28 15:16:43', '2025-09-28 15:16:43'),
-(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', 1, '2025-09-29 04:27:49', '2025-09-29 04:27:49');
+(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', 1, '2025-09-29 04:27:49', '2025-09-29 04:27:49'),
+(8, 'driver', 'Rey Cabral', 'r.cabral@gmail.com', '$2y$10$ypv7rgC9tI2is0px2KaEs.EKaqJTIYExvirC535OzhAYIKykHmFii', '09877651234', 1, '2025-09-30 00:07:41', '2025-09-30 00:07:41'),
+(9, 'driver', 'Arnold Lagman', 'a.lagman@gmail.com', '$2y$10$u0hXfoN/f1p6LIMwofkUke3O.MfqOUQrcfNqhjwpNbGPoiFEYrDo2', '09871234563', 1, '2025-09-30 00:08:30', '2025-09-30 00:08:30'),
+(10, 'driver', 'Nestor Sanchez', 'n.sanchez@gmail.com', '$2y$10$L7BNQJFnvbyrZLjVP6PUzOjdemDyWJZilhYG4GLm90ptw190ye6/u', '0912345641', 1, '2025-09-30 00:09:46', '2025-09-30 00:09:46'),
+(11, 'driver', 'Richie Sibal', 'r.sibal@gmail.com', '$2y$10$tByemB9al7eCaqMdh9F79Oq5XMdaunDQpJ31SlkiU6uFfJZ/yzYsS', '0768126543', 1, '2025-09-30 00:10:51', '2025-09-30 00:10:51'),
+(12, 'driver', 'Manuel Valencia', 'm.valencia@gmail.com', '$2y$10$cCUgKiKyfeGYiYkZMYQSwe.wfSggzjPfAsYbTbqiSPySVuWQB3xfK', '09236571234', 1, '2025-09-30 00:11:35', '2025-09-30 00:11:35');
 
 -- --------------------------------------------------------
 
@@ -103,7 +108,9 @@ CREATE TABLE `bookings` (
 INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver_id`, `vehicle_id`, `pax`, `contact_name`, `contact_phone`, `pickup_point`, `dropoff_point`, `pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`, `scheduled_start_at`, `scheduled_end_at`, `status`, `payment_status`, `notes`, `created_at`, `updated_at`) VALUES
 (1, 'admin', 1, NULL, NULL, 1, 3, NULL, '+639171234567', '100 Main St, Town', 'Airport Terminal 1', NULL, NULL, NULL, NULL, '2025-08-12 14:00:00', NULL, 'cancelled', 'unpaid', NULL, '2025-09-12 20:14:29', '2025-09-22 04:38:16'),
 (2, 'admin', 1, NULL, 2, 1, 1, 'Felicity Morelli', '09988233611', 'Angeles University Foundation', 'SM City Clark', NULL, NULL, NULL, NULL, '2025-09-25 13:44:00', NULL, 'completed', 'unpaid', '', '2025-09-25 12:44:46', '2025-09-29 04:19:13'),
-(3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'awaiting_driver', 'unpaid', 'chello', '2025-09-29 04:18:15', '2025-09-29 04:18:15');
+(3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'completed', 'unpaid', 'chello', '2025-09-29 04:18:15', '2025-09-29 23:34:23'),
+(4, 'admin', 1, NULL, 7, 2, 1, 'Samantha Ticsay', '09988233611', 'Cuatro de Julio Street, Salapungan, Ninoy Aquino, Pandan, Angeles, Central Luzon, 2009, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 13:30:00', NULL, 'completed', 'unpaid', '', '2025-09-29 23:33:47', '2025-09-29 23:35:24'),
+(5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'awaiting_driver', 'unpaid', 'yay', '2025-09-30 00:34:32', '2025-09-30 00:34:32');
 
 -- --------------------------------------------------------
 
@@ -144,7 +151,13 @@ INSERT INTO `booking_events` (`id`, `booking_id`, `actor_id`, `actor_role`, `eve
 (18, 2, 1, 'admin', 'cancel', '[]', '2025-09-29 04:13:37'),
 (19, 2, 1, 'admin', 'restore', '[]', '2025-09-29 04:18:50'),
 (20, 2, 1, 'admin', 'assign', '[]', '2025-09-29 04:19:02'),
-(21, 2, 1, 'admin', 'complete_trip', '[]', '2025-09-29 04:19:13');
+(21, 2, 1, 'admin', 'complete_trip', '[]', '2025-09-29 04:19:13'),
+(22, 3, 1, 'admin', 'assign', '[]', '2025-09-29 23:33:59'),
+(23, 3, 1, 'admin', 'complete_trip', '[]', '2025-09-29 23:34:23'),
+(24, 4, 1, 'admin', 'cancel', '[]', '2025-09-29 23:34:31'),
+(25, 4, 1, 'admin', 'restore', '[]', '2025-09-29 23:34:40'),
+(26, 4, 1, 'admin', 'assign', '[]', '2025-09-29 23:34:57'),
+(27, 4, 1, 'admin', 'complete_trip', '[]', '2025-09-29 23:35:24');
 
 -- --------------------------------------------------------
 
@@ -252,11 +265,16 @@ CREATE TABLE `driver_profile` (
 --
 
 INSERT INTO `driver_profile` (`account_id`, `license_no`, `address`, `notes`, `current_status`, `hired_at`, `created_at`, `updated_at`) VALUES
-(2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 04:19:13'),
+(2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 23:34:23'),
 (4, '123', 'taga ac', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
 (5, '123', 'somewhere', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
 (6, '12345', 'taga ac din', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
-(7, '123', 'taga idk somewhere friendship', NULL, 'available', NULL, '2025-09-29 04:27:49', '2025-09-29 04:27:49');
+(7, '123', 'taga idk somewhere friendship', NULL, 'available', NULL, '2025-09-29 04:27:49', '2025-09-29 23:35:24'),
+(8, '123', 'angeles', NULL, 'available', NULL, '2025-09-30 00:07:41', '2025-09-30 00:07:41'),
+(9, '123', 'angeles', NULL, 'available', NULL, '2025-09-30 00:08:30', '2025-09-30 00:08:30'),
+(10, '789', 'angeles', NULL, 'available', NULL, '2025-09-30 00:09:46', '2025-09-30 00:09:46'),
+(11, '362', 'angeles', NULL, 'available', NULL, '2025-09-30 00:10:51', '2025-09-30 00:10:51'),
+(12, '590', 'angeles', NULL, 'available', NULL, '2025-09-30 00:11:35', '2025-09-30 00:11:35');
 
 -- --------------------------------------------------------
 
@@ -280,6 +298,14 @@ CREATE TABLE `driver_profile_backup_20250929` (
 --
 
 INSERT INTO `driver_profile_backup_20250929` (`account_id`, `license_no`, `address`, `notes`, `current_status`, `hired_at`, `created_at`, `updated_at`) VALUES
+(2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(4, '123', 'taga ac', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(5, '123', 'somewhere', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(6, '12345', 'taga ac din', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
+(2, NULL, NULL, NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
 (2, '123', 'taga san fernando, pampanga', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
 (4, '123', 'taga ac', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
 (5, '123', 'somewhere', NULL, 'available', NULL, '2025-09-29 03:09:18', '2025-09-29 03:09:18'),
@@ -657,6 +683,7 @@ CREATE TABLE `tms_admin` (
 --
 
 INSERT INTO `tms_admin` (`a_id`, `a_name`, `a_email`, `a_pwd`) VALUES
+(3, '', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO'),
 (3, '', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO');
 
 -- --------------------------------------------------------
@@ -708,6 +735,7 @@ CREATE TABLE `tms_bookings` (
 --
 
 INSERT INTO `tms_bookings` (`booking_id`, `client_id`, `booking_type`, `created_by_driver_id`, `driver_id`, `vehicle_id`, `pickup_point`, `dropoff_point`, `pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`, `contact_phone`, `seats_reserved`, `scheduled_at`, `booking_created_at`, `status`, `payment_status`, `notes`) VALUES
+(1, 2, 'admin', NULL, NULL, NULL, '100 Main St, Town', 'Airport Terminal 1', NULL, NULL, NULL, NULL, '+639171234567', 3, '2025-08-12 14:00:00', '2025-09-12 20:14:29', 'pending', 'unpaid', NULL),
 (1, 2, 'admin', NULL, NULL, NULL, '100 Main St, Town', 'Airport Terminal 1', NULL, NULL, NULL, NULL, '+639171234567', 3, '2025-08-12 14:00:00', '2025-09-12 20:14:29', 'pending', 'unpaid', NULL);
 
 -- --------------------------------------------------------
@@ -865,11 +893,16 @@ CREATE TABLE `tms_user_add_driver` (
 --
 
 INSERT INTO `tms_user_add_driver` (`d_u_id`, `u_id`, `u_fname`, `u_lname`, `u_phone`, `u_addr`, `u_car_type`, `u_car_regno`, `u_car_bookdate`, `u_car_book_status`, `u_category`, `u_email`, `deleted_at`, `deleted_by`, `u_pwd`, `created_at`, `is_archived`) VALUES
-(8, 0, 'Shane', 'Lopez', '09446872447', 'taga san fernando, pampanga', 'Bus', '123', '', 'Available', 'Driver', 'shaaane@mail.com', NULL, NULL, '', '2025-09-12 00:00:00', 0),
-(9, 0, 'Test', 'Driver', '09668226441', 'taga ac', '', '123', '', 'Available', 'Driver', 'test@mail.com', NULL, NULL, '', '2025-09-22 00:00:00', 0),
+(8, 0, 'Shane', 'Lopez', '09446872447', 'taga san fernando, pampanga', 'Bus', '123', '', 'Available', 'Driver', 'shaaane@mail.com', '2025-09-30 00:04:59', 1, '', '2025-09-12 00:00:00', 0),
+(9, 0, 'Test', 'Driver', '09668226441', 'taga ac', '', '123', '', 'Available', 'Driver', 'test@mail.com', '2025-09-30 00:04:55', 1, '', '2025-09-22 00:00:00', 0),
 (10, 0, 'Alex', 'Turner', '09942317653', 'somewhere', '', '123', '', 'Available', 'Driver', '505@mail.com', NULL, NULL, '', '2025-09-26 20:53:29', 0),
-(13, 0, 'Noah', 'Enguerra', '09123456789', 'taga ac din', '', '12345', '', 'Available', 'Driver', 'noah@mail.com', NULL, NULL, '', '2025-09-28 15:16:43', 0),
-(14, 0, 'Keihle', 'Pascual', '09784563214', 'taga idk somewhere friendship', '', '123', '', 'Available', 'Driver', 'kei@mail.com', NULL, NULL, '', '2025-09-29 04:27:49', 0);
+(13, 0, 'Noah', 'Enguerra', '09123456789', 'taga ac din', '', '12345', '', 'Available', 'Driver', 'noah@mail.com', '2025-09-30 00:05:01', 1, '', '2025-09-28 15:16:43', 0),
+(14, 0, 'Keihle', 'Pascual', '09784563214', 'taga idk somewhere friendship', '', '123', '', 'Available', 'Driver', 'kei@mail.com', '2025-09-30 00:05:02', 1, '', '2025-09-29 04:27:49', 0),
+(15, 0, 'Rey', 'Cabral', '09877651234', 'angeles', '', '123', '', 'Available', 'Driver', 'r.cabral@gmail.com', NULL, NULL, '', '2025-09-30 00:07:41', 0),
+(16, 0, 'Arnold', 'Lagman', '09871234563', 'angeles', '', '456', '', 'Available', 'Driver', 'a.lagman@gmail.com', NULL, NULL, '', '2025-09-30 00:08:30', 0),
+(17, 0, 'Nestor', 'Sanchez', '0912345641', 'angeles', '', '789', '', 'Available', 'Driver', 'n.sanchez@gmail.com', NULL, NULL, '', '2025-09-30 00:09:46', 0),
+(18, 0, 'Richie', 'Sibal', '0768126543', 'angeles', '', '362', '', 'Available', 'Driver', 'r.sibal@gmail.com', NULL, NULL, '', '2025-09-30 00:10:51', 0),
+(19, 0, 'Manuel', 'Valencia', '09236571234', 'angeles', '', '590', '', 'Available', 'Driver', 'm.valencia@gmail.com', NULL, NULL, '', '2025-09-30 00:11:35', 0);
 
 -- --------------------------------------------------------
 
@@ -899,11 +932,16 @@ CREATE TABLE `tms_vehicle` (
 --
 
 INSERT INTO `tms_vehicle` (`v_id`, `v_name`, `v_reg_no`, `make_id`, `model_id`, `color`, `v_driver`, `v_category`, `driver_user_id`, `v_dpic`, `deleted_at`, `deleted_by`, `v_status`, `default_driver_id`) VALUES
-(1, 'C 180 Avantgarde', '123456', NULL, NULL, NULL, '', 'Sedan', 1, 'vendor/img/vehicles/veh_1758021325_7528.webp', NULL, NULL, 'Available', 8),
-(2, 'Toyota Vios 1.3 E', 'NBM 4276', NULL, NULL, NULL, '', 'Sedan', NULL, 'vendor/img/vehicles/veh_1758925257_7662.png', NULL, NULL, 'Available', 10),
-(3, 'Toyota Fortuner G', 'NEE 7103', NULL, NULL, NULL, '', 'SUV', NULL, 'vendor/img/vehicles/veh_1759045781_4022.jpg', NULL, NULL, 'Available', NULL),
-(4, '', 'WOW 505', 1, 5, 'Black', '', 'Sedan', NULL, '', NULL, NULL, 'Available', NULL),
-(5, '', 'UUU 123', 8, 27, 'Green', '', 'Sedan', NULL, '', NULL, NULL, 'Available', NULL);
+(1, 'C 180 Avantgarde', '123456', NULL, NULL, '', '', 'Sedan', 1, 'vendor/img/vehicles/veh_1758021325_7528.webp', '2025-09-29 23:41:34', 1, 'Available', 8),
+(2, 'Toyota Vios 1.3 E', 'NBM 4276', NULL, NULL, NULL, '', 'Sedan', NULL, 'vendor/img/vehicles/veh_1758925257_7662.png', '2025-09-29 23:37:33', 1, 'Available', 10),
+(3, 'Toyota Fortuner G', 'NEE 7103', NULL, NULL, NULL, '', 'SUV', NULL, 'vendor/img/vehicles/veh_1759045781_4022.jpg', '2025-09-29 23:37:29', 1, 'Available', NULL),
+(4, '', 'WOW 505', 1, 5, 'Black', '', 'Sedan', NULL, '', '2025-09-29 23:37:27', 1, 'Available', NULL),
+(5, '', 'UUU 123', 8, 27, 'Green', '', 'Sedan', NULL, '', '2025-09-29 23:41:36', 1, 'Available', NULL),
+(6, '', 'NCJ 9875', 1, 4, 'White', '', 'SUV', NULL, '', NULL, NULL, 'Available', NULL),
+(7, '', 'NHI 3023', 1, 5, 'White', '', 'SUV', NULL, '', NULL, NULL, 'Available', NULL),
+(8, '', 'CBT 4971', 2, 8, 'Brown', '', 'SUV', NULL, '', NULL, NULL, 'Available', NULL),
+(9, '', 'DBF 9903', 1, 2, 'White', '', 'Van', NULL, '', NULL, NULL, 'Available', NULL),
+(10, '', 'CCD 2879', 1, 28, 'Gray', '', 'Sedan', NULL, '', NULL, NULL, 'Available', NULL);
 
 -- --------------------------------------------------------
 
@@ -923,10 +961,38 @@ CREATE TABLE `tms_vehicle_categories` (
 --
 
 INSERT INTO `tms_vehicle_categories` (`id`, `name`, `is_active`, `deleted_at`) VALUES
+(1, 'Sedan', 1, NULL),
+(2, 'SUV', 1, NULL),
+(3, 'Van', 1, NULL),
+(10, 'Coaster', 1, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tms_vehicle_categories_backup_yyyymmdd`
+--
+
+CREATE TABLE `tms_vehicle_categories_backup_yyyymmdd` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `deleted_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tms_vehicle_categories_backup_yyyymmdd`
+--
+
+INSERT INTO `tms_vehicle_categories_backup_yyyymmdd` (`id`, `name`, `is_active`, `deleted_at`) VALUES
 (1, 'Bus', 0, '2025-09-20 20:52:51'),
 (2, 'Sedan', 1, NULL),
 (3, 'SUV', 1, NULL),
-(4, 'Van', 1, NULL);
+(4, 'Van', 1, NULL),
+(1, 'Bus', 0, '2025-09-20 20:52:51'),
+(2, 'Sedan', 1, NULL),
+(3, 'SUV', 1, NULL),
+(4, 'Van', 1, NULL),
+(0, 'Coaster', 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -937,23 +1003,22 @@ INSERT INTO `tms_vehicle_categories` (`id`, `name`, `is_active`, `deleted_at`) V
 CREATE TABLE `tms_vehicle_makes` (
   `id` int(11) NOT NULL,
   `name` varchar(100) NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `deleted_at` datetime DEFAULT NULL
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tms_vehicle_makes`
 --
 
-INSERT INTO `tms_vehicle_makes` (`id`, `name`, `is_active`, `deleted_at`) VALUES
-(1, 'Toyota', 1, NULL),
-(2, 'Suzuki', 1, NULL),
-(3, 'Nissan', 1, NULL),
-(4, 'Hyundai', 1, NULL),
-(5, 'Kia', 1, NULL),
-(6, 'Isuzu', 1, NULL),
-(7, 'Mitsubishi', 1, NULL),
-(8, 'Honda', 1, NULL);
+INSERT INTO `tms_vehicle_makes` (`id`, `name`, `is_active`) VALUES
+(1, 'Toyota', 1),
+(2, 'Suzuki', 1),
+(3, 'Nissan', 1),
+(4, 'Hyundai', 1),
+(5, 'Kia', 1),
+(6, 'Isuzu', 1),
+(7, 'Mitsubishi', 1),
+(8, 'Honda', 1);
 
 -- --------------------------------------------------------
 
@@ -965,41 +1030,41 @@ CREATE TABLE `tms_vehicle_models` (
   `id` int(11) NOT NULL,
   `make_id` int(11) NOT NULL,
   `name` varchar(120) NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `deleted_at` datetime DEFAULT NULL
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tms_vehicle_models`
 --
 
-INSERT INTO `tms_vehicle_models` (`id`, `make_id`, `name`, `is_active`, `deleted_at`) VALUES
-(1, 1, 'Hiace Commuter', 1, NULL),
-(2, 1, 'Hiace GL Grandia', 1, NULL),
-(3, 1, 'Hiace Super Grandia', 1, NULL),
-(4, 1, 'Innova', 1, NULL),
-(5, 1, 'Avanza', 1, NULL),
-(6, 1, 'Rush', 1, NULL),
-(8, 2, 'Ertiga', 1, NULL),
-(9, 2, 'APV', 1, NULL),
-(10, 2, 'Dzire', 1, NULL),
-(11, 2, 'Celerio', 1, NULL),
-(12, 2, 'Swift', 1, NULL),
-(13, 2, 'Alto', 1, NULL),
-(14, 3, 'Urvan / NV350', 1, NULL),
-(15, 4, 'Starex', 1, NULL),
-(16, 4, 'Grand Starex', 1, NULL),
-(17, 4, 'Accent', 1, NULL),
-(18, 4, 'Reina', 1, NULL),
-(19, 7, 'Xpander', 1, NULL),
-(20, 7, 'Montero Sport', 1, NULL),
-(21, 7, 'Adventure', 1, NULL),
-(22, 7, 'Mirage G4', 1, NULL),
-(23, 5, 'Carnival', 1, NULL),
-(24, 5, 'Rio', 1, NULL),
-(25, 6, 'Crosswind', 1, NULL),
-(26, 6, 'MU-X', 1, NULL),
-(27, 8, 'Civic', 1, NULL);
+INSERT INTO `tms_vehicle_models` (`id`, `make_id`, `name`, `is_active`) VALUES
+(1, 1, 'Hiace Commuter', 1),
+(2, 1, 'Hiace GL Grandia', 1),
+(3, 1, 'Hiace Super Grandia', 1),
+(4, 1, 'Innova', 1),
+(5, 1, 'Avanza', 1),
+(6, 1, 'Rush', 1),
+(8, 2, 'Ertiga', 1),
+(9, 2, 'APV', 1),
+(10, 2, 'Dzire', 1),
+(11, 2, 'Celerio', 1),
+(12, 2, 'Swift', 1),
+(13, 2, 'Alto', 1),
+(14, 3, 'Urvan / NV350', 1),
+(15, 4, 'Starex', 1),
+(16, 4, 'Grand Starex', 1),
+(17, 4, 'Accent', 1),
+(18, 4, 'Reina', 1),
+(19, 7, 'Xpander', 1),
+(20, 7, 'Montero Sport', 1),
+(21, 7, 'Adventure', 1),
+(22, 7, 'Mirage G4', 1),
+(23, 5, 'Carnival', 1),
+(24, 5, 'Rio', 1),
+(25, 6, 'Crosswind', 1),
+(26, 6, 'MU-X', 1),
+(27, 8, 'Civic', 1),
+(28, 1, 'Vios', 1);
 
 -- --------------------------------------------------------
 
@@ -1028,6 +1093,11 @@ INSERT INTO `vehicles_legacy` (`id`, `name`, `plate_no`, `category`, `seat_capac
 (2, 'Honda Accord', 'CA2077', 'bus', 5, 'in_use', NULL, '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
 (3, 'Volkswagen Passat', 'CA1690', 'sedan', 5, 'available', 'volkswagen-passat-500.jpg', '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
 (4, 'Nissan Rogue', 'CA1001', 'suv', 7, 'available', 'Nissan_Rogue_SV_2021.jpg', '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
+(5, 'Subaru Legacy', 'CA7700', 'bus', 5, 'available', NULL, '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
+(1, 'Euro Bond', 'CA7766', 'bus', 50, 'in_use', 'images.jpg', '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
+(2, 'Honda Accord', 'CA2077', 'bus', 5, 'in_use', NULL, '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
+(3, 'Volkswagen Passat', 'CA1690', 'sedan', 5, 'available', 'volkswagen-passat-500.jpg', '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
+(4, 'Nissan Rogue', 'CA1001', 'suv', 7, 'available', 'Nissan_Rogue_SV_2021.jpg', '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
 (5, 'Subaru Legacy', 'CA7700', 'bus', 5, 'available', NULL, '2025-09-12 20:14:29', '2025-09-12 20:14:29');
 
 -- --------------------------------------------------------
@@ -1050,9 +1120,17 @@ CREATE TABLE `vehicle_assignments` (
 --
 
 INSERT INTO `vehicle_assignments` (`id`, `vehicle_id`, `driver_id`, `assigned_by`, `start_at`, `end_at`) VALUES
-(1, 1, 2, 1, '2025-09-27 10:36:01', NULL),
-(2, 2, 5, 1, '2025-09-27 10:36:01', NULL),
-(4, 3, 6, 1, '2025-09-28 15:49:41', NULL);
+(1, 1, 2, 1, '2025-09-27 10:36:01', '2025-09-29 23:37:35'),
+(2, 2, 5, 1, '2025-09-27 10:36:01', '2025-09-29 23:37:33'),
+(4, 3, 6, 1, '2025-09-28 15:49:41', '2025-09-29 23:37:29'),
+(5, 1, 5, 1, '2025-09-29 23:40:53', '2025-09-29 23:41:34'),
+(6, 5, 2, 1, '2025-09-29 23:41:11', '2025-09-29 23:41:36'),
+(7, 6, 5, 1, '2025-09-30 00:03:37', '2025-09-30 00:11:54'),
+(8, 6, 9, 1, '2025-09-30 00:11:54', NULL),
+(9, 7, 12, 1, '2025-09-30 00:12:24', NULL),
+(10, 8, 8, 1, '2025-09-30 00:12:42', NULL),
+(11, 9, 10, 1, '2025-09-30 00:12:54', NULL),
+(12, 10, 11, 1, '2025-09-30 00:13:07', NULL);
 
 -- --------------------------------------------------------
 
@@ -1368,6 +1446,13 @@ ALTER TABLE `tms_vehicle`
   ADD KEY `fk_vehicle_model` (`model_id`);
 
 --
+-- Indexes for table `tms_vehicle_categories`
+--
+ALTER TABLE `tms_vehicle_categories`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_cat_name` (`name`);
+
+--
 -- Indexes for table `tms_vehicle_makes`
 --
 ALTER TABLE `tms_vehicle_makes`
@@ -1397,19 +1482,19 @@ ALTER TABLE `vehicle_assignments`
 -- AUTO_INCREMENT for table `accounts`
 --
 ALTER TABLE `accounts`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `booking_events`
 --
 ALTER TABLE `booking_events`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `booking_offers`
@@ -1451,13 +1536,19 @@ ALTER TABLE `tms_user`
 -- AUTO_INCREMENT for table `tms_user_add_driver`
 --
 ALTER TABLE `tms_user_add_driver`
-  MODIFY `d_u_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `d_u_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `tms_vehicle`
 --
 ALTER TABLE `tms_vehicle`
-  MODIFY `v_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `v_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT for table `tms_vehicle_categories`
+--
+ALTER TABLE `tms_vehicle_categories`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `tms_vehicle_makes`
@@ -1469,13 +1560,13 @@ ALTER TABLE `tms_vehicle_makes`
 -- AUTO_INCREMENT for table `tms_vehicle_models`
 --
 ALTER TABLE `tms_vehicle_models`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `vehicle_assignments`
 --
 ALTER TABLE `vehicle_assignments`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- Constraints for dumped tables
@@ -1498,7 +1589,8 @@ ALTER TABLE `tms_vehicle`
 -- Constraints for table `tms_vehicle_models`
 --
 ALTER TABLE `tms_vehicle_models`
-  ADD CONSTRAINT `fk_model_make` FOREIGN KEY (`make_id`) REFERENCES `tms_vehicle_makes` (`id`) ON UPDATE CASCADE;
+  ADD CONSTRAINT `fk_model_make` FOREIGN KEY (`make_id`) REFERENCES `tms_vehicle_makes` (`id`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_models_make` FOREIGN KEY (`make_id`) REFERENCES `tms_vehicle_makes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

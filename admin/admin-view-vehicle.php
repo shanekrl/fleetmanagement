@@ -23,14 +23,34 @@ function col_exists(mysqli $db, $t, $c){
   return $r && $r->num_rows>0;
 }
 
+/* ---------- feature flags ---------- */
+$softMake  = col_exists($mysqli,'tms_vehicle_makes','deleted_at');
+$softModel = col_exists($mysqli,'tms_vehicle_models','deleted_at');
+
+function vehicle_image_url($raw){
+  if (!$raw) return '';
+  if (preg_match('~^(https?:)?//~', $raw) || strpos($raw, '/') === 0) return $raw;
+  if (strpos($raw, 'vendor/') === 0) return $raw;
+  return 'vendor/img/vehicles/'.ltrim($raw,'/');
+}
+function vehicle_display_name(array $veh): string {
+  $make  = trim((string)($veh['make_name']  ?? ''));
+  $model = trim((string)($veh['model_name'] ?? ''));
+  $combo = trim("$make $model");
+  return $combo !== '' ? $combo : trim((string)($veh['v_name'] ?? ''));
+}
+
 /* ---------- get id ---------- */
 $vId = isset($_GET['v_id']) ? (int)$_GET['v_id'] : 0;
 if ($vId <= 0) { header('Location: admin-manage-vehicle.php'); exit; }
 
 /* ---------- fetch vehicle + current driver (accounts) + fallback (add_driver) ---------- */
 $sql = "SELECT
-          v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic, v.default_driver_id
+          v.v_id, v.v_name, v.v_reg_no, v.v_category, v.v_status, v.v_dpic, v.default_driver_id,
+          mk.name AS make_name, md.name AS model_name
         FROM tms_vehicle v
+        LEFT JOIN tms_vehicle_makes  mk ON mk.id=v.make_id ".($softMake  ? "AND mk.deleted_at IS NULL " : "")."
+        LEFT JOIN tms_vehicle_models md ON md.id=v.model_id ".($softModel ? "AND md.deleted_at IS NULL " : "")."
         WHERE v.v_id=?";
 $veh=null;
 if($st=$mysqli->prepare($sql)){
@@ -40,11 +60,10 @@ if($st=$mysqli->prepare($sql)){
   $st->close();
 }
 if(!$veh){ header('Location: admin-manage-vehicle.php'); exit; }
+$vehName = vehicle_display_name($veh);
 
 /* active assignment (vehicle_assignments) */
-$assign = [
-  'driver_id'=>null,'name'=>null,'email'=>null,'phone'=>null
-];
+$assign = ['driver_id'=>null,'name'=>null,'email'=>null,'phone'=>null];
 $q = $mysqli->prepare("
   SELECT a.id AS driver_id, a.name, a.email, a.phone
   FROM vehicle_assignments va
@@ -67,20 +86,7 @@ if(!empty($veh['default_driver_id'])){
   }
 }
 
-/* drivers list (accounts) for picker */
-$drivers=[];
-if($rs=$mysqli->query("SELECT id,name,email,phone FROM accounts
-                       WHERE role='driver' AND is_active=1 ORDER BY name")){
-  while($row=$rs->fetch_assoc()) $drivers[]=$row;
-}
-
 /* build image url */
-function vehicle_image_url($raw){
-  if (!$raw) return '';
-  if (preg_match('~^(https?:)?//~', $raw) || strpos($raw, '/') === 0) return $raw;
-  if (strpos($raw, 'vendor/') === 0) return $raw;
-  return 'vendor/img/vehicles/'.ltrim($raw,'/');
-}
 $img = vehicle_image_url($veh['v_dpic'] ?? '');
 
 ?>
@@ -111,7 +117,7 @@ $img = vehicle_image_url($veh['v_dpic'] ?? '');
           <div class="col-lg-8">
             <div class="mb-3">
               <h2 class="mb-1" style="font-weight:700;color:#000047">
-                <?= h($veh['v_name'] ?: 'Untitled Vehicle') ?>
+                <?= h($vehName !== '' ? $vehName : 'Untitled Vehicle') ?>
               </h2>
               <div class="d-flex align-items-center" style="gap:.5rem;">
                 <span class="text-muted">Reg No.</span>
@@ -127,7 +133,7 @@ $img = vehicle_image_url($veh['v_dpic'] ?? '');
                 <tbody>
                 <tr>
                   <th style="width:220px;color:#6b7280;">Vehicle Name</th>
-                  <td><?= h($veh['v_name'] ?: '—') ?></td>
+                  <td><?= h($vehName !== '' ? $vehName : '—') ?></td>
                 </tr>
                 <tr>
                   <th style="color:#6b7280;">Registration Number</th>
@@ -152,42 +158,8 @@ $img = vehicle_image_url($veh['v_dpic'] ?? '');
                         <span class="badge badge-light ml-2">legacy</span>
                       </div>
                     <?php else: ?>
-                      — 
+                      —
                     <?php endif; ?>
-
-                    <div class="mt-3">
-                      <button class="btn btn-sm btn-outline-primary" type="button"
-                              data-toggle="collapse" data-target="#assignBox">
-                        <i class="fas fa-exchange-alt mr-1"></i> Assign / Swap Driver
-                      </button>
-                      <?php if($assign['driver_id']): ?>
-                        <form method="post" action="vehicle-assign-driver.php" class="d-inline"
-                              onsubmit="return confirm('Unassign current driver?');">
-                          <input type="hidden" name="vehicle_id" value="<?= (int)$veh['v_id'] ?>">
-                          <input type="hidden" name="action" value="unassign">
-                          <button class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-unlink mr-1"></i> Unassign
-                          </button>
-                        </form>
-                      <?php endif; ?>
-                    </div>
-
-                    <div id="assignBox" class="collapse mt-3">
-                      <form method="post" action="vehicle-assign-driver.php" class="form-inline">
-                        <input type="hidden" name="vehicle_id" value="<?= (int)$veh['v_id'] ?>">
-                        <input type="hidden" name="action" value="assign">
-                        <select name="driver_id" class="form-control mr-2" required style="min-width:260px;">
-                          <option value="">— Select driver account —</option>
-                          <?php foreach($drivers as $d): ?>
-                            <option value="<?= (int)$d['id'] ?>"><?= h($d['name']) ?><?= $d['email']?' · '.h($d['email']):'' ?></option>
-                          <?php endforeach; ?>
-                        </select>
-                        <button class="btn btn-sm btn-primary">Save</button>
-                      </form>
-                      <div class="text-muted small mt-2">
-                        This writes to <code>vehicle_assignments</code> (ends any active pairing, then creates a new one).
-                      </div>
-                    </div>
                   </td>
                 </tr>
                 <tr>

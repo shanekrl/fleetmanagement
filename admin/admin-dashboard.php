@@ -25,6 +25,58 @@
     return $row ?: null;
   }
 
+  // Fleet summary helper (reuses logic from Reports page; prefers view if present)
+  function get_fleet_summary(mysqli $db){
+    if (table_exists($db,'v_fleet_summary')) {
+      if ($r = $db->query("SELECT * FROM v_fleet_summary")) {
+        $row = $r->fetch_assoc(); $r->close();
+        if ($row) return array_map('intval', $row);
+      }
+    }
+    $out = [
+      'total_vehicles'=>0,'vehicles_available'=>0,'vehicles_in_use'=>0,
+      'vehicles_maintenance'=>0,'vehicles_inactive'=>0,
+      'trips_today'=>0,'trips_in_progress'=>0,'drivers_active_today'=>0,
+    ];
+    if (table_exists($db,'tms_vehicle')) {
+      $sql = "SELECT 
+                COUNT(*) AS total_vehicles,
+                SUM(LOWER(v_status) LIKE 'avail%') AS vehicles_available,
+                SUM(LOWER(v_status) REGEXP 'book|service|in use|in_use|on trip') AS vehicles_in_use,
+                SUM(LOWER(v_status) REGEXP 'maint') AS vehicles_maintenance,
+                SUM(LOWER(v_status) LIKE 'inactive%') AS vehicles_inactive
+              FROM tms_vehicle
+              WHERE deleted_at IS NULL";
+      if ($q = $db->query($sql)) { $row=$q->fetch_assoc() ?: []; foreach($row as $k=>$v) $out[$k]=(int)$v; $q->close(); }
+    }
+    if (table_exists($db,'bookings')) {
+      $sql = "SELECT 
+                SUM(DATE(scheduled_start_at)=CURDATE()) AS trips_today,
+                COUNT(DISTINCT CASE 
+                  WHEN DATE(scheduled_start_at)=CURDATE() AND status IN ('accepted','in_progress','completed') 
+                THEN driver_id END) AS drivers_active_today
+              FROM bookings";
+      if ($q = $db->query($sql)) { $r=$q->fetch_assoc() ?: []; $out['trips_today']=(int)($r['trips_today']??0); $out['drivers_active_today']=(int)($r['drivers_active_today']??0); $q->close(); }
+    } elseif (table_exists($db,'tms_bookings')) {
+      $sql = "SELECT 
+                SUM(DATE(scheduled_at)=CURDATE()) AS trips_today,
+                COUNT(DISTINCT CASE 
+                  WHEN DATE(scheduled_at)=CURDATE() AND status IN ('accepted','completed','in_progress') 
+                THEN driver_id END) AS drivers_active_today
+              FROM tms_bookings";
+      if ($q = $db->query($sql)) { $r=$q->fetch_assoc() ?: []; $out['trips_today']=(int)($r['trips_today']??0); $out['drivers_active_today']=(int)($r['drivers_active_today']??0); $q->close(); }
+    }
+    if (table_exists($db,'booking_runs')) {
+      $sql = "SELECT COUNT(*) AS c
+              FROM booking_runs
+              WHERE pickup_button_at IS NOT NULL
+                AND dropoff_button_at IS NULL
+                AND DATE(COALESCE(pickup_button_at, NOW())) = CURDATE()";
+      if ($q = $db->query($sql)) { $out['trips_in_progress']=(int)($q->fetch_assoc()['c'] ?? 0); $q->close(); }
+    }
+    return $out;
+  }
+
   // ---------- What exists? ----------
   $hasVehiclesTbl   = table_exists($mysqli,'vehicles');
   $hasBookingsTbl   = table_exists($mysqli,'bookings');
@@ -37,74 +89,8 @@
   $hasTmsDriver     = table_exists($mysqli,'tms_user_add_driver');
   $hasAudit         = table_exists($mysqli,'tms_audit_log');
 
-  // ---------- KPIs (prefer new schema / view) ----------
-
-  // Vehicles block
-  if ($hasFleetView) {
-    $sum = fetch_one($mysqli, "SELECT total_vehicles, vehicles_available, vehicles_in_use,
-                                      vehicles_maintenance, vehicles_inactive,
-                                      trips_today, trips_in_progress, drivers_active_today
-                                 FROM v_fleet_summary");
-    $vehicleTotal     = (int)($sum['total_vehicles']        ?? 0);
-    $vehicleAvailable = (int)($sum['vehicles_available']    ?? 0);
-    $vehicleOnTrip    = (int)($sum['vehicles_in_use']       ?? 0); // vehicles currently in use
-    $vehicleMaint     = (int)($sum['vehicles_maintenance']  ?? 0);
-  } elseif ($hasVehiclesTbl) {
-    $vehicleTotal     = count_q($mysqli,"SELECT COUNT(*) FROM vehicles");
-    $vehicleAvailable = count_q($mysqli,"SELECT COUNT(*) FROM vehicles WHERE status='available'");
-    $vehicleOnTrip    = count_q($mysqli,"SELECT COUNT(*) FROM vehicles WHERE status='in_use'");
-    $vehicleMaint     = count_q($mysqli,"SELECT COUNT(*) FROM vehicles WHERE status='maintenance'");
-  } elseif ($hasTmsVehicle) {
-    // legacy fallback
-    $vehicleTotal     = count_q($mysqli,"SELECT COUNT(*) FROM tms_vehicle");
-    $vehicleAvailable = count_q($mysqli,"SELECT COUNT(*) FROM tms_vehicle WHERE v_status='Available'");
-    $vehicleOnTrip    = count_q($mysqli,"SELECT COUNT(*) FROM tms_vehicle WHERE v_status IN ('Booked','On Trip')");
-    $vehicleMaint     = count_q($mysqli,"SELECT COUNT(*) FROM tms_vehicle WHERE v_status IN ('Undermaintenance','Maintenance')");
-  } else {
-    $vehicleTotal = $vehicleAvailable = $vehicleOnTrip = $vehicleMaint = 0;
-  }
-
-  // Drivers block
-  if ($hasDriverProfTbl) {
-    $driverTotal     = $hasAccountsTbl ? count_q($mysqli,"SELECT COUNT(*) FROM accounts WHERE role='driver' AND is_active=1") : 0;
-    $driverAvailable = count_q($mysqli,"SELECT COUNT(*) FROM driver_profile WHERE current_status='available'");
-    $driverOnTrip    = count_q($mysqli,"SELECT COUNT(*) FROM driver_profile WHERE current_status='on_trip'");
-  } elseif ($hasAccountsTbl) {
-    $driverTotal     = count_q($mysqli,"SELECT COUNT(*) FROM accounts WHERE role='driver' AND is_active=1");
-    // heuristic from bookings if profile table not present
-    if ($hasBookingsTbl) {
-      $driverOnTrip    = count_q($mysqli,"SELECT COUNT(DISTINCT driver_id) FROM bookings WHERE status IN ('accepted','in_progress') AND driver_id IS NOT NULL");
-      $driverAvailable = max(0, $driverTotal - $driverOnTrip);
-    } else {
-      $driverOnTrip = 0; $driverAvailable = $driverTotal;
-    }
-  } elseif ($hasTmsDriver) {
-    // legacy fallback
-    $driverTotal     = count_q($mysqli,"SELECT COUNT(*) FROM tms_user_add_driver WHERE u_category='Driver'");
-    $driverAvailable = count_q($mysqli,"SELECT COUNT(*) FROM tms_user_add_driver WHERE u_category='Driver' AND u_car_book_status LIKE 'Available%'");
-    $driverOnTrip    = count_q($mysqli,"SELECT COUNT(*) FROM tms_user_add_driver WHERE u_category='Driver' AND (u_car_book_status LIKE 'On Trip%' OR u_car_book_status LIKE 'Booked%')");
-  } else {
-    $driverTotal = $driverAvailable = $driverOnTrip = 0;
-  }
-
-  // Bookings block + Trips Today
-  if ($hasBookingsTbl) {
-    $upcomingCnt  = count_q($mysqli,"SELECT COUNT(*) FROM bookings WHERE status IN ('pending','awaiting_driver','accepted')");
-    $completedCnt = count_q($mysqli,"SELECT COUNT(*) FROM bookings WHERE status='completed'");
-    $cancelledCnt = count_q($mysqli,"SELECT COUNT(*) FROM bookings WHERE status='cancelled'");
-    $tripsToday   = count_q($mysqli,"SELECT COUNT(*) FROM bookings WHERE DATE(scheduled_start_at)=CURDATE()");
-  } elseif ($hasTmsUser) {
-    // legacy fallback
-    $upcomingCnt  = count_q($mysqli,"SELECT COUNT(*) FROM tms_user WHERE u_car_book_status IN ('Pending','Approved')");
-    $completedCnt = count_q($mysqli,"SELECT COUNT(*) FROM tms_user WHERE u_car_book_status='Completed'");
-    $cancelledCnt = count_q($mysqli,"SELECT COUNT(*) FROM tms_user WHERE u_car_book_status IN ('Cancel','Cancelled')");
-    $tripsToday   = count_q($mysqli,"SELECT COUNT(*) FROM tms_user
-                                     WHERE (u_car_date = CURDATE()
-                                         OR DATE(u_car_bookdate) = CURDATE()
-                                         OR DATE(u_car_createdat) = CURDATE())");
-  } else {
-    $upcomingCnt = $completedCnt = $cancelledCnt = $tripsToday = 0;
-  }
+  // ---------- Fleet summary (for dashboard table) ----------
+  $fleet = get_fleet_summary($mysqli);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -139,73 +125,28 @@
 
         <h1 class="kaya-page-title">Admin Dashboard</h1>
 
-        <!-- ===== High-level KPIs ===== -->
-        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <!-- Vehicles -->
-          <div class="bg-white rounded-2xl shadow p-5">
-            <div class="text-sm text-gray-500 font-semibold">Vehicles</div>
-            <div class="mt-3 grid grid-cols-2 gap-3 text-center">
-              <div>
-                <div class="text-xs text-gray-500">Total</div>
-                <div class="text-3xl font-bold"><?= $vehicleTotal ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Available</div>
-                <div class="text-3xl font-bold"><?= $vehicleAvailable ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">On Trip</div>
-                <div class="text-3xl font-bold"><?= $vehicleOnTrip ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Maintenance</div>
-                <div class="text-3xl font-bold"><?= $vehicleMaint ?></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Drivers -->
-          <div class="bg-white rounded-2xl shadow p-5">
-            <div class="text-sm text-gray-500 font-semibold">Drivers</div>
-            <div class="mt-3 grid grid-cols-3 gap-3 text-center">
-              <div>
-                <div class="text-xs text-gray-500">Total</div>
-                <div class="text-3xl font-bold"><?= $driverTotal ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Available</div>
-                <div class="text-3xl font-bold"><?= $driverAvailable ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">On Trip</div>
-                <div class="text-3xl font-bold"><?= $driverOnTrip ?></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bookings -->
-          <div class="bg-white rounded-2xl shadow p-5">
-            <div class="text-sm text-gray-500 font-semibold">Bookings</div>
-            <div class="mt-3 grid grid-cols-3 gap-3 text-center">
-              <div>
-                <div class="text-xs text-gray-500">Upcoming</div>
-                <div class="text-3xl font-bold"><?= $upcomingCnt ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Completed</div>
-                <div class="text-3xl font-bold"><?= $completedCnt ?></div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Cancelled</div>
-                <div class="text-3xl font-bold"><?= $cancelledCnt ?></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Today -->
-          <div class="bg-kaya-navy text-white rounded-2xl p-5">
-            <div class="text-sm font-semibold opacity-90">Trips Today</div>
-            <div class="text-5xl font-extrabold mt-2"><?= $tripsToday ?></div>
+        <!-- ===== Fleet Summary (Today) replaces KPI cards ===== -->
+        <section class="bg-white rounded-2xl shadow p-6 mb-8">
+          <h3 class="text-base font-semibold text-kaya-ink mb-4">Fleet Summary (Today)</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+              <thead>
+                <tr class="text-gray-500">
+                  <th class="py-2 pr-4 font-medium">Metric</th>
+                  <th class="py-2 pr-4 font-medium">Value</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr><td class="py-2 pr-4">Total Vehicles</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['total_vehicles'] ?></td></tr>
+                <tr><td class="py-2 pr-4">Available</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_available'] ?></td></tr>
+                <tr><td class="py-2 pr-4">In Use</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_in_use'] ?></td></tr>
+                <tr><td class="py-2 pr-4">Maintenance</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_maintenance'] ?></td></tr>
+                <tr><td class="py-2 pr-4">Inactive</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_inactive'] ?></td></tr>
+                <tr><td class="py-2 pr-4">Trips Today</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['trips_today'] ?></td></tr>
+                <tr><td class="py-2 pr-4">Trips In Progress</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['trips_in_progress'] ?></td></tr>
+                <tr><td class="py-2 pr-4">Drivers Active Today</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['drivers_active_today'] ?></td></tr>
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -244,7 +185,6 @@
                     while($b = $res->fetch_object()):
                       $when = $b->scheduled_start_at ? date('M j, Y g:i A', strtotime($b->scheduled_start_at)) : '—';
                       $st   = (string)$b->status;
-                      // badge map (new schema)
                       $badge  = in_array($st,['in_progress']) ? 'bg-green-100 text-green-700'
                               : ($st==='accepted'              ? 'bg-blue-100  text-blue-700'
                               : ($st==='completed'             ? 'bg-blue-100  text-blue-700'
@@ -312,7 +252,6 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                   <?php if ($hasVehiclesTbl):
-                    // vehicles + latest accepted/in_progress booking (if any)
                     $sql = "
                       SELECT v.name AS vehicle_name, v.plate_no, v.status AS vehicle_status,
                              (SELECT b.pickup_point
@@ -387,48 +326,7 @@
           </section>
         </div>
 
-        <!-- ===== Optional: Recent Activity (tms_audit_log) =====
-        <?php if ($hasAudit): ?>
-        <section class="bg-white rounded-2xl shadow p-6 mb-8">
-          <h3 class="text-base font-semibold text-kaya-ink mb-4">Recent Activity</h3>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
-              <thead>
-                <tr class="text-gray-500">
-                  <th class="py-2 pr-4 font-medium">When</th>
-                  <th class="py-2 pr-4 font-medium">Actor</th>
-                  <th class="py-2 pr-4 font-medium">Action</th>
-                  <th class="py-2 pr-4 font-medium">Booking #</th>
-                  <th class="py-2 pr-4 font-medium">Details</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100">
-                <?php
-                  $log = $mysqli->query("SELECT id, actor_type, actor_id, action, booking_u_id, details, created_at
-                                         FROM tms_audit_log ORDER BY id DESC LIMIT 10");
-                  if ($log && $log->num_rows):
-                    while($L = $log->fetch_object()):
-                ?>
-                <tr>
-                  <td class="py-2 pr-4"><?= htmlspecialchars($L->created_at) ?></td>
-                  <td class="py-2 pr-4"><?= htmlspecialchars(ucfirst($L->actor_type)).' #'.(int)$L->actor_id ?></td>
-                  <td class="py-2 pr-4"><?= htmlspecialchars($L->action) ?></td>
-                  <td class="py-2 pr-4"><?= (int)$L->booking_u_id ?></td>
-                  <td class="py-2 pr-4">
-                    <code class="text-gray-600">
-                      <?= htmlspecialchars($L->details ?: '') ?>
-                    </code>
-                  </td>
-                </tr>
-                <?php endwhile; else: ?>
-                <tr><td class="py-3 text-gray-500" colspan="5">No activity yet.</td></tr>
-                <?php endif; ?>
-              </tbody>
-            </table>
-          </div>
-        </section>
-        <?php endif; ?>
-        -->
+        <!-- (Optional) Recent Activity block remains commented out -->
 
       </div><!-- /.container-fluid -->
 

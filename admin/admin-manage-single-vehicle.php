@@ -37,6 +37,38 @@ $cat_soft      = $cat_table && column_exists($mysqli,'tms_vehicle_categories','d
 
 $make_table    = table_exists($mysqli,'tms_vehicle_makes');
 $model_table   = table_exists($mysqli,'tms_vehicle_models');
+$mm_soft_make  = $make_table  && column_exists($mysqli,'tms_vehicle_makes','deleted_at');
+$mm_soft_model = $model_table && column_exists($mysqli,'tms_vehicle_models','deleted_at');
+
+/* ---- accounts soft/flags (cover multiple schemas) ---- */
+$acc_has_deleted_at = $hasAccounts && column_exists($mysqli,'accounts','deleted_at');
+$acc_has_is_deleted = $hasAccounts && column_exists($mysqli,'accounts','is_deleted');
+$acc_has_status     = $hasAccounts && column_exists($mysqli,'accounts','status');
+
+/* Build a strict WHERE clause for drivers that excludes any soft-deleted/inactive rows */
+$acc_where_parts = ["a.role='driver'", "a.is_active=1"];
+if ($acc_has_deleted_at) $acc_where_parts[] = "(a.deleted_at IS NULL OR a.deleted_at='0000-00-00 00:00:00')";
+if ($acc_has_is_deleted) $acc_where_parts[] = "(a.is_deleted=0 OR a.is_deleted IS NULL)";
+if ($acc_has_status)     $acc_where_parts[] = "(a.status IS NULL OR a.status<>'deleted')";
+$ACC_SAFE_WHERE = implode(' AND ', $acc_where_parts);
+
+/* *** NEW: match Create Vehicle modal filtering by legacy driver email linkage *** */
+$emailFilter = "
+  AND (
+    a.email IS NULL OR a.email = ''
+    OR NOT EXISTS (
+      SELECT 1
+      FROM tms_user_add_driver ad0
+      WHERE ad0.u_email <> '' AND LOWER(ad0.u_email) = LOWER(a.email)
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM tms_user_add_driver ad1
+      WHERE ad1.u_email <> '' AND LOWER(ad1.u_email) = LOWER(a.email)
+        AND ad1.deleted_at IS NULL
+    )
+  )
+";
 
 function fetch_categories(mysqli $db, bool $has, bool $soft, array $fallback): array {
   if (!$has) return array_map(fn($n)=>['id'=>null,'name'=>$n], $fallback);
@@ -44,12 +76,14 @@ function fetch_categories(mysqli $db, bool $has, bool $soft, array $fallback): a
   $out=[]; if($q=$db->query("SELECT id,name FROM tms_vehicle_categories $where ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
   return $out ?: array_map(fn($n)=>['id'=>null,'name'=>$n], $fallback);
 }
-function fetch_makes(mysqli $db): array {
-  $out=[]; if($q=$db->query("SELECT id,name FROM tms_vehicle_makes WHERE is_active=1 AND deleted_at IS NULL ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
+function fetch_makes(mysqli $db, bool $soft=false): array {
+  $where = $soft ? "WHERE is_active=1 AND deleted_at IS NULL" : "WHERE is_active=1";
+  $out=[]; if($q=$db->query("SELECT id,name FROM tms_vehicle_makes $where ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
   return $out;
 }
-function fetch_models_by_make(mysqli $db, int $makeId): array {
-  $out=[]; if($q=$db->query("SELECT id,make_id,name FROM tms_vehicle_models WHERE make_id={$makeId} AND is_active=1 AND deleted_at IS NULL ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
+function fetch_models_by_make(mysqli $db, int $makeId, bool $soft=false): array {
+  $extra = $soft ? " AND deleted_at IS NULL" : "";
+  $out=[]; if($q=$db->query("SELECT id,make_id,name FROM tms_vehicle_models WHERE make_id={$makeId} AND is_active=1{$extra} ORDER BY name")) while($r=$q->fetch_assoc()) $out[]=$r;
   return $out;
 }
 
@@ -120,12 +154,20 @@ if ($hasViewVehDrv) {
     $q->bind_param('i',$vehId); $q->execute(); $q->bind_result($current_driver_id); $q->fetch(); $q->close();
   }
   if ($current_driver_id && $hasAccounts) {
-    if ($q=$mysqli->prepare("SELECT COALESCE(NULLIF(name,''), CONCAT('Driver #',id)) FROM accounts WHERE id=? LIMIT 1")) {
+    $extra = [];
+    if ($acc_has_deleted_at) $extra[] = "deleted_at IS NULL OR deleted_at='0000-00-00 00:00:00'";
+    if ($acc_has_is_deleted) $extra[] = "is_deleted=0 OR is_deleted IS NULL";
+    if ($acc_has_status)     $extra[] = "status IS NULL OR status<>'deleted'";
+    $extra_sql = $extra ? " AND (".implode(') AND (',$extra).")" : "";
+    if ($q=$mysqli->prepare("SELECT COALESCE(NULLIF(name,''), CONCAT('Driver #',id)) FROM accounts WHERE id=? {$extra_sql} LIMIT 1")) {
       $q->bind_param('i',$current_driver_id); $q->execute(); $q->bind_result($current_driver_name); $q->fetch(); $q->close();
     }
   }
 } elseif ($hasVehAssigns && $hasAccounts) {
-  $q=$mysqli->prepare("SELECT va.driver_id, a.name FROM vehicle_assignments va JOIN accounts a ON a.id=va.driver_id WHERE va.vehicle_id=? AND va.end_at IS NULL LIMIT 1");
+  $q=$mysqli->prepare("SELECT va.driver_id, a.name
+                       FROM vehicle_assignments va
+                       JOIN accounts a ON a.id=va.driver_id
+                       WHERE va.vehicle_id=? AND va.end_at IS NULL LIMIT 1");
   $q->bind_param('i',$vehId); $q->execute(); $q->bind_result($current_driver_id,$current_driver_name); $q->fetch(); $q->close();
 }
 
@@ -133,19 +175,31 @@ if ($hasViewVehDrv) {
 $drivers_acc=[];
 if ($hasAccounts) {
   if ($hasViewVehDrv) {
-    $q=$mysqli->query("SELECT a.id,a.name,(SELECT v_id FROM v_vehicle_current_driver WHERE driver_account_id=a.id LIMIT 1) AS current_vehicle_id
-                       FROM accounts a WHERE a.role='driver' AND a.is_active=1 ORDER BY a.name,a.id DESC");
+    $q=$mysqli->query("
+      SELECT a.id,a.name,
+             (SELECT v_id FROM v_vehicle_current_driver WHERE driver_account_id=a.id LIMIT 1) AS current_vehicle_id
+      FROM accounts a
+      WHERE {$ACC_SAFE_WHERE}
+      {$emailFilter}
+      ORDER BY a.name,a.id DESC
+    ");
   } else {
-    $q=$mysqli->query("SELECT a.id,a.name,(SELECT vehicle_id FROM vehicle_assignments WHERE driver_id=a.id AND end_at IS NULL LIMIT 1) AS current_vehicle_id
-                       FROM accounts a WHERE a.role='driver' AND a.is_active=1 ORDER BY a.name,a.id DESC");
+    $q=$mysqli->query("
+      SELECT a.id,a.name,
+             (SELECT vehicle_id FROM vehicle_assignments WHERE driver_id=a.id AND end_at IS NULL LIMIT 1) AS current_vehicle_id
+      FROM accounts a
+      WHERE {$ACC_SAFE_WHERE}
+      {$emailFilter}
+      ORDER BY a.name,a.id DESC
+    ");
   }
   if ($q) while($r=$q->fetch_assoc()) $drivers_acc[]=$r;
 }
 
 /* ----------------- lists for selects ----------------- */
 $categories_active = fetch_categories($mysqli,$cat_table,$cat_soft,$default_cats);
-$makes_active      = $make_table ? fetch_makes($mysqli) : [];
-$models_for_make   = ($model_table && !empty($vehicle['make_id'])) ? fetch_models_by_make($mysqli,(int)$vehicle['make_id']) : [];
+$makes_active      = $make_table ? fetch_makes($mysqli,$mm_soft_make) : [];
+$models_for_make   = ($model_table && !empty($vehicle['make_id'])) ? fetch_models_by_make($mysqli,(int)$vehicle['make_id'],$mm_soft_model) : [];
 
 /* ----------------- image url ----------------- */
 $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
@@ -220,9 +274,8 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
                     <label class="font-weight-semibold">Model</label>
                     <select class="form-control" name="model_id" id="model_id_edit" <?= empty($curMake)?'disabled':'' ?>>
                       <option value="">— Select model —</option>
-                      <?php $curModel=(int)($vehicle['model_id'] ?? 0);
-                        foreach($models_for_make as $mo){ $sel = ($curModel===(int)$mo['id'])?'selected':''; echo '<option value="'.(int)$mo['id'].'" '.$sel.'>'.h($mo['name']).'</option>'; }
-                      ?>
+                      <?php $curModel=(int)($vehicle['model_id'] ?? 0); ?>
+                      <?php foreach($models_for_make as $mo){ $sel = ($curModel===(int)$mo['id'])?'selected':''; echo '<option value="'.(int)$mo['id'].'" '.$sel.'>'.h($mo['name']).'</option>'; } ?>
                     </select>
                   </div>
                 </div>
@@ -268,8 +321,10 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
     // For dependent models on Edit page
     const MODELS_BY_MAKE = {};
     <?php
-      // preload all active models grouped by make for quick client filtering
-      $mm = $mysqli->query("SELECT id,make_id,name FROM tms_vehicle_models WHERE is_active=1 AND deleted_at IS NULL ORDER BY name");
+      $sql = "SELECT id,make_id,name FROM tms_vehicle_models WHERE is_active=1 ".
+             ($mm_soft_model ? "AND deleted_at IS NULL " : "").
+             "ORDER BY name";
+      $mm = $mysqli->query($sql);
       $grouped = [];
       if ($mm) while($r=$mm->fetch_assoc()){ $grouped[(int)$r['make_id']][] = ['id'=>(int)$r['id'],'name'=>$r['name']]; }
       echo "Object.assign(MODELS_BY_MAKE, ".json_encode($grouped, JSON_UNESCAPED_UNICODE).");";

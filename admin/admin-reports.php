@@ -1,9 +1,8 @@
 <?php
 /**
- * KAYA • Reports (Fleet Summary • Trip History • Vehicle Report)
+ * KAYA • Reports (Trip History • Vehicle Report)
  * Prefers NEW schema:
  *   - Trips/History:  bookings  (fallback: tms_bookings, then tms_user minimal)
- *   - Fleet today:    bookings  (fallback: tms_bookings) + booking_runs live
  *   - Vehicle daily:  tms_driver_report + bookings (fallback: tms_bookings)
  * Vehicles list & labels still from legacy tms_vehicle (your current UI/data).
  */
@@ -12,7 +11,6 @@ session_start();
 include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');
 check_login();
-$aid = function_exists('require_admin') ? require_admin() : (int)($_SESSION['a_id'] ?? 0);
 
 $mysqli->set_charset('utf8mb4');
 
@@ -27,8 +25,8 @@ function table_exists(mysqli $db, string $name): bool {
 
 /* ---------- inputs (Trip History filters) ---------- */
 $th_from   = dt($_GET['th_from']  ?? date('Y-m-d', strtotime('-30 days')));
-$th_to     = dt($_GET['th_to']    ?? date('Y-m-d')); // inclusive in UI; exclusive in SQL +1 day
-$th_status = trim($_GET['th_status'] ?? '');         // '', pending/awaiting_driver/.../completed
+$th_to     = dt($_GET['th_to']    ?? date('Y-m-d'));
+$th_status = trim($_GET['th_status'] ?? '');
 
 /* ---------- inputs (Vehicle Report filters) ---------- */
 $vr_vehicle_id = (int)($_GET['vr_vehicle_id'] ?? 0);
@@ -40,77 +38,6 @@ $HAS_BOOKINGS        = table_exists($mysqli, 'bookings');
 $HAS_TMS_BOOKINGS    = table_exists($mysqli, 'tms_bookings');
 $HAS_TMS_VEHICLE     = table_exists($mysqli, 'tms_vehicle');
 $HAS_DRIVER_REPORT   = table_exists($mysqli, 'tms_driver_report');
-$HAS_BOOKING_RUNS    = table_exists($mysqli, 'booking_runs');
-
-/* ---------- Fleet summary (today) ---------- */
-$fleet = [
-  'total_vehicles'      => 0,
-  'vehicles_available'  => 0,
-  'vehicles_in_use'     => 0,
-  'vehicles_maintenance'=> 0,
-  'vehicles_inactive'   => 0,
-  'trips_today'         => 0,
-  'trips_in_progress'   => 0,
-  'drivers_active_today'=> 0,
-];
-
-if ($HAS_TMS_VEHICLE) {
-  $sql = "SELECT 
-            COUNT(*)                                            AS total_vehicles,
-            SUM(LOWER(v_status) LIKE 'avail%')                  AS vehicles_available,
-            SUM(LOWER(v_status) REGEXP 'book|service')          AS vehicles_in_use,
-            SUM(LOWER(v_status) REGEXP 'maint')                 AS vehicles_maintenance,
-            SUM(LOWER(v_status) LIKE 'inactive%')               AS vehicles_inactive
-          FROM tms_vehicle
-          WHERE deleted_at IS NULL";
-  if ($q = $mysqli->query($sql)) {
-    $row = $q->fetch_assoc() ?: [];
-    foreach ($fleet as $k => $v) if (isset($row[$k])) $fleet[$k] = (int)$row[$k];
-    $q->close();
-  }
-}
-
-if ($HAS_BOOKINGS) {
-  // Prefer NEW bookings
-  $sql = "SELECT 
-            SUM(DATE(scheduled_start_at)=CURDATE()) AS trips_today,
-            COUNT(DISTINCT CASE 
-              WHEN DATE(scheduled_start_at)=CURDATE() AND status IN ('accepted','in_progress','completed') 
-            THEN driver_id END) AS drivers_active_today
-          FROM bookings";
-  if ($q = $mysqli->query($sql)) {
-    $r = $q->fetch_assoc() ?: [];
-    $fleet['trips_today'] = (int)($r['trips_today'] ?? 0);
-    $fleet['drivers_active_today'] = (int)($r['drivers_active_today'] ?? 0);
-    $q->close();
-  }
-} elseif ($HAS_TMS_BOOKINGS) {
-  // Fallback legacy
-  $sql = "SELECT 
-            SUM(DATE(scheduled_at)=CURDATE()) AS trips_today,
-            COUNT(DISTINCT CASE 
-              WHEN DATE(scheduled_at)=CURDATE() AND status IN ('accepted','completed','in_progress') 
-            THEN driver_id END) AS drivers_active_today
-          FROM tms_bookings";
-  if ($q = $mysqli->query($sql)) {
-    $r = $q->fetch_assoc() ?: [];
-    $fleet['trips_today'] = (int)($r['trips_today'] ?? 0);
-    $fleet['drivers_active_today'] = (int)($r['drivers_active_today'] ?? 0);
-    $q->close();
-  }
-}
-
-if ($HAS_BOOKING_RUNS) {
-  $sql = "SELECT COUNT(*) AS c
-          FROM booking_runs
-          WHERE pickup_button_at IS NOT NULL
-            AND dropoff_button_at IS NULL
-            AND DATE(COALESCE(pickup_button_at, NOW())) = CURDATE()";
-  if ($q = $mysqli->query($sql)) {
-    $fleet['trips_in_progress'] = (int)($q->fetch_assoc()['c'] ?? 0);
-    $q->close();
-  }
-}
 
 /* ---------- Trip History (prefer NEW bookings) ---------- */
 $trip_rows = [];
@@ -140,16 +67,11 @@ if ($HAS_BOOKINGS) {
     if ($params) $st->bind_param($types, ...$params);
     $st->execute();
     $res = $st->get_result();
-    while ($row = $res->fetch_assoc()) {
-      // Normalize field names to what the template expects
-      $row['scheduled_start_at'] = $row['scheduled_start_at'];
-      $trip_rows[] = $row;
-    }
+    while ($row = $res->fetch_assoc()) $trip_rows[] = $row;
     $st->close();
   }
 
 } elseif ($HAS_TMS_BOOKINGS) {
-  // Legacy fallback
   $sql = "SELECT 
             b.booking_id,
             b.booking_type,
@@ -178,11 +100,9 @@ if ($HAS_BOOKINGS) {
     while ($row = $res->fetch_assoc()) $trip_rows[] = $row;
     $st->close();
   }
-} else {
-  // Ultra-legacy / nothing available: keep table empty
 }
 
-/* ---------- Vehicle list (legacy source, as in your UI) ---------- */
+/* ---------- Vehicle list (legacy source) ---------- */
 $vehicles = [];
 if ($HAS_TMS_VEHICLE) {
   if ($q = $mysqli->query("SELECT v_id AS v_id, CONCAT(v_name,' (',v_reg_no,')') AS label FROM tms_vehicle WHERE deleted_at IS NULL ORDER BY v_name, v_reg_no")) {
@@ -196,7 +116,6 @@ $vehicle_header  = null;
 $vehicle_daily   = [];
 
 if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
-  // Header
   if ($s = $mysqli->prepare("SELECT v_name AS name, v_reg_no AS plate_no, v_status AS status FROM tms_vehicle WHERE v_id=?")) {
     $s->bind_param('i', $vr_vehicle_id);
     $s->execute();
@@ -204,8 +123,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     $s->close();
   }
 
-  // Seed map from driver daily reports (if any)
-  $byDay = []; // 'YYYY-MM-DD' => metrics
+  $byDay = [];
   if ($HAS_DRIVER_REPORT) {
     $sql = "SELECT 
               trip_date                         AS d,
@@ -224,19 +142,18 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
         $d = $row['d'];
         $byDay[$d] = [
           'service_date'     => $d,
-          'trips'            => 0, // set below
+          'trips'            => 0,
           'distance_km'      => (float)$row['distance_km'],
           'fuel_used_liters' => (float)$row['fuel_used_liters'],
           'odo_start_km'     => isset($row['odo_start_km']) ? (float)$row['odo_start_km'] : null,
           'odo_end_km'       => isset($row['odo_end_km'])   ? (float)$row['odo_end_km']   : null,
-          'duration_seconds' => 0, // not modeled here
+          'duration_seconds' => 0,
         ];
       }
       $s->close();
     }
   }
 
-  // Always overlay trips/day from bookings (fallback to tms_bookings)
   $dateFrom = $vr_from.' 00:00:00';
   $dateTo   = $vr_to  .' 00:00:00';
 
@@ -294,13 +211,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     }
   }
 
-  // Build final array sorted DESC by date
-  if ($byDay) {
-    krsort($byDay);
-    $vehicle_daily = array_values($byDay);
-  } else {
-    $vehicle_daily = [];
-  }
+  if ($byDay) { krsort($byDay); $vehicle_daily = array_values($byDay); }
 }
 
 ?>
@@ -322,14 +233,10 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     .metric .value{font-size:1.4rem;font-weight:800;color:#0b132b}
     .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
     @media (min-width:768px){ .metrics{grid-template-columns:repeat(4,minmax(0,1fr));} }
-
     .kaya-table thead th{font-weight:600;color:#6b7280;border:0}
     .kaya-table tbody td{border-top:1px solid #f1f5f9;vertical-align:middle}
-    .actions .btn + .btn{margin-left:.25rem}
-
     .nav-kaya .nav-link{border:1px solid #e5e7eb;border-radius:.5rem;margin-right:.5rem;color:#111827}
     .nav-kaya .nav-link.active{background:#0A0F2C;border-color:#0A0F2C;color:#fff}
-
     @media print{
       nav.navbar, #accordionSidebar, .sidebar, .kaya-toolbar, .no-print{ display:none !important; }
       #content-wrapper{ margin:0 !important; padding:0 !important; }
@@ -345,38 +252,16 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
 
       <h1 class="kaya-page-title">Reports</h1>
 
+      <!-- Tabs: Fleet Summary REMOVED -->
       <ul class="nav nav-pills nav-kaya mb-3" id="reportTabs" role="tablist">
-        <li class="nav-item"><a class="nav-link active" id="tab-fleet" data-toggle="tab" href="#fleet" role="tab">Fleet Summary (Today)</a></li>
-        <li class="nav-item"><a class="nav-link" id="tab-history" data-toggle="tab" href="#history" role="tab">Trip History</a></li>
+        <li class="nav-item"><a class="nav-link active" id="tab-history" data-toggle="tab" href="#history" role="tab">Trip History</a></li>
         <li class="nav-item"><a class="nav-link" id="tab-vehicle" data-toggle="tab" href="#vehicle" role="tab">Vehicle Report</a></li>
       </ul>
 
       <div class="tab-content">
 
-        <!-- Fleet Summary -->
-        <section class="tab-pane fade show active print-area" id="fleet" role="tabpanel" aria-labelledby="tab-fleet">
-          <div class="kaya-card">
-            <div class="d-flex align-items-center kaya-toolbar mb-3">
-              <h5 class="m-0">Overview</h5>
-              <div class="ml-auto no-print">
-                <button class="btn btn-outline-secondary" onclick="printSection('#fleet')"><i class="fas fa-print mr-1"></i> Print</button>
-              </div>
-            </div>
-            <div class="metrics">
-              <div class="metric"><span class="label">Total Vehicles</span><span class="value"><?= (int)$fleet['total_vehicles'] ?></span></div>
-              <div class="metric"><span class="label">Available</span><span class="value"><?= (int)$fleet['vehicles_available'] ?></span></div>
-              <div class="metric"><span class="label">In Use</span><span class="value"><?= (int)$fleet['vehicles_in_use'] ?></span></div>
-              <div class="metric"><span class="label">Maintenance</span><span class="value"><?= (int)$fleet['vehicles_maintenance'] ?></span></div>
-              <div class="metric"><span class="label">Inactive</span><span class="value"><?= (int)$fleet['vehicles_inactive'] ?></span></div>
-              <div class="metric"><span class="label">Trips Today</span><span class="value"><?= (int)$fleet['trips_today'] ?></span></div>
-              <div class="metric"><span class="label">Trips In Progress</span><span class="value"><?= (int)$fleet['trips_in_progress'] ?></span></div>
-              <div class="metric"><span class="label">Drivers Active Today</span><span class="value"><?= (int)$fleet['drivers_active_today'] ?></span></div>
-            </div>
-          </div>
-        </section>
-
         <!-- Trip History -->
-        <section class="tab-pane fade print-area" id="history" role="tabpanel" aria-labelledby="tab-history">
+        <section class="tab-pane fade show active print-area" id="history" role="tabpanel" aria-labelledby="tab-history">
           <div class="kaya-card">
             <div class="d-flex align-items-center kaya-toolbar mb-3">
               <h5 class="m-0">Trip History</h5>

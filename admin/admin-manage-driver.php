@@ -150,7 +150,8 @@ $whereAdd = $has_soft_delete ? ($view==='trash' ? "driver.deleted_at IS NOT NULL
 }
 
 $drivers_user = [];
-if ($mysqli->query("SHOW TABLES LIKE 'tms_user'")->num_rows) {
+$INCLUDE_LEGACY_TMS_USER = false;
+if ($INCLUDE_LEGACY_TMS_USER && $mysqli->query("SHOW TABLES LIKE 'tms_user'")->num_rows) {
   if ($s=$mysqli->prepare("
       SELECT u_id, u_fname, u_lname, u_phone, u_addr, u_email,
              COALESCE(NULLIF(u_car_book_status,''),'Available') AS status_text
