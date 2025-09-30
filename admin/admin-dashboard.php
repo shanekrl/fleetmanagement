@@ -25,20 +25,36 @@
     return $row ?: null;
   }
 
-  // Fleet summary helper (reuses logic from Reports page; prefers view if present)
+  /**
+   * Fleet summary (excludes soft-deleted vehicles).
+   * Priority: vehicles -> tms_vehicle -> v_fleet_summary (last resort).
+   */
   function get_fleet_summary(mysqli $db){
-    if (table_exists($db,'v_fleet_summary')) {
-      if ($r = $db->query("SELECT * FROM v_fleet_summary")) {
-        $row = $r->fetch_assoc(); $r->close();
-        if ($row) return array_map('intval', $row);
-      }
-    }
     $out = [
       'total_vehicles'=>0,'vehicles_available'=>0,'vehicles_in_use'=>0,
       'vehicles_maintenance'=>0,'vehicles_inactive'=>0,
       'trips_today'=>0,'trips_in_progress'=>0,'drivers_active_today'=>0,
     ];
-    if (table_exists($db,'tms_vehicle')) {
+
+    // ---- Prefer new `vehicles` table if present
+    if (table_exists($db,'vehicles')) {
+      $sql = "SELECT
+                COUNT(*)                                                                  AS total_vehicles,
+                SUM(LOWER(COALESCE(status,'')) LIKE 'avail%')                             AS vehicles_available,
+                SUM(LOWER(COALESCE(status,'')) REGEXP 'book|service|in[ _]?use|on[ _]?trip|in_progress|accepted') AS vehicles_in_use,
+                SUM(LOWER(COALESCE(status,'')) REGEXP 'maint')                             AS vehicles_maintenance,
+                SUM(LOWER(COALESCE(status,'')) LIKE 'inactive%')                           AS vehicles_inactive
+              FROM vehicles
+              WHERE (deleted_at IS NULL OR deleted_at='0000-00-00 00:00:00')
+                AND LOWER(COALESCE(status,'')) <> 'deleted'";
+      if ($q = $db->query($sql)) {
+        $row = $q->fetch_assoc() ?: [];
+        foreach($row as $k=>$v) $out[$k] = (int)$v;
+        $q->close();
+      }
+    }
+    // ---- Otherwise use legacy `tms_vehicle`
+    elseif (table_exists($db,'tms_vehicle')) {
       $sql = "SELECT 
                 COUNT(*) AS total_vehicles,
                 SUM(LOWER(v_status) LIKE 'avail%') AS vehicles_available,
@@ -46,9 +62,23 @@
                 SUM(LOWER(v_status) REGEXP 'maint') AS vehicles_maintenance,
                 SUM(LOWER(v_status) LIKE 'inactive%') AS vehicles_inactive
               FROM tms_vehicle
-              WHERE deleted_at IS NULL";
-      if ($q = $db->query($sql)) { $row=$q->fetch_assoc() ?: []; foreach($row as $k=>$v) $out[$k]=(int)$v; $q->close(); }
+              WHERE (deleted_at IS NULL OR deleted_at='0000-00-00 00:00:00')
+                AND LOWER(COALESCE(v_status,'')) <> 'deleted'";
+      if ($q = $db->query($sql)) {
+        $row = $q->fetch_assoc() ?: [];
+        foreach($row as $k=>$v) $out[$k]=(int)$v;
+        $q->close();
+      }
     }
+    // ---- Last resort: view (cannot enforce deletion filter if view doesn't)
+    elseif (table_exists($db,'v_fleet_summary')) {
+      if ($r = $db->query("SELECT * FROM v_fleet_summary")) {
+        $row = $r->fetch_assoc(); $r->close();
+        if ($row) foreach($row as $k=>$v) if (isset($out[$k])) $out[$k]=(int)$v;
+      }
+    }
+
+    // ---- Trips / drivers (unchanged)
     if (table_exists($db,'bookings')) {
       $sql = "SELECT 
                 SUM(DATE(scheduled_start_at)=CURDATE()) AS trips_today,
@@ -56,7 +86,12 @@
                   WHEN DATE(scheduled_start_at)=CURDATE() AND status IN ('accepted','in_progress','completed') 
                 THEN driver_id END) AS drivers_active_today
               FROM bookings";
-      if ($q = $db->query($sql)) { $r=$q->fetch_assoc() ?: []; $out['trips_today']=(int)($r['trips_today']??0); $out['drivers_active_today']=(int)($r['drivers_active_today']??0); $q->close(); }
+      if ($q = $db->query($sql)) {
+        $r=$q->fetch_assoc() ?: [];
+        $out['trips_today']=(int)($r['trips_today']??0);
+        $out['drivers_active_today']=(int)($r['drivers_active_today']??0);
+        $q->close();
+      }
     } elseif (table_exists($db,'tms_bookings')) {
       $sql = "SELECT 
                 SUM(DATE(scheduled_at)=CURDATE()) AS trips_today,
@@ -64,7 +99,12 @@
                   WHEN DATE(scheduled_at)=CURDATE() AND status IN ('accepted','completed','in_progress') 
                 THEN driver_id END) AS drivers_active_today
               FROM tms_bookings";
-      if ($q = $db->query($sql)) { $r=$q->fetch_assoc() ?: []; $out['trips_today']=(int)($r['trips_today']??0); $out['drivers_active_today']=(int)($r['drivers_active_today']??0); $q->close(); }
+      if ($q = $db->query($sql)) {
+        $r=$q->fetch_assoc() ?: [];
+        $out['trips_today']=(int)($r['trips_today']??0);
+        $out['drivers_active_today']=(int)($r['drivers_active_today']??0);
+        $q->close();
+      }
     }
     if (table_exists($db,'booking_runs')) {
       $sql = "SELECT COUNT(*) AS c
@@ -72,7 +112,10 @@
               WHERE pickup_button_at IS NOT NULL
                 AND dropoff_button_at IS NULL
                 AND DATE(COALESCE(pickup_button_at, NOW())) = CURDATE()";
-      if ($q = $db->query($sql)) { $out['trips_in_progress']=(int)($q->fetch_assoc()['c'] ?? 0); $q->close(); }
+      if ($q = $db->query($sql)) {
+        $out['trips_in_progress']=(int)($q->fetch_assoc()['c'] ?? 0);
+        $q->close();
+      }
     }
     return $out;
   }
@@ -89,7 +132,7 @@
   $hasTmsDriver     = table_exists($mysqli,'tms_user_add_driver');
   $hasAudit         = table_exists($mysqli,'tms_audit_log');
 
-  // ---------- Fleet summary (for dashboard table) ----------
+  // ---------- Fleet summary (for dashboard cards) ----------
   $fleet = get_fleet_summary($mysqli);
 ?>
 <!DOCTYPE html>
@@ -111,7 +154,11 @@
       }
     }
   </script>
-  <style>html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}</style>
+  <style>
+    html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    .stat-card{box-shadow:0 10px 20px rgba(2,6,23,.04),0 2px 6px rgba(2,6,23,.06)}
+    .stat-cap{font-size:.72rem}
+  </style>
 </head>
 
 <body id="page-top">
@@ -125,28 +172,31 @@
 
         <h1 class="kaya-page-title">Admin Dashboard</h1>
 
-        <!-- ===== Fleet Summary (Today) replaces KPI cards ===== -->
-        <section class="bg-white rounded-2xl shadow p-6 mb-8">
+        <!-- ===== Fleet Summary (Today) — Cards/Boxes ===== -->
+        <section class="mb-8">
           <h3 class="text-base font-semibold text-kaya-ink mb-4">Fleet Summary (Today)</h3>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
-              <thead>
-                <tr class="text-gray-500">
-                  <th class="py-2 pr-4 font-medium">Metric</th>
-                  <th class="py-2 pr-4 font-medium">Value</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100">
-                <tr><td class="py-2 pr-4">Total Vehicles</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['total_vehicles'] ?></td></tr>
-                <tr><td class="py-2 pr-4">Available</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_available'] ?></td></tr>
-                <tr><td class="py-2 pr-4">In Use</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_in_use'] ?></td></tr>
-                <tr><td class="py-2 pr-4">Maintenance</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_maintenance'] ?></td></tr>
-                <tr><td class="py-2 pr-4">Inactive</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['vehicles_inactive'] ?></td></tr>
-                <tr><td class="py-2 pr-4">Trips Today</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['trips_today'] ?></td></tr>
-                <tr><td class="py-2 pr-4">Trips In Progress</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['trips_in_progress'] ?></td></tr>
-                <tr><td class="py-2 pr-4">Drivers Active Today</td><td class="py-2 pr-4 font-semibold"><?= (int)$fleet['drivers_active_today'] ?></td></tr>
-              </tbody>
-            </table>
+
+          <?php
+            $cards = [
+              ['label'=>'Total Vehicles',       'value'=>(int)$fleet['total_vehicles'],       'cap'=>'in your fleet', 'ring'=>'ring-gray-200', 'bg'=>'from-white to-gray-50'],
+              ['label'=>'Available',            'value'=>(int)$fleet['vehicles_available'],    'cap'=>'ready to dispatch', 'ring'=>'ring-green-200', 'bg'=>'from-white to-green-50'],
+              ['label'=>'In Use',               'value'=>(int)$fleet['vehicles_in_use'],       'cap'=>'on a trip now', 'ring'=>'ring-blue-200', 'bg'=>'from-white to-blue-50'],
+              ['label'=>'Maintenance',          'value'=>(int)$fleet['vehicles_maintenance'],  'cap'=>'currently serviced', 'ring'=>'ring-yellow-200', 'bg'=>'from-white to-yellow-50'],
+              ['label'=>'Inactive',             'value'=>(int)$fleet['vehicles_inactive'],     'cap'=>'parked / inactive', 'ring'=>'ring-red-200', 'bg'=>'from-white to-red-50'],
+              ['label'=>'Trips Today',          'value'=>(int)$fleet['trips_today'],           'cap'=>'scheduled today', 'ring'=>'ring-indigo-200', 'bg'=>'from-white to-indigo-50'],
+              ['label'=>'Trips In Progress',    'value'=>(int)$fleet['trips_in_progress'],     'cap'=>'ongoing now', 'ring'=>'ring-sky-200', 'bg'=>'from-white to-sky-50'],
+              ['label'=>'Drivers Active Today', 'value'=>(int)$fleet['drivers_active_today'],  'cap'=>'on duty today', 'ring'=>'ring-purple-200', 'bg'=>'from-white to-purple-50'],
+            ];
+          ?>
+
+          <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <?php foreach($cards as $c): ?>
+              <div class="stat-card rounded-2xl ring-1 <?= $c['ring'] ?> bg-gradient-to-b <?= $c['bg'] ?> p-4">
+                <div class="text-[13px] text-gray-600 mb-2"><?= htmlspecialchars($c['label']) ?></div>
+                <div class="text-3xl font-extrabold text-kaya-ink leading-none mb-1"><?= number_format($c['value']) ?></div>
+                <div class="stat-cap text-gray-500"><?= htmlspecialchars($c['cap']) ?></div>
+              </div>
+            <?php endforeach; ?>
           </div>
         </section>
 
@@ -267,6 +317,8 @@
                                WHERE b.vehicle_id=v.id AND b.status IN ('accepted','in_progress')
                                ORDER BY b.scheduled_start_at DESC LIMIT 1) AS booking_status
                         FROM vehicles v
+                       WHERE (v.deleted_at IS NULL OR v.deleted_at='0000-00-00 00:00:00')
+                         AND LOWER(COALESCE(v.status,'')) <> 'deleted'
                        ORDER BY FIELD(v.status,'in_use','maintenance','available','inactive'), v.name
                        LIMIT 8
                     ";
@@ -297,6 +349,8 @@
                              (SELECT u_car_pickup FROM tms_user u WHERE u.u_car_regno=v.v_reg_no ORDER BY u_id DESC LIMIT 1) AS last_pick,
                              (SELECT u_car_destination FROM tms_user u WHERE u.u_car_regno=v.v_reg_no ORDER BY u_id DESC LIMIT 1) AS last_dest
                         FROM tms_vehicle v
+                       WHERE (v.deleted_at IS NULL OR v.deleted_at='0000-00-00 00:00:00')
+                         AND LOWER(COALESCE(v.v_status,'')) <> 'deleted'
                        ORDER BY v.v_id DESC
                        LIMIT 8
                     ";
