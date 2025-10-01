@@ -25,8 +25,11 @@ $script = $_SERVER['SCRIPT_NAME'] ?? '/';
 // dirname(dirname(...)) moves us up from /usr/file.php to the app root
 $basePath = rtrim(dirname(dirname($script)), '/\\'); // /flt-web/clean-flt
 
-// Final redirect target (trailing slash so Apache loads index.php in that folder)
-$target = $scheme . '://' . $host . $basePath . '/';
+// Redirect specifically to driver-login.php at the app root:
+$target = $scheme . '://' . $host . $basePath . '/driver-login.php';
+
+// If your login is a folder with its own index, use this instead:
+// $target = $scheme . '://' . $host . $basePath . '/driver-login/';
 
 // Do the redirect
 header('Cache-Control: no-store, no-cache, must-revalidate');
