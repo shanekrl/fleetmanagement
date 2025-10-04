@@ -12,7 +12,7 @@ $tryPaths = [
 ];
 $found = false;
 foreach ($tryPaths as $p) { if (file_exists($p)) { require_once $p; $found = true; break; } }
-if (!$found) { http_response_code(500); echo json_encode(['error'=>'Config not found']); exit; }
+if (!$found) { http_response_code(500); header('Content-Type: application/json'); echo json_encode(['error'=>'Config not found']); exit; }
 
 $tryPaths = [
   $HERE . '/vendor/inc/checklogin.php',
@@ -191,6 +191,23 @@ try {
 
     add_event($mysqli, $bookingId, $driverAccountId, 'driver', 'cancel', ['reason'=>$reason]);
     $newStatus = 'cancelled';
+  }
+
+  /* NEW: RESTORE a cancelled DIRECT (personal) booking back to accepted */
+  elseif ($action === 'restore_cancelled') {
+    if ($booking['booking_type'] !== 'personal') {
+      throw new Exception('Only direct (personal) bookings can be restored by driver');
+    }
+    $st = $mysqli->prepare("UPDATE bookings
+                               SET status='accepted', updated_at=NOW()
+                             WHERE id=? AND driver_id=? AND status='cancelled'");
+    $st->bind_param('ii',$bookingId,$driverAccountId);
+    $st->execute();
+    if ($st->affected_rows === 0) { throw new Exception('Nothing to restore'); }
+    $st->close();
+
+    add_event($mysqli, $bookingId, $driverAccountId, 'driver', 'restore', ['from'=>'cancelled','to'=>'accepted']);
+    $newStatus = 'accepted';
   }
 
   else {

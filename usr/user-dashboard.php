@@ -1,5 +1,5 @@
 <?php
-// usr/user-dashboard.php — Driver view (NEW DB ONLY)
+// usr/user-dashboard.php - driver view (uses new db sch)
 session_start();
 require_once __DIR__ . '/vendor/inc/config.php';
 require_once __DIR__ . '/vendor/inc/checklogin.php';
@@ -68,7 +68,7 @@ function badge_color($s){
 <head>
   <?php include __DIR__ . '/vendor/inc/head.php'; ?>
 
-  <!-- Minimal fallback so Start/Resume is visible even if Tailwind fails -->
+  <!-- fallback so start/resume is visible even if tw fails -->
   <style>
     .btn-start {
       background:#000047 !important;
@@ -228,7 +228,7 @@ function badge_color($s){
       });
     });
 
-    // Actions API endpoint (same folder)
+    // Actions api endpoint (same folder)
     const ACTION_URL = 'driver-actions.php';
 
     const postJSON = (payload) =>
@@ -244,7 +244,7 @@ function badge_color($s){
         return data;
       });
 
-    // Accept / Reject (Requests)
+    // Accept or Reject (Requests)
     document.querySelectorAll('.btn-accept').forEach(b=>b.addEventListener('click',(e)=>{
       e.stopPropagation();
       postJSON({ action:'accept', booking_id:b.dataset.id })
@@ -259,7 +259,7 @@ function badge_color($s){
         .catch(err=>alert(err.message));
     }));
 
-    // Cancel Trip — requires reason for admin bookings
+    // Cancel Trip - requires reason for admin bookings
     document.querySelectorAll('.btn-cancel').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();

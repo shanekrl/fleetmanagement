@@ -4,25 +4,29 @@
   include('vendor/inc/checklogin.php');
   check_login();
 
-  $aid = (int)($_SESSION['u_id'] ?? 0);
+  // Prefer accounts id; fall back to legacy user id
+  $accountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
+  $legacyUid = (int)($_SESSION['u_id'] ?? 0);
+
   function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
-  // Prefer new schema: accounts + driver_profile
   $profile = null;
-  if ($aid > 0) {
+
+  // Try modern schema first
+  if ($accountId > 0) {
     if ($q = $mysqli->prepare("
-        SELECT a.name,
-               a.email,
-               a.phone,
-               COALESCE(dp.address, '')       AS address,
-               COALESCE(dp.license_no, '')    AS license_no,
+        SELECT COALESCE(NULLIF(TRIM(a.name),''),'Driver') AS name,
+               COALESCE(a.email,'')  AS email,
+               COALESCE(a.phone,'')  AS phone,
+               COALESCE(dp.address,'')        AS address,
+               COALESCE(dp.license_no,'')     AS license_no,
                COALESCE(dp.current_status,'') AS current_status
         FROM accounts a
         LEFT JOIN driver_profile dp ON dp.account_id = a.id
         WHERE a.id = ?
         LIMIT 1
     ")) {
-      $q->bind_param('i', $aid);
+      $q->bind_param('i', $accountId);
       $q->execute();
       $res = $q->get_result();
       $profile = $res ? $res->fetch_assoc() : null;
@@ -30,18 +34,18 @@
     }
   }
 
-  // Fallback to legacy tms_user when no accounts row is mapped
-  if (!$profile && $aid > 0) {
+  // Fallback to legacy tms_user if not found
+  if (!$profile && $legacyUid > 0) {
     if ($q = $mysqli->prepare("
-        SELECT CONCAT(u_fname,' ',u_lname) AS name,
-               u_email  AS email,
-               u_phone  AS phone,
-               u_addr   AS address
+        SELECT TRIM(CONCAT(COALESCE(u_fname,''),' ',COALESCE(u_lname,''))) AS name,
+               COALESCE(u_email,'')  AS email,
+               COALESCE(u_phone,'')  AS phone,
+               COALESCE(u_addr,'')   AS address
         FROM tms_user
         WHERE u_id = ?
         LIMIT 1
     ")) {
-      $q->bind_param('i', $aid);
+      $q->bind_param('i', $legacyUid);
       $q->execute();
       $res = $q->get_result();
       $legacy = $res ? $res->fetch_assoc() : null;
@@ -49,12 +53,12 @@
 
       if ($legacy) {
         $profile = [
-          'name'          => $legacy['name']   ?? '',
-          'email'         => $legacy['email']  ?? '',
-          'phone'         => $legacy['phone']  ?? '',
-          'address'       => $legacy['address']?? '',
-          'license_no'    => '',
-          'current_status'=> ''
+          'name'           => $legacy['name'] ?: 'Driver',
+          'email'          => $legacy['email'] ?? '',
+          'phone'          => $legacy['phone'] ?? '',
+          'address'        => $legacy['address'] ?? '',
+          'license_no'     => '',
+          'current_status' => ''
         ];
       }
     }
@@ -109,7 +113,7 @@
                         <div class="text-muted small mb-1">Phone</div>
                         <div class="font-weight-600"><?php echo h($profile['phone'] ?: '—'); ?></div>
                       </div>
-                      <div class="col-sm-6 mb-3">
+                      <div class="col-sm-12 mb-3">
                         <div class="text-muted small mb-1">Address</div>
                         <div class="font-weight-600"><?php echo h($profile['address'] ?: '—'); ?></div>
                       </div>
@@ -130,15 +134,6 @@
                           </span>
                         </div>
                       <?php endif; ?>
-                    </div>
-
-                    <div class="mt-2">
-                      <a href="user-update-profile.php" class="btn btn-primary">
-                        <i class="fa fa-user-edit mr-1"></i> Update Profile
-                      </a>
-                      <a href="user-change-pwd.php" class="btn btn-outline-secondary">
-                        <i class="fa fa-key mr-1"></i> Change Password
-                      </a>
                     </div>
                   </div>
                 </div>

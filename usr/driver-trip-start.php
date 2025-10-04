@@ -1,33 +1,54 @@
 <?php
 // usr/driver-trip-start.php — full-screen live trip card
 session_start();
-require_once __DIR__ . '/../vendor/inc/config.php';
-require_once __DIR__ . '/../vendor/inc/checklogin.php';
+require_once __DIR__ . '/vendor/inc/config.php';
+require_once __DIR__ . '/vendor/inc/checklogin.php';
 check_login();
 
 $driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
-$bookingId = (int)($_GET['booking_id'] ?? 0);
+$bookingId       = (int)($_GET['booking_id'] ?? 0);
+if (!$driverAccountId || !$bookingId) { header('Location: user-dashboard.php'); exit; }
 
-if (!$driverAccountId || !$bookingId) {
-  header('Location: ../user-dashboard.php'); exit;
-}
-
+/* Load booking assigned to this driver */
 $booking = null;
 if ($s = $mysqli->prepare("
-    SELECT id AS booking_id, booking_type, pickup_point, dropoff_point,
-           COALESCE(scheduled_start_at, created_at) AS scheduled_start_at,
-           status, contact_name, contact_phone, vehicle_id
-      FROM bookings
-     WHERE id=? AND driver_id=? LIMIT 1
+  SELECT id AS booking_id, booking_type, pickup_point, dropoff_point,
+         COALESCE(scheduled_start_at, created_at) AS scheduled_start_at,
+         status, contact_name, contact_phone, vehicle_id
+    FROM bookings
+   WHERE id=? AND driver_id=? LIMIT 1
 ")) {
   $s->bind_param('ii', $bookingId, $driverAccountId);
-  $s->execute();
-  $booking = $s->get_result()->fetch_assoc();
-  $s->close();
+  $s->execute(); $booking = $s->get_result()->fetch_assoc(); $s->close();
 }
-if (!$booking) { header('Location: ../user-dashboard.php'); exit; }
+if (!$booking) { header('Location: user-dashboard.php'); exit; }
 
-// helpers
+/* If user landed here while the trip is still ACCEPTED,
+   immediately flip it to IN PROGRESS (auto-start) so the
+   screen always shows Cancel + End Trip like the prototype. */
+if ($booking['status'] === 'accepted') {
+  if ($u = $mysqli->prepare("UPDATE bookings SET status='in_progress', updated_at=NOW()
+                              WHERE id=? AND driver_id=? AND status='accepted'")) {
+    $u->bind_param('ii', $bookingId, $driverAccountId);
+    $u->execute(); $u->close();
+  }
+  // Ensure there's a run row + pickup timestamp
+  $mysqli->query("INSERT INTO booking_runs(booking_id, vehicle_id, driver_id, pickup_button_at)
+                   SELECT b.id, b.vehicle_id, b.driver_id, NOW()
+                     FROM bookings b
+                    WHERE b.id={$bookingId}
+                      AND NOT EXISTS(SELECT 1 FROM booking_runs r WHERE r.booking_id=b.id)");
+  $mysqli->query("UPDATE booking_runs
+                     SET pickup_button_at = COALESCE(pickup_button_at, NOW())
+                   WHERE booking_id = {$bookingId}");
+  // Refresh booking in memory
+  if ($s = $mysqli->prepare("SELECT status FROM bookings WHERE id=? LIMIT 1")) {
+    $s->bind_param('i', $bookingId); $s->execute();
+    $s->bind_result($st); if ($s->fetch()) $booking['status']=$st; $s->close();
+  }
+}
+
+/* helpers */
 function fmt_compact($dt){
   if(!$dt) return '—';
   $ts = strtotime($dt);
@@ -50,17 +71,17 @@ function badge_color($s){
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <?php include('../vendor/inc/head.php'); ?>
+  <?php include __DIR__ . '/vendor/inc/head.php'; ?>
   <style>
-    /* hide chrome to maximize space */
     .sidebar, .sticky-footer { display:none !important; }
-    #content-wrapper, .container-fluid { padding:0 !important; }
-    body, html { height:100%; }
+    #content-wrapper { padding:0 !important; }
+    html, body { height:100%; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
+  <?php include __DIR__ . '/vendor/inc/nav.php'; ?>
 
-  <!-- Top bar -->
+  <!-- Header -->
   <div class="w-full bg-[#0B0F2F] text-white">
     <div class="max-w-[900px] mx-auto px-4 py-3">
       <div class="flex items-center justify-between">
@@ -70,44 +91,41 @@ function badge_color($s){
           </div>
           <div class="text-[12px] opacity-80"><?= fmt_compact($booking['scheduled_start_at']) ?></div>
         </div>
-        <a href="../user-dashboard.php" class="text-white/80 hover:text-white text-sm underline">Back</a>
+        <a href="user-dashboard.php" class="text-white/80 hover:text-white text-sm underline">Back</a>
       </div>
     </div>
   </div>
 
-  <!-- Map + controls (full height) -->
-  <div class="max-w-[900px] mx-auto w-full h-[calc(100vh-60px)] px-4 py-3">
-    <div class="w-full h-[65%] bg-slate-200 rounded-xl mb-3"></div> <!-- map placeholder -->
+  <!-- Map + controls -->
+  <div class="max-w-[900px] mx-auto w-full h-[calc(100vh-120px)] px-4 py-3">
+    <div class="w-full h-[65%] bg-slate-200 rounded-xl mb-3"></div>
 
     <div class="mb-3 flex gap-2 items-center">
       <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= badge_color($booking['status']) ?>">
-        <?= strtoupper($booking['status']) ?>
+        <?= $booking['status']==='in_progress' ? 'ON GOING' : strtoupper($booking['status']) ?>
       </span>
       <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= ($booking['booking_type']==='personal'?'bg-amber-500':'bg-sky-500') ?>">
         <?= strtoupper($booking['booking_type'] ?: 'ADMIN') ?>
       </span>
     </div>
 
-    <div class="flex gap-2 flex-wrap mb-2">
-      <?php if ($booking['status']==='accepted'): ?>
-        <button id="btnStart" class="px-4 py-2 rounded-xl text-white bg-kaya-navy text-sm font-semibold">
-          Start Trip
+    <!-- Trip Started! + two buttons only -->
+    <?php if ($booking['status']==='in_progress'): ?>
+      <div class="text-sm font-semibold text-[#0B0F2F] mb-2">Trip Started!</div>
+      <div class="flex gap-2 flex-wrap mb-2">
+        <button id="btnUndo" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold bg-white text-[#0B0F2F]">
+          Cancel
         </button>
-        <button id="btnCancelAcc" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">
-          Cancel Trip
-        </button>
-      <?php elseif ($booking['status']==='in_progress'): ?>
-        <button id="btnUndo" class="px-4 py-2 rounded-xl bg-white text-[#0B0F2F] font-semibold border border-slate-300">
-          Cancel (Undo Start)
-        </button>
-        <button id="btnEnd" class="px-4 py-2 rounded-xl text-white bg-green-600 text-sm font-semibold">
+        <button id="btnEnd" class="px-4 py-2 rounded-xl text-white bg-red-600 text-sm font-semibold">
           End Trip
         </button>
-      <?php else: ?>
-        <a class="px-4 py-2 rounded-xl text-white bg-kaya-navy text-sm font-semibold"
-           href="../user-dashboard.php">Back to Dashboard</a>
-      <?php endif; ?>
-    </div>
+      </div>
+    <?php else: ?>
+      <!-- Fallback (shouldn’t show because we auto-start above) -->
+      <a class="px-4 py-2 rounded-xl text-white bg-[#000047] text-sm font-semibold" href="user-dashboard.php">
+        Back to Dashboard
+      </a>
+    <?php endif; ?>
 
     <?php if ($booking['contact_name'] || $booking['contact_phone']): ?>
       <div class="mt-2 text-xs">
@@ -118,9 +136,9 @@ function badge_color($s){
   </div>
 
   <script>
-    // use correct path to the actions endpoint whatever the folder depth
-    const ACTION_URL = window.location.pathname.includes('/usr/')
-      ? '../driver-actions.php' : 'driver-actions.php';
+    // Actions API endpoint (this file and the API are both inside /usr/)
+    const ACTION_URL = 'driver-actions.php';
+    const bookingId  = <?= (int)$booking['booking_id'] ?>;
 
     const postJSON = (payload) =>
       fetch(ACTION_URL, {
@@ -133,60 +151,29 @@ function badge_color($s){
         return j;
       });
 
-    const bookingId = <?= (int)$booking['booking_id'] ?>;
-    const bookingType = <?= json_encode($booking['booking_type'] ?: 'admin') ?>;
+    const goBack = () => window.location.href = 'user-dashboard.php';
 
-    const goBack = () => window.location.href = '../user-dashboard.php';
-
-    const askReasonIfAdmin = (title) => {
-      if (bookingType === 'admin') {
-        const reason = prompt(title || 'Reason?');
-        if (!reason) return null;
-        return reason;
-      }
-      return '';
-    };
-
-    // accepted -> in_progress
-    const btnStart = document.getElementById('btnStart');
-    if (btnStart) btnStart.addEventListener('click', ()=>{
-      postJSON({ action:'start_trip', booking_id:bookingId })
-        .then(()=>location.reload())
-        .catch(e=>alert(e.message));
-    });
-
-    // accepted -> cancelled (requires reason for admin)
-    const btnCancelAcc = document.getElementById('btnCancelAcc');
-    if (btnCancelAcc) btnCancelAcc.addEventListener('click', ()=>{
-      const reason = askReasonIfAdmin('Reason for cancellation?');
-      if (reason===null) return;
-      postJSON({ action:'cancel_trip', booking_id:bookingId, reason })
+    // Cancel = undo start (back to Accepted / Incoming Trips)
+    const btnUndo = document.getElementById('btnUndo');
+    if (btnUndo) btnUndo.addEventListener('click', ()=>{
+      if (!confirm('Cancel this run and return it to Incoming Trips?')) return;
+      postJSON({ action:'undo_start', booking_id: bookingId })
         .then(goBack)
         .catch(e=>alert(e.message));
     });
 
-    // in_progress -> accepted (undo)
-    const btnUndo = document.getElementById('btnUndo');
-    if (btnUndo) btnUndo.addEventListener('click', ()=>{
-      if (!confirm('Undo trip start and go back to Accepted?')) return;
-      postJSON({ action:'undo_start', booking_id:bookingId })
-        .then(()=>location.reload())
-        .catch(e=>alert(e.message));
-    });
-
-    // in_progress -> completed
+    // End Trip = complete
     const btnEnd = document.getElementById('btnEnd');
     if (btnEnd) btnEnd.addEventListener('click', ()=>{
       if (!confirm('End trip now?')) return;
-      postJSON({ action:'end_trip', booking_id:bookingId })
+      postJSON({ action:'end_trip', booking_id: bookingId })
         .then(goBack)
         .catch(e=>alert(e.message));
     });
   </script>
 
-  <!-- keep vendor bundles as-is -->
-  <script src="../vendor/jquery/jquery.min.js"></script>
-  <script src="../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="../vendor/jquery-easing/jquery.easing.min.js"></script>
+  <script src="vendor/jquery/jquery.min.js"></script>
+  <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
 </body>
 </html>

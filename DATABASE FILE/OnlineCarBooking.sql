@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 04, 2025 at 04:10 PM
+-- Generation Time: Oct 04, 2025 at 10:59 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -111,7 +111,8 @@ INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver
 (3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'completed', 'chello', '2025-09-29 04:18:15', '2025-09-29 23:34:23'),
 (4, 'admin', 1, NULL, 7, 2, 1, 'Samantha Ticsay', '09988233611', 'Cuatro de Julio Street, Salapungan, Ninoy Aquino, Pandan, Angeles, Central Luzon, 2009, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 13:30:00', NULL, 'completed', '', '2025-09-29 23:33:47', '2025-09-29 23:35:24'),
 (5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'cancelled', 'yay\nDriver cancel reason: wala na', '2025-09-30 00:34:32', '2025-10-04 20:01:52'),
-(6, 'admin', 1, NULL, 8, 8, 1, 'Lando Norris', '09998225432', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-08 11:02:00', NULL, 'accepted', 'Driver reject reason: yoko nga', '2025-10-04 20:33:39', '2025-10-04 22:09:22');
+(6, 'admin', 1, NULL, 8, 8, 1, 'Lando Norris', '09998225432', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-08 11:02:00', NULL, 'completed', 'Driver reject reason: yoko nga', '2025-10-04 20:33:39', '2025-10-04 23:06:49'),
+(7, 'personal', 8, NULL, 8, 8, 1, 'Ayoko Na', '09991112345', 'Angeles University Foundation', 'SM Clark Skyline, SM City Clark, Angeles, Central Luzon, 2024, Philippines', 15.1449885, 120.5943169, 15.1688409, 120.5801715, '2025-10-06 07:40:00', NULL, 'completed', 'Created by driver', '2025-10-05 04:40:50', '2025-10-05 04:43:19');
 
 -- --------------------------------------------------------
 
@@ -165,7 +166,12 @@ INSERT INTO `booking_events` (`id`, `booking_id`, `actor_id`, `actor_role`, `eve
 (31, 5, 8, 'driver', 'cancel', '{\"reason\":\"wala na\"}', '2025-10-04 20:01:52'),
 (32, 6, 8, 'driver', 'reject', '{\"reason\":\"yoko nga\"}', '2025-10-04 20:34:17'),
 (33, 6, 1, 'admin', 'restore', '[]', '2025-10-04 20:34:32'),
-(34, 6, 8, 'driver', 'accept', '[]', '2025-10-04 22:09:22');
+(34, 6, 8, 'driver', 'accept', '[]', '2025-10-04 22:09:22'),
+(35, 6, 8, 'driver', 'restore', '{\"from\":\"in_progress\",\"to\":\"accepted\"}', '2025-10-04 23:01:55'),
+(36, 6, 8, 'driver', 'complete_trip', '[]', '2025-10-04 23:06:49'),
+(37, 7, 8, 'driver', 'restore', '{\"from\":\"in_progress\",\"to\":\"accepted\"}', '2025-10-05 04:41:36'),
+(38, 7, 8, 'driver', 'cancel', '{\"reason\":\"\"}', '2025-10-05 04:41:39'),
+(39, 7, 8, 'driver', 'complete_trip', '[]', '2025-10-05 04:43:19');
 
 -- --------------------------------------------------------
 
@@ -250,6 +256,14 @@ CREATE TABLE `booking_runs` (
   `fuel_used_liters` decimal(10,2) DEFAULT NULL,
   `duration_seconds` int(10) UNSIGNED DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `booking_runs`
+--
+
+INSERT INTO `booking_runs` (`booking_id`, `vehicle_id`, `driver_id`, `pickup_button_at`, `dropoff_button_at`, `odo_start_km`, `odo_end_km`, `distance_km`, `fuel_used_liters`, `duration_seconds`) VALUES
+(6, 8, 8, '2025-10-04 23:03:00', '2025-10-04 23:06:49', NULL, NULL, NULL, NULL, 229),
+(7, 8, 8, '2025-10-05 04:43:10', '2025-10-05 04:43:19', NULL, NULL, NULL, NULL, 9);
 
 -- --------------------------------------------------------
 
@@ -1496,13 +1510,13 @@ ALTER TABLE `accounts`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `booking_events`
 --
 ALTER TABLE `booking_events`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `booking_offers`
