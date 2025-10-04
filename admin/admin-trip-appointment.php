@@ -521,13 +521,40 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                     <label>Driver</label>
                     <select class="form-control" name="driver_id" id="modalDriverSelect">
                       <option value="">— None —</option>
-                      <?php if (table_exists($mysqli,'accounts')):
-                        $whereDelete = column_exists($mysqli,'accounts','deleted_at') ? "AND deleted_at IS NULL" : "";
-                        $q=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver' AND is_active=1 $whereDelete ORDER BY name");
-                        if ($q) while($d=$q->fetch_assoc()): ?>
-                          <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
-                      <?php endwhile; endif; ?>
+                      <?php
+                      if (table_exists($mysqli,'accounts')) {
+                        // Build a WHERE that works whether or not `deleted_at` exists (older DBs)
+                        $hasDeletedAt = column_exists($mysqli,'accounts','deleted_at');
+                        $deletedClause = $hasDeletedAt ? "AND a.deleted_at IS NULL" : "";
+
+                        // If the legacy table exists, also hide archived/soft-deleted legacy rows that match by email.
+                        $excludeViaLegacy = table_exists($mysqli,'tms_user_add_driver') ? "
+                          AND NOT EXISTS (
+                            SELECT 1
+                            FROM tms_user_add_driver tu
+                            WHERE tu.u_email <> '' AND LOWER(tu.u_email) = LOWER(a.email)
+                              AND (tu.is_archived = 1 OR tu.deleted_at IS NOT NULL)
+                          )
+                        " : "";
+
+                        $sql = "
+                          SELECT a.id, a.name
+                          FROM accounts a
+                          WHERE a.role='driver'
+                            AND a.is_active=1
+                            $deletedClause
+                            $excludeViaLegacy
+                          ORDER BY a.name
+                        ";
+                        if ($q = $mysqli->query($sql)) {
+                          while ($d = $q->fetch_assoc()) {
+                            echo '<option value="'.(int)$d['id'].'">'.htmlspecialchars($d['name']).'</option>';
+                          }
+                        }
+                      }
+                      ?>
                     </select>
+
                   </div>
                 </div>
 

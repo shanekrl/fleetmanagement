@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 30, 2025 at 08:07 AM
+-- Generation Time: Oct 04, 2025 at 04:10 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -36,25 +36,26 @@ CREATE TABLE `accounts` (
   `phone` varchar(32) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `accounts`
 --
 
-INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 'admin', 'Admin', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO', NULL, 1, '2025-09-12 20:14:29', '2025-09-12 20:14:29'),
-(2, 'driver', 'Shane Lopez', 'shaaane@mail.com', '$2y$10$MWD3iKYEN5eQOz6HKPkGV.jSQ.s4nIBgu39NRqVFKW4z.ppsMem7G', NULL, 1, '2025-09-12 20:14:29', '2025-09-13 19:58:42'),
-(4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', 1, '2025-09-22 05:09:31', '2025-09-22 05:09:31'),
-(5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 1, '2025-09-26 20:53:29', '2025-09-27 09:19:13'),
-(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 1, '2025-09-28 15:16:43', '2025-09-28 15:16:43'),
-(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', 1, '2025-09-29 04:27:49', '2025-09-29 04:27:49'),
-(8, 'driver', 'Rey Cabral', 'r.cabral@gmail.com', '$2y$10$ypv7rgC9tI2is0px2KaEs.EKaqJTIYExvirC535OzhAYIKykHmFii', '09877651234', 1, '2025-09-30 00:07:41', '2025-09-30 00:07:41'),
-(9, 'driver', 'Arnold Lagman', 'a.lagman@gmail.com', '$2y$10$u0hXfoN/f1p6LIMwofkUke3O.MfqOUQrcfNqhjwpNbGPoiFEYrDo2', '09871234563', 1, '2025-09-30 00:08:30', '2025-09-30 00:08:30'),
-(10, 'driver', 'Nestor Sanchez', 'n.sanchez@gmail.com', '$2y$10$L7BNQJFnvbyrZLjVP6PUzOjdemDyWJZilhYG4GLm90ptw190ye6/u', '0912345641', 1, '2025-09-30 00:09:46', '2025-09-30 00:09:46'),
-(11, 'driver', 'Richie Sibal', 'r.sibal@gmail.com', '$2y$10$tByemB9al7eCaqMdh9F79Oq5XMdaunDQpJ31SlkiU6uFfJZ/yzYsS', '0768126543', 1, '2025-09-30 00:10:51', '2025-09-30 00:10:51'),
-(12, 'driver', 'Manuel Valencia', 'm.valencia@gmail.com', '$2y$10$cCUgKiKyfeGYiYkZMYQSwe.wfSggzjPfAsYbTbqiSPySVuWQB3xfK', '09236571234', 1, '2025-09-30 00:11:35', '2025-09-30 00:11:35');
+INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'admin', 'Admin', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO', NULL, 1, '2025-09-12 20:14:29', '2025-09-12 20:14:29', NULL),
+(2, 'driver', 'Shane Lopez', 'shaaane@mail.com', '$2y$10$MWD3iKYEN5eQOz6HKPkGV.jSQ.s4nIBgu39NRqVFKW4z.ppsMem7G', NULL, 0, '2025-09-12 20:14:29', '2025-10-04 22:01:02', '2025-10-04 22:01:02'),
+(4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', 0, '2025-09-22 05:09:31', '2025-10-04 22:01:07', '2025-10-04 22:01:07'),
+(5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 0, '2025-09-26 20:53:29', '2025-10-04 22:01:12', '2025-10-04 22:01:12'),
+(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 0, '2025-09-28 15:16:43', '2025-10-04 22:01:16', '2025-10-04 22:01:16'),
+(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', 0, '2025-09-29 04:27:49', '2025-10-04 22:01:21', '2025-10-04 22:01:21'),
+(8, 'driver', 'Rey Cabral', 'r.cabral@gmail.com', '$2y$10$ypv7rgC9tI2is0px2KaEs.EKaqJTIYExvirC535OzhAYIKykHmFii', '09877651234', 1, '2025-09-30 00:07:41', '2025-09-30 00:07:41', NULL),
+(9, 'driver', 'Arnold Lagman', 'a.lagman@gmail.com', '$2y$10$u0hXfoN/f1p6LIMwofkUke3O.MfqOUQrcfNqhjwpNbGPoiFEYrDo2', '09871234563', 1, '2025-09-30 00:08:30', '2025-09-30 00:08:30', NULL),
+(10, 'driver', 'Nestor Sanchez', 'n.sanchez@gmail.com', '$2y$10$L7BNQJFnvbyrZLjVP6PUzOjdemDyWJZilhYG4GLm90ptw190ye6/u', '0912345641', 1, '2025-09-30 00:09:46', '2025-09-30 00:09:46', NULL),
+(11, 'driver', 'Richie Sibal', 'r.sibal@gmail.com', '$2y$10$tByemB9al7eCaqMdh9F79Oq5XMdaunDQpJ31SlkiU6uFfJZ/yzYsS', '0768126543', 1, '2025-09-30 00:10:51', '2025-09-30 00:10:51', NULL),
+(12, 'driver', 'Manuel Valencia', 'm.valencia@gmail.com', '$2y$10$cCUgKiKyfeGYiYkZMYQSwe.wfSggzjPfAsYbTbqiSPySVuWQB3xfK', '09236571234', 1, '2025-09-30 00:11:35', '2025-09-30 00:11:35', NULL);
 
 -- --------------------------------------------------------
 
@@ -95,7 +96,6 @@ CREATE TABLE `bookings` (
   `scheduled_start_at` datetime NOT NULL,
   `scheduled_end_at` datetime DEFAULT NULL,
   `status` enum('pending','awaiting_driver','accepted','rejected','cancelled','in_progress','completed') NOT NULL DEFAULT 'pending',
-  `payment_status` enum('unpaid','paid','partial') NOT NULL DEFAULT 'unpaid',
   `notes` text DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -105,12 +105,13 @@ CREATE TABLE `bookings` (
 -- Dumping data for table `bookings`
 --
 
-INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver_id`, `vehicle_id`, `pax`, `contact_name`, `contact_phone`, `pickup_point`, `dropoff_point`, `pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`, `scheduled_start_at`, `scheduled_end_at`, `status`, `payment_status`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 'admin', 1, NULL, NULL, 1, 3, NULL, '+639171234567', '100 Main St, Town', 'Airport Terminal 1', NULL, NULL, NULL, NULL, '2025-08-12 14:00:00', NULL, 'cancelled', 'unpaid', NULL, '2025-09-12 20:14:29', '2025-09-22 04:38:16'),
-(2, 'admin', 1, NULL, 2, 1, 1, 'Felicity Morelli', '09988233611', 'Angeles University Foundation', 'SM City Clark', NULL, NULL, NULL, NULL, '2025-09-25 13:44:00', NULL, 'completed', 'unpaid', '', '2025-09-25 12:44:46', '2025-09-29 04:19:13'),
-(3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'completed', 'unpaid', 'chello', '2025-09-29 04:18:15', '2025-09-29 23:34:23'),
-(4, 'admin', 1, NULL, 7, 2, 1, 'Samantha Ticsay', '09988233611', 'Cuatro de Julio Street, Salapungan, Ninoy Aquino, Pandan, Angeles, Central Luzon, 2009, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 13:30:00', NULL, 'completed', 'unpaid', '', '2025-09-29 23:33:47', '2025-09-29 23:35:24'),
-(5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'awaiting_driver', 'unpaid', 'yay', '2025-09-30 00:34:32', '2025-09-30 00:34:32');
+INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver_id`, `vehicle_id`, `pax`, `contact_name`, `contact_phone`, `pickup_point`, `dropoff_point`, `pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`, `scheduled_start_at`, `scheduled_end_at`, `status`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 'admin', 1, NULL, NULL, 1, 3, NULL, '+639171234567', '100 Main St, Town', 'Airport Terminal 1', NULL, NULL, NULL, NULL, '2025-08-12 14:00:00', NULL, 'cancelled', NULL, '2025-09-12 20:14:29', '2025-09-30 19:12:44'),
+(2, 'admin', 1, NULL, 2, 1, 1, 'Felicity Morelli', '09988233611', 'Angeles University Foundation', 'SM City Clark', NULL, NULL, NULL, NULL, '2025-09-25 13:44:00', NULL, 'completed', '', '2025-09-25 12:44:46', '2025-09-29 04:19:13'),
+(3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'completed', 'chello', '2025-09-29 04:18:15', '2025-09-29 23:34:23'),
+(4, 'admin', 1, NULL, 7, 2, 1, 'Samantha Ticsay', '09988233611', 'Cuatro de Julio Street, Salapungan, Ninoy Aquino, Pandan, Angeles, Central Luzon, 2009, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 13:30:00', NULL, 'completed', '', '2025-09-29 23:33:47', '2025-09-29 23:35:24'),
+(5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'cancelled', 'yay\nDriver cancel reason: wala na', '2025-09-30 00:34:32', '2025-10-04 20:01:52'),
+(6, 'admin', 1, NULL, 8, 8, 1, 'Lando Norris', '09998225432', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-08 11:02:00', NULL, 'accepted', 'Driver reject reason: yoko nga', '2025-10-04 20:33:39', '2025-10-04 22:09:22');
 
 -- --------------------------------------------------------
 
@@ -157,7 +158,14 @@ INSERT INTO `booking_events` (`id`, `booking_id`, `actor_id`, `actor_role`, `eve
 (24, 4, 1, 'admin', 'cancel', '[]', '2025-09-29 23:34:31'),
 (25, 4, 1, 'admin', 'restore', '[]', '2025-09-29 23:34:40'),
 (26, 4, 1, 'admin', 'assign', '[]', '2025-09-29 23:34:57'),
-(27, 4, 1, 'admin', 'complete_trip', '[]', '2025-09-29 23:35:24');
+(27, 4, 1, 'admin', 'complete_trip', '[]', '2025-09-29 23:35:24'),
+(28, 1, 1, 'admin', 'restore', '[]', '2025-09-30 19:12:40'),
+(29, 1, 1, 'admin', 'cancel', '[]', '2025-09-30 19:12:44'),
+(30, 5, 8, 'driver', 'accept', '{\"mode\": \"direct\"}', '2025-10-04 00:37:34'),
+(31, 5, 8, 'driver', 'cancel', '{\"reason\":\"wala na\"}', '2025-10-04 20:01:52'),
+(32, 6, 8, 'driver', 'reject', '{\"reason\":\"yoko nga\"}', '2025-10-04 20:34:17'),
+(33, 6, 1, 'admin', 'restore', '[]', '2025-10-04 20:34:32'),
+(34, 6, 8, 'driver', 'accept', '[]', '2025-10-04 22:09:22');
 
 -- --------------------------------------------------------
 
@@ -895,9 +903,9 @@ CREATE TABLE `tms_user_add_driver` (
 INSERT INTO `tms_user_add_driver` (`d_u_id`, `u_id`, `u_fname`, `u_lname`, `u_phone`, `u_addr`, `u_car_type`, `u_car_regno`, `u_car_bookdate`, `u_car_book_status`, `u_category`, `u_email`, `deleted_at`, `deleted_by`, `u_pwd`, `created_at`, `is_archived`) VALUES
 (8, 0, 'Shane', 'Lopez', '09446872447', 'taga san fernando, pampanga', 'Bus', '123', '', 'Available', 'Driver', 'shaaane@mail.com', '2025-09-30 00:04:59', 1, '', '2025-09-12 00:00:00', 0),
 (9, 0, 'Test', 'Driver', '09668226441', 'taga ac', '', '123', '', 'Available', 'Driver', 'test@mail.com', '2025-09-30 00:04:55', 1, '', '2025-09-22 00:00:00', 0),
-(10, 0, 'Alex', 'Turner', '09942317653', 'somewhere', '', '123', '', 'Available', 'Driver', '505@mail.com', NULL, NULL, '', '2025-09-26 20:53:29', 0),
+(10, 0, 'Alex', 'Turner', '09942317653', 'somewhere', '', '123', '', 'Available', 'Driver', '505@mail.com', '2025-09-30 14:11:42', 1, '', '2025-09-26 20:53:29', 0),
 (13, 0, 'Noah', 'Enguerra', '09123456789', 'taga ac din', '', '12345', '', 'Available', 'Driver', 'noah@mail.com', '2025-09-30 00:05:01', 1, '', '2025-09-28 15:16:43', 0),
-(14, 0, 'Keihle', 'Pascual', '09784563214', 'taga idk somewhere friendship', '', '123', '', 'Available', 'Driver', 'kei@mail.com', '2025-09-30 00:05:02', 1, '', '2025-09-29 04:27:49', 0),
+(14, 0, 'Keihle', 'Pascual', '09784563214', 'taga idk somewhere friendship', '', '123', '', 'Available', 'Driver', 'kei@mail.com', '2025-09-30 16:26:13', 1, '', '2025-09-29 04:27:49', 0),
 (15, 0, 'Rey', 'Cabral', '09877651234', 'angeles', '', '123', '', 'Available', 'Driver', 'r.cabral@gmail.com', NULL, NULL, '', '2025-09-30 00:07:41', 0),
 (16, 0, 'Arnold', 'Lagman', '09871234563', 'angeles', '', '456', '', 'Available', 'Driver', 'a.lagman@gmail.com', NULL, NULL, '', '2025-09-30 00:08:30', 0),
 (17, 0, 'Nestor', 'Sanchez', '0912345641', 'angeles', '', '789', '', 'Available', 'Driver', 'n.sanchez@gmail.com', NULL, NULL, '', '2025-09-30 00:09:46', 0),
@@ -1229,7 +1237,6 @@ CREATE TABLE `v_trip_history` (
 ,`scheduled_start_at` datetime
 ,`scheduled_end_at` datetime
 ,`status` enum('pending','awaiting_driver','accepted','rejected','cancelled','in_progress','completed')
-,`payment_status` enum('unpaid','paid','partial')
 ,`notes` text
 ,`created_at` datetime
 ,`updated_at` datetime
@@ -1300,7 +1307,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `v_driver_current_vehicle`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_driver_current_vehicle`  AS SELECT `a`.`id` AS `driver_account_id`, `a`.`name` AS `driver_name`, `v`.`v_id` AS `v_id`, `v`.`v_name` AS `v_name`, `v`.`v_reg_no` AS `v_reg_no` FROM ((`accounts` `a` left join `vehicle_assignments` `va` on(`va`.`driver_id` = `a`.`id` and `va`.`end_at` is null)) left join `tms_vehicle` `v` on(`v`.`v_id` = `va`.`vehicle_id`)) WHERE `a`.`role` = 'driver' ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_driver_current_vehicle`  AS SELECT `a`.`id` AS `driver_account_id`, `a`.`name` AS `driver_name`, `v`.`v_id` AS `v_id`, `v`.`v_name` AS `v_name`, `v`.`v_reg_no` AS `v_reg_no` FROM ((`accounts` `a` left join `vehicle_assignments` `va` on(`va`.`driver_id` = `a`.`id` and `va`.`end_at` is null)) left join `tms_vehicle` `v` on(`v`.`v_id` = `va`.`vehicle_id`)) WHERE `a`.`role` = 'driver' AND `a`.`is_active` = 1 AND `a`.`deleted_at` is null ;
 
 -- --------------------------------------------------------
 
@@ -1336,7 +1343,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `v_trip_history`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_trip_history`  AS SELECT `b`.`id` AS `booking_id`, `b`.`booking_type` AS `booking_type`, `b`.`created_by` AS `created_by`, `b`.`driver_id` AS `driver_id`, `b`.`vehicle_id` AS `vehicle_id`, `b`.`pax` AS `pax`, `b`.`contact_name` AS `contact_name`, `b`.`contact_phone` AS `contact_phone`, `b`.`pickup_point` AS `pickup_point`, `b`.`dropoff_point` AS `dropoff_point`, `b`.`scheduled_start_at` AS `scheduled_start_at`, `b`.`scheduled_end_at` AS `scheduled_end_at`, `b`.`status` AS `status`, `b`.`payment_status` AS `payment_status`, `b`.`notes` AS `notes`, `b`.`created_at` AS `created_at`, `b`.`updated_at` AS `updated_at` FROM `bookings` AS `b` ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_trip_history`  AS SELECT `b`.`id` AS `booking_id`, `b`.`booking_type` AS `booking_type`, `b`.`created_by` AS `created_by`, `b`.`driver_id` AS `driver_id`, `b`.`vehicle_id` AS `vehicle_id`, `b`.`pax` AS `pax`, `b`.`contact_name` AS `contact_name`, `b`.`contact_phone` AS `contact_phone`, `b`.`pickup_point` AS `pickup_point`, `b`.`dropoff_point` AS `dropoff_point`, `b`.`scheduled_start_at` AS `scheduled_start_at`, `b`.`scheduled_end_at` AS `scheduled_end_at`, `b`.`status` AS `status`, `b`.`notes` AS `notes`, `b`.`created_at` AS `created_at`, `b`.`updated_at` AS `updated_at` FROM `bookings` AS `b` ;
 
 -- --------------------------------------------------------
 
@@ -1345,7 +1352,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `v_vehicle_current_driver`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_vehicle_current_driver`  AS SELECT `v`.`v_id` AS `v_id`, `va`.`driver_id` AS `driver_account_id`, `a`.`name` AS `driver_name`, coalesce(`ad_by_email`.`d_u_id`,`ad_by_legacy`.`d_u_id`) AS `add_driver_id`, coalesce(`ad_by_email`.`u_fname`,`ad_by_legacy`.`u_fname`) AS `add_driver_fname`, coalesce(`ad_by_email`.`u_lname`,`ad_by_legacy`.`u_lname`) AS `add_driver_lname` FROM ((((`tms_vehicle` `v` left join `vehicle_assignments` `va` on(`va`.`vehicle_id` = `v`.`v_id` and `va`.`end_at` is null)) left join `accounts` `a` on(`a`.`id` = `va`.`driver_id`)) left join `tms_user_add_driver` `ad_by_email` on(`a`.`email` is not null and `ad_by_email`.`deleted_at` is null and `ad_by_email`.`u_email` <> '' and lcase(`ad_by_email`.`u_email`) = lcase(`a`.`email`))) left join `tms_user_add_driver` `ad_by_legacy` on(`ad_by_legacy`.`deleted_at` is null and (`ad_by_legacy`.`d_u_id` = `v`.`default_driver_id` or `ad_by_legacy`.`d_u_id` = `v`.`driver_user_id`))) ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_vehicle_current_driver`  AS SELECT `v`.`v_id` AS `v_id`, `va`.`driver_id` AS `driver_account_id`, `a`.`name` AS `driver_name`, coalesce(`ad_by_email`.`d_u_id`,`ad_by_legacy`.`d_u_id`) AS `add_driver_id`, coalesce(`ad_by_email`.`u_fname`,`ad_by_legacy`.`u_fname`) AS `add_driver_fname`, coalesce(`ad_by_email`.`u_lname`,`ad_by_legacy`.`u_lname`) AS `add_driver_lname` FROM ((((`tms_vehicle` `v` left join `vehicle_assignments` `va` on(`va`.`vehicle_id` = `v`.`v_id` and `va`.`end_at` is null)) left join `accounts` `a` on(`a`.`id` = `va`.`driver_id` and `a`.`role` = 'driver' and `a`.`is_active` = 1 and `a`.`deleted_at` is null)) left join `tms_user_add_driver` `ad_by_email` on(`a`.`email` is not null and `ad_by_email`.`u_email` <> '' and `ad_by_email`.`deleted_at` is null and lcase(`ad_by_email`.`u_email`) = lcase(`a`.`email`))) left join `tms_user_add_driver` `ad_by_legacy` on(`ad_by_legacy`.`deleted_at` is null and (`ad_by_legacy`.`d_u_id` = `v`.`default_driver_id` or `ad_by_legacy`.`d_u_id` = `v`.`driver_user_id`))) ;
 
 -- --------------------------------------------------------
 
@@ -1373,7 +1380,8 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 -- Indexes for table `accounts`
 --
 ALTER TABLE `accounts`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_accounts_deleted_at` (`deleted_at`);
 
 --
 -- Indexes for table `bookings`
@@ -1488,13 +1496,13 @@ ALTER TABLE `accounts`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `booking_events`
 --
 ALTER TABLE `booking_events`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
 -- AUTO_INCREMENT for table `booking_offers`
