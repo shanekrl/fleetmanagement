@@ -45,7 +45,7 @@
                 SUM(LOWER(COALESCE(status,'')) REGEXP 'maint')                             AS vehicles_maintenance,
                 SUM(LOWER(COALESCE(status,'')) LIKE 'inactive%')                           AS vehicles_inactive
               FROM vehicles
-              WHERE (deleted_at IS NULL OR deleted_at='0000-00-00 00:00:00')
+              WHERE (deleted_at IS NULL)
                 AND LOWER(COALESCE(status,'')) <> 'deleted'";
       if ($q = $db->query($sql)) {
         $row = $q->fetch_assoc() ?: [];
@@ -62,7 +62,7 @@
                 SUM(LOWER(v_status) REGEXP 'maint') AS vehicles_maintenance,
                 SUM(LOWER(v_status) LIKE 'inactive%') AS vehicles_inactive
               FROM tms_vehicle
-              WHERE (deleted_at IS NULL OR deleted_at='0000-00-00 00:00:00')
+              WHERE (deleted_at IS NULL)
                 AND LOWER(COALESCE(v_status,'')) <> 'deleted'";
       if ($q = $db->query($sql)) {
         $row = $q->fetch_assoc() ?: [];
@@ -317,7 +317,7 @@
                                WHERE b.vehicle_id=v.id AND b.status IN ('accepted','in_progress')
                                ORDER BY b.scheduled_start_at DESC LIMIT 1) AS booking_status
                         FROM vehicles v
-                       WHERE (v.deleted_at IS NULL OR v.deleted_at='0000-00-00 00:00:00')
+                       WHERE (v.deleted_at IS NULL)
                          AND LOWER(COALESCE(v.status,'')) <> 'deleted'
                        ORDER BY FIELD(v.status,'in_use','maintenance','available','inactive'), v.name
                        LIMIT 8
@@ -349,7 +349,7 @@
                              (SELECT u_car_pickup FROM tms_user u WHERE u.u_car_regno=v.v_reg_no ORDER BY u_id DESC LIMIT 1) AS last_pick,
                              (SELECT u_car_destination FROM tms_user u WHERE u.u_car_regno=v.v_reg_no ORDER BY u_id DESC LIMIT 1) AS last_dest
                         FROM tms_vehicle v
-                       WHERE (v.deleted_at IS NULL OR v.deleted_at='0000-00-00 00:00:00')
+                       WHERE (v.deleted_at IS NULL)
                          AND LOWER(COALESCE(v.v_status,'')) <> 'deleted'
                        ORDER BY v.v_id DESC
                        LIMIT 8

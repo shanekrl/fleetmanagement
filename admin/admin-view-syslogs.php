@@ -58,19 +58,19 @@
                 <!-- Use <dl> for label/value pairs; replace placeholders later -->
                 <dl class="kaya-dl">
                   <div class="kaya-dl__row">
-                    <dt>Date / Time</dt><dd><a href="#" class="kaya-link">View</a></dd>
+                    <dt>Date / Time</dt><dd id="th_date_time"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Start–End Location</dt><dd><a href="#" class="kaya-link">View</a></dd>
+                    <dt>Start–End Location</dt><dd id="th_start_end_location"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Assigned Driver</dt><dd>Felipe</dd>
+                    <dt>Assigned Driver</dt><dd id="th_assigned_driver"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Distance (km)</dt><dd>300 km</dd>
+                    <!-- <dt>Distance (km)</dt><dd>300 km</dd> -->
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Fuel Used</dt><dd>1 L</dd>
+                    <!-- <dt>Fuel Used</dt><dd>1 L</dd> -->
                   </div>
                 </dl>
               </div>
@@ -84,16 +84,16 @@
               <div class="kaya-card__body">
                 <dl class="kaya-dl">
                   <div class="kaya-dl__row">
-                    <dt>Start Location</dt><dd><a href="#" class="kaya-link">View</a></dd>
+                    <dt>Start Location</dt><dd id="cr_start_location"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Destination</dt><dd><a href="#" class="kaya-link">View</a></dd>
+                    <dt>Destination</dt><dd><dd id="cr_destination"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Assigned Driver</dt><dd>Felipe</dd>
+                    <dt>Assigned Driver</dt><dd id="cr_assigned_driver"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>ETA</dt><dd>20 mins</dd>
+                    <!-- <dt>ETA</dt><dd>20 mins</dd> -->
                   </div>
                 </dl>
               </div>
@@ -107,7 +107,7 @@
               <div class="kaya-card__body">
                 <dl class="kaya-dl">
                   <div class="kaya-dl__row">
-                    <dt>Fuel Level</dt><dd>45%</dd>
+                    <dt>Fuel Level</dt><dd></dd>
                   </div>
                   <div class="kaya-dl__row">
                     <dt>Speed</dt><dd id="vehicleSpeed">60 km/h</dd>

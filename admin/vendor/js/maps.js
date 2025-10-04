@@ -27,52 +27,63 @@ $(document).ready(function () {
         });
     }
 
-    function updateMarkers(data) {
-        $.each(data, function (i, v) {
-            let id = v.plate_no; // 🚘 unique key
-            let lat = parseFloat(v.latitude);
-            let lng = parseFloat(v.longitude);
+function updateMarkers(data, trips = []) {
+    $.each(data, function (i, v) {
+        let id = v.plate_no;
+        let lat = parseFloat(v.latitude);
+        let lng = parseFloat(v.longitude);
 
-            if (isNaN(lat) || isNaN(lng)) return; // skip invalid coords
+        if (isNaN(lat) || isNaN(lng)) return;
 
-            // Popup content (always tied to the marker)
-            let popupHtml = `
-                <b>🚘 Plate:</b> ${v.plate_no}<br>
-                <b>Speed:</b> ${v.speed} km/h<br>
-                <b>RPM:</b> ${v.rpm}<br>
-                <b>Fuel:</b> ${v.fuel_level}%<br>
-                <b>Time:</b> ${v.created_at || "N/A"}
-            `;
+        let popupHtml = `
+            <b>🚘 Plate:</b> ${v.plate_no}<br>
+            <b>Speed:</b> ${v.speed} km/h<br>
+            <b>RPM:</b> ${v.rpm}<br>
+            <b>Fuel:</b> ${v.fuel_level}%<br>
+            <b>Time:</b> ${v.created_at || "N/A"}
+        `;
 
-            // Display the logs in the card view
-            $('#vehicleSpeed').text(v.speed + " km/h");
-
-            if (markers[id]) {
-                let prevLatLng = markers[id].getLatLng();
-                let distance = map.distance(prevLatLng, L.latLng(lat, lng));
-
-                // Only update if moved more than 5 meters
-                if (distance > 5) {
-                    markers[id].setLatLng([lat, lng]).setPopupContent(popupHtml);
-                }
-            } else {
-                // Create marker once
-                let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
-                marker.bindPopup(popupHtml);
-
-                // 👇 Handle click event to update sidebar/card
-                marker.on("click", function () {
-                    $("#vehiclePlate").text(v.plate_no);
-                    $("#vehicleSpeed").text(v.speed + " km/h");
-                    $("#vehicleRpm").text(v.rpm);
-                    $("#vehicleFuel").text(v.fuel_level + "%");
-                    $("#vehicleTime").text(v.created_at || "N/A");
-                });
-
-                markers[id] = marker;
+        // Marker already exists? update position
+        if (markers[id]) {
+            let prevLatLng = markers[id].getLatLng();
+            let distance = map.distance(prevLatLng, L.latLng(lat, lng));
+            if (distance > 5) {
+                markers[id].setLatLng([lat, lng]).setPopupContent(popupHtml);
             }
-        });
-    }
+        } else {
+            // Create marker once
+            let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
+            marker.bindPopup(popupHtml);
+
+            // On marker click → update cards
+            marker.on("click", function () {
+                $("#vehiclePlate").text(v.plate_no);
+                $("#vehicleSpeed").text(v.speed + " km/h");
+                $("#vehicleRpm").text(v.rpm);
+                $("#vehicleFuel").text(v.fuel_level + "%");
+                $("#vehicleTime").text(v.created_at || "N/A");
+
+      
+                // Handle trips_data (if passed in)
+                if (trips.trips_data[v.plate_no].length > 0) {
+                    let latest = trips.trips_data[v.plate_no][0];
+                    let history = trips.trips_data[v.plate_no][1];
+                    // Trip History
+                    $("#th_date_time").text(history?.scheduled_start_at || "N/A");
+                    $("#th_start_end_location").text(history?.start_end_location || "N/A");
+                    $("#th_assigned_driver").text(history?.driver_name || "N/A");
+
+                    // Current Route
+                    $("#cr_start_location").text(latest?.start_location || "N/A");
+                    $("#cr_destination").text(latest?.destination || "N/A");
+                    $("#cr_assigned_driver").text(latest?.driver_name || "N/A");
+                }
+            });
+
+            markers[id] = marker;
+        }
+    });
+}
 
 
     function getVehicleLogs() {
@@ -85,8 +96,25 @@ $(document).ready(function () {
             data: plateNo ? { plate_no: plateNo } : {},
             dataType: "json",
             success: function (response) {
-                if (response.status === "success") {
-                    updateMarkers(response.logs);
+           if (response.status === "success" && response.logs.length > 0) {
+                updateMarkers(response.logs,response || []);
+
+                // Index 1 is the history
+                // Index 0 is the latest
+                // Trip History
+                if(plateNo === null){
+                    return "";
+                }
+                    
+                $("#th_date_time").text(response.trips_data[1].scheduled_start_at || "N/A");
+                $("#th_start_end_location").text(response.trips_data[1].start_end_location || "N/A");
+                $("#th_assigned_driver").text(response.trips_data[1].driver_name || "N/A");
+
+                // Current Route
+                $("#cr_start_location").text(response.trips_data[0].start_location || "N/A");
+                $("#cr_destination").text(response.trips_data[0].destination || "N/A");
+                $("#cr_assigned_driver").text(response.trips_data[0].driver_name || "N/A");
+                    
                 }
             },
             error: function (xhr, status, error) {

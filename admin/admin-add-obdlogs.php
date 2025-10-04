@@ -101,7 +101,9 @@ if (!empty($plate)) {
 }
 
 // If plate_no is provided, return latest log
+// If plate_no is provided, return latest log
 if ($params_plate_no) {
+    // 1. Get the latest OBD log
     $sel = $mysqli->prepare("SELECT * FROM obd_logs WHERE plate_no = ? ORDER BY id DESC LIMIT 1");
     $sel->bind_param("s", $params_plate_no);
     $sel->execute();
@@ -113,11 +115,40 @@ if ($params_plate_no) {
     }
     $sel->close();
 
+    // 2. Get the latest 2 trips for this plate_no
+    $tripSel = $mysqli->prepare("
+        SELECT 
+            vehicles.v_reg_no AS plate_no,
+            CONCAT(bookings.pickup_point, ' - ', bookings.dropoff_point) AS start_end_location,
+            CONCAT(driver.u_fname, ' ', driver.u_lname) AS driver_name,
+            bookings.scheduled_start_at,
+            bookings.pickup_point AS start_location,
+            bookings.dropoff_point AS destination
+        FROM bookings 
+        LEFT JOIN tms_vehicle AS vehicles 
+            ON bookings.vehicle_id = vehicles.v_id
+        LEFT JOIN tms_user_add_driver AS driver 
+            ON vehicles.default_driver_id = driver.d_u_id
+        WHERE vehicles.v_reg_no = ?
+        ORDER BY bookings.scheduled_start_at DESC
+        LIMIT 2
+    ");
+    $tripSel->bind_param("s", $params_plate_no);
+    $tripSel->execute();
+    $tripResult = $tripSel->get_result();
+
+    $trips_data = [];
+    while ($row = $tripResult->fetch_assoc()) {
+        $trips_data[] = $row;
+    }
+    $tripSel->close();
+
+    // 3. Build the response
     echo json_encode([
-        "status"   => "success",
-        "plate_no" => $params_plate_no,
-        "logs"     => $logs
-        
+        "status"     => "success",
+        "plate_no"   => $params_plate_no,
+        "logs"       => $logs,
+        "trips_data" => $trips_data
     ]);
 } else { 
     // No plate provided -> return all cars (latest per car)
@@ -138,11 +169,46 @@ if ($params_plate_no) {
         $logs[] = $row;
     }
 
+    // 2. For each car, also get the latest 2 trips
+    $trips_data = [];
+    foreach ($logs as $log) {
+        $plate_no = $log['plate_no'];
+
+        $tripSel = $mysqli->prepare("
+            SELECT 
+                vehicles.v_reg_no AS plate_no,
+                CONCAT(bookings.pickup_point, ' - ', bookings.dropoff_point) AS start_end_location,
+                CONCAT(driver.u_fname, ' ', driver.u_lname) AS driver_name,
+                bookings.scheduled_start_at,
+                bookings.pickup_point AS start_location,
+                bookings.dropoff_point AS destination
+            FROM bookings 
+            LEFT JOIN tms_vehicle AS vehicles 
+                ON bookings.vehicle_id = vehicles.v_id
+            LEFT JOIN tms_user_add_driver AS driver 
+                ON vehicles.default_driver_id = driver.d_u_id
+            WHERE vehicles.v_reg_no = ?
+            ORDER BY bookings.scheduled_start_at DESC
+            LIMIT 2
+        ");
+        $tripSel->bind_param("s", $plate_no);
+        $tripSel->execute();
+        $tripResult = $tripSel->get_result();
+
+        $plateTrips = [];
+        while ($row = $tripResult->fetch_assoc()) {
+            $plateTrips[] = $row;
+        }
+        $tripSel->close();
+
+        $trips_data[$plate_no] = $plateTrips;
+    }
+
     echo json_encode([
-        "status" => "success",
-        "logs"   => $logs,
+        "status"     => "success",
+        "logs"       => $logs,
+        "trips_data" => $trips_data
     ]);
 }
-
 $mysqli->close();
 ?>
