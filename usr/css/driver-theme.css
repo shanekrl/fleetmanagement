@@ -24,6 +24,7 @@ html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans
 .kaya-section{margin-bottom:1rem}
 
 /* Buttons */
+button:focus { outline: none; }
 .btn-kaya-primary{background:var(--kaya-navy);border-color:var(--kaya-navy);color:#fff}
 .btn-kaya-primary:hover,.btn-kaya-primary:focus{background:var(--kaya-navy-600);border-color:var(--kaya-navy-600);color:#fff}
 
@@ -74,3 +75,4 @@ table.dataTable thead .sorting_desc:after{opacity:.35}
 .dataTables_wrapper .dataTable thead th{
   text-align:center;                              /* always center column headers */
 }
+

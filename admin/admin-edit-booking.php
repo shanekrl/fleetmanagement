@@ -85,10 +85,11 @@ if ($is_new_model) {
         SELECT b.*,
                d.name       AS driver_name,
                tv.v_reg_no  AS vehicle_reg_no,
-               tv.v_name    AS vehicle_name
+               COALESCE(vd.display_name, tv.v_name) AS vehicle_name
           FROM bookings b
-          LEFT JOIN accounts    d  ON d.id     = b.driver_id
-          LEFT JOIN tms_vehicle tv ON tv.v_id  = b.vehicle_id
+          LEFT JOIN accounts         d  ON d.id     = b.driver_id
+          LEFT JOIN tms_vehicle      tv ON tv.v_id  = b.vehicle_id
+          LEFT JOIN v_vehicle_display vd ON vd.v_id = tv.v_id
          WHERE b.id=? LIMIT 1")) {
     $s->bind_param('i',$booking_id);
     $s->execute();
@@ -98,39 +99,69 @@ if ($is_new_model) {
   }
   if (!$row) { header('Location: admin-trip-appointment.php'); exit; }
 
-  // Aux lists
-  $drivers  = [];
-  if (table_exists($mysqli,'accounts')) {
-    if ($q=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver' AND is_active=1 ORDER BY name")) {
-      while($r=$q->fetch_assoc()) $drivers[]=$r;
-    }
+  /* ===== Drivers (active, not soft-deleted) ===== */
+$drivers = [];
+if (table_exists($mysqli,'accounts')) {
+  $whereDelete = column_exists($mysqli,'accounts','deleted_at')
+               ? "AND deleted_at IS NULL"
+               : "";
+  $sql = "SELECT id, name
+          FROM accounts
+          WHERE role='driver' AND is_active=1 $whereDelete
+          ORDER BY name";
+  if ($q = $mysqli->query($sql)) {
+    while ($r = $q->fetch_assoc()) $drivers[] = $r;
   }
+}
 
-  // Vehicles come from tms_vehicle (not vehicles)
-  $vehicles = [];
+
+  /* ===== Vehicles for select (with display name + category) =====
+     - Exclude soft-deleted via deleted_at IS NULL (if column exists)
+  */
+  $vehiclesForSelect = [];
   if (table_exists($mysqli,'tms_vehicle')) {
-    if ($q=$mysqli->query("
-          SELECT v_id AS id,
-                 COALESCE(NULLIF(v_reg_no,''), CONCAT('ID-', v_id)) AS plate_no,
-                 v_name AS name
-          FROM tms_vehicle
-          WHERE deleted_at IS NULL
-          ORDER BY v_name, v_reg_no")) {
-      while($r=$q->fetch_assoc()) $vehicles[]=$r;
-    }
+    $whereSoft = column_exists($mysqli,'tms_vehicle','deleted_at') ? "v.deleted_at IS NULL" : "1=1";
+    $q = $mysqli->query("
+      SELECT v.v_id AS id,
+             COALESCE(vd.display_name, NULLIF(v.v_name,''), 'Vehicle') AS name,
+             COALESCE(NULLIF(v.v_reg_no,''), CONCAT('ID-', v.v_id)) AS plate_no,
+             COALESCE(v.v_category,'') AS v_category
+      FROM tms_vehicle v
+      LEFT JOIN v_vehicle_display vd ON vd.v_id=v.v_id
+      WHERE $whereSoft
+      ORDER BY name, v.v_reg_no
+    ");
+    if ($q) while($r=$q->fetch_assoc()) $vehiclesForSelect[]=$r;
   }
 
-  // Build pairing maps (Vehicle -> Driver) and (Driver -> Vehicle)
+  /* ===== Categories (Vehicle Type filter) ===== */
+  $categories_active = [];
+  if (table_exists($mysqli,'tms_vehicle_categories')) {
+    $where = column_exists($mysqli,'tms_vehicle_categories','deleted_at')
+           ? "WHERE is_active=1 AND deleted_at IS NULL"
+           : "WHERE is_active=1";
+    if ($rs=$mysqli->query("SELECT name FROM tms_vehicle_categories $where ORDER BY name"))
+      while($r=$rs->fetch_assoc()) $categories_active[] = $r['name'];
+  }
+  if (!$categories_active) $categories_active = ['Bus','Sedan','SUV','Van'];
+
+  /* ===== Pairing maps (Vehicle <-> Driver) =====
+     Prefer view v_vehicle_current_driver if present, else fallback
+     to tms_vehicle.default_driver_id.
+  */
   $vehToDrv = [];
   $drvToVeh = [];
-
-  if (table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,'tms_vehicle','default_driver_id')) {
-    $rs = $mysqli->query("SELECT v_id AS v_id, default_driver_id AS d_id
-                          FROM tms_vehicle
-                          WHERE default_driver_id IS NOT NULL");
+  if (table_exists($mysqli,'v_vehicle_current_driver')) {
+    $rs = $mysqli->query("SELECT v_id, driver_account_id FROM v_vehicle_current_driver WHERE driver_account_id IS NOT NULL");
     if ($rs) while($m=$rs->fetch_assoc()){
-      $vid=(int)$m['v_id']; $did=(int)$m['d_id'];
-      if ($vid && $did){ $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
+      $vid = (int)$m['v_id']; $did = (int)$m['driver_account_id'];
+      if ($vid && $did) { $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
+    }
+  } elseif (table_exists($mysqli,'tms_vehicle') && column_exists($mysqli,'tms_vehicle','default_driver_id')) {
+    $rs = $mysqli->query("SELECT v_id AS v_id, default_driver_id AS driver_account_id FROM tms_vehicle WHERE default_driver_id IS NOT NULL");
+    if ($rs) while($m=$rs->fetch_assoc()){
+      $vid = (int)$m['v_id']; $did = (int)$m['driver_account_id'];
+      if ($vid && $did) { $vehToDrv[$vid]=$did; if (!isset($drvToVeh[$did])) $drvToVeh[$did]=$vid; }
     }
   }
 
@@ -150,7 +181,6 @@ if ($is_new_model) {
     html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
     .kaya-page-title{font-weight:800;font-size:2rem;color:#000047;margin:0 0 1rem}
     .kaya-card{background:#fff;border-radius:1rem;border:1px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.06);padding:1rem}
-    /* Map picker modal sizing */
     #kayaMap { width:100%; height:420px; }
     .nominatim-results { max-height:160px; overflow:auto; border:1px solid #eaecef; border-radius:.25rem; }
     .geocode-item { cursor:pointer; padding:.375rem .5rem; border-bottom:1px solid #f1f3f7; }
@@ -232,25 +262,29 @@ if ($is_new_model) {
             </div>
 
             <div class="form-row">
-              <div class="form-group col-md-6">
-                <label>Vehicle</label>
-                <select name="vehicle_id" id="vehicleSelect" class="form-control">
-                  <option value="">— None —</option>
-                  <?php foreach($vehicles as $v): ?>
-                    <option value="<?= (int)$v['id'] ?>" <?= ((int)$row['vehicle_id']===(int)$v['id'])?'selected':''; ?>>
-                      <?= htmlspecialchars(($v['name'] ?: 'Vehicle').' · '.$v['plate_no']) ?>
-                    </option>
+              <!-- NEW: Vehicle Type (category) filter like Create modal) -->
+              <div class="form-group col-md-3">
+                <label>Vehicle Type</label>
+                <select class="form-control" id="vehicleTypeSelect">
+                  <option value="">— Any type —</option>
+                  <?php foreach ($categories_active as $cat): ?>
+                    <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
-              <div class="form-group col-md-6">
+
+              <div class="form-group col-md-5">
+                <label>Vehicle</label>
+                <select name="vehicle_id" id="vehicleSelect" class="form-control">
+                  <!-- options built by JS from VEHICLES[] -->
+                </select>
+              </div>
+              <div class="form-group col-md-4">
                 <label>Driver</label>
                 <select name="driver_id" id="driverSelect" class="form-control">
                   <option value="">— None —</option>
                   <?php foreach($drivers as $d): ?>
-                    <option value="<?= (int)$d['id'] ?>" <?= ((int)$row['driver_id']===(int)$d['id'])?'selected':''; ?>>
-                      <?= htmlspecialchars($d['name']) ?>
-                    </option>
+                    <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
@@ -317,7 +351,6 @@ if ($is_new_model) {
   <!-- JS -->
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <!-- Data not needed here, but keep easing if your theme expects it -->
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
 
   <!-- Autocomplete + Map JS -->
@@ -325,14 +358,48 @@ if ($is_new_model) {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // Pairing maps from PHP (no AJAX needed)
+    // Pairing maps + vehicles list from PHP
     const VEH_TO_DRV = <?= json_encode($vehToDrv, JSON_UNESCAPED_UNICODE) ?>;
     const DRV_TO_VEH = <?= json_encode($drvToVeh, JSON_UNESCAPED_UNICODE) ?>;
+    const VEHICLES   = <?= json_encode($vehiclesForSelect, JSON_UNESCAPED_UNICODE) ?>;
+
+    // Preselected IDs from row
+    const PRE_VEH = <?= (int)($row['vehicle_id'] ?? 0) ?>;
+    const PRE_DRV = <?= (int)($row['driver_id']  ?? 0) ?>;
+
+    function rebuildVehicleOptions(typeValue){
+      const $veh = $('#vehicleSelect');
+      const cur  = $veh.val() || (PRE_VEH ? String(PRE_VEH) : '');
+      $veh.empty().append($('<option/>').val('').text('— None —'));
+
+      const list = (VEHICLES||[])
+        .filter(v => !typeValue || String(v.v_category).toLowerCase() === String(typeValue).toLowerCase())
+        .sort((a,b) => (a.name||'').localeCompare(b.name||'') || (a.plate_no||'').localeCompare(b.plate_no||''));
+
+      list.forEach(v=>{
+        const label = (v.name||'Vehicle') + ' · ' + (v.plate_no || ('ID-'+v.id));
+        $veh.append($('<option/>').val(String(v.id)).text(label));
+      });
+
+      if (cur && $veh.find('option[value="'+cur+'"]').length) $veh.val(cur);
+    }
 
     (function(){
+      var $vehType = $('#vehicleTypeSelect');
       var $veh = $('#vehicleSelect');
       var $drv = $('#driverSelect');
 
+      // initial build + preselect
+      rebuildVehicleOptions($vehType.val() || '');
+      if (PRE_DRV) $drv.val(String(PRE_DRV)).trigger('change');
+      if (PRE_VEH) $veh.val(String(PRE_VEH)).trigger('change');
+
+      $vehType.on('change', function(){
+        rebuildVehicleOptions(this.value || '');
+        $veh.trigger('change');
+      });
+
+      // Auto-pairing: Vehicle -> Driver
       $veh.on('change', function(){
         var vid = $(this).val();
         if (!vid) return;
@@ -342,11 +409,12 @@ if ($is_new_model) {
         }
       });
 
+      // Auto-pairing: Driver -> Vehicle
       $drv.on('change', function(){
-        var uid = $(this).val();
-        if (!uid) return;
-        if (DRV_TO_VEH && Object.prototype.hasOwnProperty.call(DRV_TO_VEH, uid)) {
-          var want = String(DRV_TO_VEH[uid]);
+        var did = $(this).val();
+        if (!did) return;
+        if (DRV_TO_VEH && Object.prototype.hasOwnProperty.call(DRV_TO_VEH, did)) {
+          var want = String(DRV_TO_VEH[did]);
           if (String($veh.val()) !== want) $veh.val(want).trigger('change');
         }
       });
@@ -354,11 +422,8 @@ if ($is_new_model) {
 
     /* =============================================================
        Location Suggestions + Map Picker
-       - Uses Photon (Komoot) first; falls back to Nominatim
-       - Live search while typing (jQuery UI Autocomplete)
        ============================================================= */
 
-    // ---------- Helpers to format addresses ----------
     function composePhotonLabel(f){
       if (!f || !f.properties) return '';
       const p = f.properties;
@@ -374,12 +439,10 @@ if ($is_new_model) {
       return rec && rec.display_name ? rec.display_name : '';
     }
 
-    // ---- Philippines bias (bounds + default center) ----
     const PH_BOUNDS = { west: 116.0, south: 4.4, east: 127.0, north: 21.3 };
-    const PH_CENTER = { lat: 14.5995, lon: 120.9842 }; // Manila
+    const PH_CENTER = { lat: 14.5995, lon: 120.9842 };
     const PH_BBOX_STR = [PH_BOUNDS.west, PH_BOUNDS.south, PH_BOUNDS.east, PH_BOUNDS.north].join(',');
 
-    // ---------- Forward search ----------
     function photonSearch(q, limit=8){
       const url =
         'https://photon.komoot.io/api/?' +
@@ -393,7 +456,6 @@ if ($is_new_model) {
         .then(r => r.json())
         .then(json => (json && json.features) ? json.features : []);
     }
-
     function nominatimSearch(q, limit=8){
       const url =
         'https://nominatim.openstreetmap.org/search?' +
@@ -401,32 +463,27 @@ if ($is_new_model) {
         '&limit=' + limit +
         '&countrycodes=ph' +
         '&viewbox=' + [
-          PH_BOUNDS.west, PH_BOUNDS.north,  // left,top
-          PH_BOUNDS.east, PH_BOUNDS.south   // right,bottom
+          PH_BOUNDS.west, PH_BOUNDS.north,
+          PH_BOUNDS.east, PH_BOUNDS.south
         ].join(',') +
         '&bounded=1' +
         '&q=' + encodeURIComponent(q);
       return fetch(url, {mode:'cors', headers:{'Accept':'application/json','Accept-Language':'en-PH'}})
         .then(r => r.json());
     }
-
-    // ---------- Reverse geocode ----------
-    function nominatimReverse(lat, lon){
+    function nominatimReverse(lat,lon){
       const url =
         'https://nominatim.openstreetmap.org/reverse?' +
         'format=jsonv2' +
         '&lat=' + encodeURIComponent(lat) +
         '&lon=' + encodeURIComponent(lon) +
         '&accept-language=en-PH';
-      return fetch(url,{mode:'cors', headers:{'Accept':'application/json'}})
+      return fetch(url,{mode:'cors',headers:{'Accept':'application/json'}})
         .then(r=>r.json())
         .then(rec=>composeNominatimLabel(rec));
     }
-    function reverseNice(lat, lon){
-      return nominatimReverse(lat,lon).catch(()=>lat.toFixed(6)+', '+lon.toFixed(6));
-    }
+    function reverseNice(lat, lon){ return nominatimReverse(lat,lon).catch(()=>lat.toFixed(6)+', '+lon.toFixed(6)); }
 
-    // ---------- Autocomplete on Pickup / Destination fields ----------
     function attachAutocomplete($input, $lat, $lng){
       if ($input.data('kaya-autocomplete')) return;
       $input.data('kaya-autocomplete', 1);
@@ -461,15 +518,14 @@ if ($is_new_model) {
         open: function(){ $('.ui-autocomplete').css('z-index', 2000); }
       });
 
-      // If they edit text after choosing, clear the lat/lng so it's obvious it's a fresh string.
       $input.on('input', function(){ $lat.val(''); $lng.val(''); });
     }
 
-    // Attach immediately (no need to wait for any modal)
+    // Attach immediately
     attachAutocomplete($('#pickup'),  $('#pickup_lat'),  $('#pickup_lng'));
     attachAutocomplete($('#dropoff'), $('#dropoff_lat'), $('#dropoff_lng'));
 
-    // ===== Map Picker (pin-drop) – readable labels =====
+    // ===== Map Picker (pin-drop)
     var Lmap, Lmarker, pickingFor='pickup';
     var lastCenter = {lat:14.5995, lng:120.9842, zoom:12};
     var lastPicked = {label:'', lat:null, lng:null};
@@ -502,7 +558,6 @@ if ($is_new_model) {
       });
     }
 
-    // Open modal, set which field we're picking for and seed position
     $('#mapModal').on('shown.bs.modal', function(ev){
       var btn = $(ev.relatedTarget);
       pickingFor = (btn && btn.data('for')) ? String(btn.data('for')) : 'pickup';
@@ -532,7 +587,6 @@ if ($is_new_model) {
       setTimeout(()=>Lmap.invalidateSize(), 150);
     });
 
-    // In-modal simple search list
     $('#btnGeoSearch').on('click', function(){
       var q = $('#geoQuery').val().trim();
       var $list = $('#geoResults').empty();
@@ -563,7 +617,6 @@ if ($is_new_model) {
       });
     });
 
-    // Apply picked point back to fields
     $('#btnUsePoint').on('click', function(){
       var pos = Lmarker.getLatLng();
       var apply = function(lbl){
@@ -580,7 +633,7 @@ if ($is_new_model) {
       }
     });
 
-    // Keep autocomplete dropdown above the modal backdrops
+    // Keep autocomplete dropdown above modal backdrops
     $(function(){ $('.ui-autocomplete').css('z-index', 2000); });
   </script>
 
@@ -597,7 +650,7 @@ if ($is_new_model) {
 }
 
 /* ==================================================================
-   LEGACY MODEL (tms_user)  — kept so your older rows still edit
+   LEGACY MODEL (tms_user) — kept so your older rows still edit
    (Autocomplete + Map added here too)
 ==================================================================*/
 
@@ -779,7 +832,7 @@ if (!$row) { header('Location: admin-trip-appointment.php'); exit; }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  // ===== Same JS helpers as the new-model block (duplicated to keep this page self-contained) =====
+  // (same legacy JS helpers as before) ...
   function composePhotonLabel(f){
     if (!f || !f.properties) return '';
     const p = f.properties, parts=[];
@@ -791,7 +844,6 @@ if (!$row) { header('Location: admin-trip-appointment.php'); exit; }
     return parts.filter(Boolean).join(', ');
   }
   function composeNominatimLabel(rec){ return rec && rec.display_name ? rec.display_name : ''; }
-
   const PH_BOUNDS = { west:116.0, south:4.4, east:127.0, north:21.3 };
   const PH_CENTER = { lat:14.5995, lon:120.9842 };
   const PH_BBOX_STR = [PH_BOUNDS.west, PH_BOUNDS.south, PH_BOUNDS.east, PH_BOUNDS.north].join(',');
@@ -822,9 +874,7 @@ if (!$row) { header('Location: admin-trip-appointment.php'); exit; }
           } else {
             nominatimSearch(req.term,8).then(list=>resp((list||[]).map(it=>({label:composeNominatimLabel(it), value:composeNominatimLabel(it), lat:it.lat, lon:it.lon})))).catch(()=>resp([]));
           }
-        }).catch(()=>{
-          nominatimSearch(req.term,8).then(list=>resp((list||[]).map(it=>({label:composeNominatimLabel(it), value:composeNominatimLabel(it), lat:it.lat, lon:it.lon})))).catch(()=>resp([]));
-        });
+        }).catch(()=>{ nominatimSearch(req.term,8).then(list=>resp((list||[]).map(it=>({label:composeNominatimLabel(it), value:composeNominatimLabel(it), lat:it.lat, lon:it.lon})))).catch(()=>resp([])); });
       },
       select:function(e,ui){
         if (ui && ui.item){ $lat.val(parseFloat(ui.item.lat).toFixed(8)); $lng.val(parseFloat(ui.item.lon).toFixed(8)); }
@@ -834,11 +884,9 @@ if (!$row) { header('Location: admin-trip-appointment.php'); exit; }
     $input.on('input', function(){ $lat.val(''); $lng.val(''); });
   }
 
-  // Attach to legacy inputs
   attachAutocomplete($('#pickup'),  $('#pickup_lat'),  $('#pickup_lng'));
   attachAutocomplete($('#dropoff'), $('#dropoff_lat'), $('#dropoff_lng'));
 
-  // Map modal behavior (same as new-model)
   var Lmap, Lmarker, pickingFor='pickup';
   var lastCenter={lat:14.5995,lng:120.9842,zoom:12};
   var lastPicked={label:'',lat:null,lng:null};

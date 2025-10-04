@@ -1,3 +1,16 @@
+<!-- Tailwind config MUST be before the CDN script -->
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter','ui-sans-serif','system-ui'] },
+        colors: { kaya: { navy: '#000047' } }
+      }
+    }
+  }
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">

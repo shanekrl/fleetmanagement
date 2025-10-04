@@ -64,6 +64,9 @@ if (!$isAdmin && isset($_SESSION['u_id'])) {
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking'])) {
   header('Content-Type: application/json; charset=utf-8');
 
+  // expose SQL errors while we wire things up
+  mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
   $isNewModel = table_exists($mysqli,'bookings');
 
   // creator (first admin account)
@@ -77,11 +80,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking']))
   // inputs
   $sched_date  = trim($_POST['sched_date'] ?? '');
   $sched_time  = trim($_POST['sched_time'] ?? '');
-  $scheduled   = ($sched_date && $sched_time) ? ($sched_date.' '.$sched_time.':00') : null;
+  if ($sched_time && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $sched_time)) {
+    echo json_encode(['ok'=>0,'error'=>'Invalid time format']); exit;
+  }
+  $scheduled   = ($sched_date && $sched_time) ? ($sched_date.' '.$sched_time.(strlen($sched_time)>5?'':':00')) : null;
 
   $customer    = trim($_POST['customer'] ?? '');
   $phone       = trim($_POST['phone'] ?? '');
-  $pax         = max(1, (int)($_POST['pax'] ?? 1));
+  $pax         = max(1, (int)$_POST['pax'] ?? 1);
   $pickup      = trim($_POST['pickup'] ?? '');
   $dropoff     = trim($_POST['dropoff'] ?? '');
   $pickup_lat  = trim($_POST['pickup_lat'] ?? '');
@@ -89,50 +95,80 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking']))
   $dropoff_lat = trim($_POST['dropoff_lat'] ?? '');
   $dropoff_lng = trim($_POST['dropoff_lng'] ?? '');
 
-  $booking_type= ($_POST['booking_type'] ?? 'admin') === 'personal' ? 'personal' : 'admin';
-  $driver_id   = (int)($_POST['driver_id'] ?? 0) ?: null;
-  $vehicle_id  = (int)($_POST['vehicle_id'] ?? 0) ?: null;
+  $booking_type= (($_POST['booking_type'] ?? 'admin') === 'personal') ? 'personal' : 'admin';
+
+  // empty string -> NULL for FKs
+  $driver_id   = isset($_POST['driver_id'])  && $_POST['driver_id']  !== '' ? (int)$_POST['driver_id']  : null;
+  $vehicle_id  = isset($_POST['vehicle_id']) && $_POST['vehicle_id'] !== '' ? (int)$_POST['vehicle_id'] : null;
   $notes       = trim($_POST['notes'] ?? '');
 
   try {
     if ($isNewModel) {
-      $sql = "INSERT INTO bookings
-              (booking_type,created_by,client_id,driver_id,vehicle_id,
-               pax,contact_name,contact_phone,pickup_point,dropoff_point,
-               scheduled_start_at,status,payment_status,notes)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-      if ($s=$mysqli->prepare($sql)) {
-        $status  = $driver_id ? 'awaiting_driver' : 'pending';
-        $payment = 'unpaid';
-        $client_id = null;
-        $s->bind_param(
-          'siiiiissssssss',
-          $booking_type,$creatorId,$client_id,$driver_id,$vehicle_id,
-          $pax,$customer,$phone,$pickup,$dropoff,
-          $scheduled,$status,$payment,$notes
-        );
-        $ok = $s->execute(); $id = $s->insert_id; $s->close();
-        echo json_encode(['ok'=>$ok?1:0,'id'=>$id]); exit;
-      }
-      echo json_encode(['ok'=>0,'error'=>'Prepare failed']); exit;
+      // if driver is already assigned, driver must accept
+      $status    = $driver_id ? 'awaiting_driver' : 'pending';
+      $payment   = 'unpaid';  // will be skipped if column not present
+      $client_id = null;
+
+      // Build INSERT only with columns that exist
+      $cols = []; $ph = []; $typ = ''; $val = [];
+      $add = function($col, $type, $value) use (&$cols,&$ph,&$typ,&$val,$mysqli){
+        if (column_exists($mysqli,'bookings',$col)) {
+          $cols[] = "`$col`";
+          $ph[]   = '?';
+          $typ   .= $type;
+          $val[]  = $value;
+        }
+      };
+
+      $add('booking_type',       's', $booking_type);
+      $add('created_by',         'i', $creatorId);
+      $add('client_id',          'i', $client_id);
+      $add('driver_id',          'i', $driver_id);
+      $add('vehicle_id',         'i', $vehicle_id);
+      $add('pax',                'i', $pax);
+      $add('contact_name',       's', $customer);
+      $add('contact_phone',      's', $phone);
+      $add('pickup_point',       's', $pickup);
+      $add('dropoff_point',      's', $dropoff);
+      $add('scheduled_start_at', 's', $scheduled);
+      $add('status',             's', $status);
+      $add('payment_status',     's', $payment); // safely skipped if missing
+      $add('notes',              's', $notes);
+
+      if (!$cols) { echo json_encode(['ok'=>0,'error'=>'No matching columns in bookings table']); exit; }
+
+      $sql  = "INSERT INTO bookings (".implode(',', $cols).") VALUES (".implode(',', $ph).")";
+      $stmt = $mysqli->prepare($sql);
+
+      // bind by reference
+      $bind = []; $bind[] = &$typ;
+      foreach ($val as $i => $v) { $bind[] = &$val[$i]; }
+      call_user_func_array([$stmt,'bind_param'], $bind);
+
+      $stmt->execute();
+      $newId = $stmt->insert_id;
+      $stmt->close();
+
+      echo json_encode(['ok'=>1,'id'=>$newId]); exit;
+
     } else {
       // legacy fallback
       $q = $mysqli->prepare("INSERT INTO tms_user
         (u_fname,u_lname,u_car_date,u_car_time,u_car_pax,u_car_pickup,u_car_destination,
          u_car_regno,u_car_type,u_car_driver,u_category,u_email,u_pwd,u_car_book_status)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'Pending')");
+        VALUES (?,?,?,?,isssssssss,'Pending')");
       $empty=''; $email=''; $pwd=password_hash(bin2hex(random_bytes(4)), PASSWORD_DEFAULT);
-      $paxS = (string)$pax;
-      $reg=$empty; $type=$empty; $drv=$empty; $cat='User';
+      $paxS = (string)$pax; $reg=$empty; $type=$empty; $drv=$empty; $cat='User';
       $q->bind_param('ssssissssssss',
         $customer,$empty,$sched_date,$sched_time,$paxS,$pickup,$dropoff,
         $reg,$type,$drv,$cat,$email,$pwd
       );
-      $ok=$q->execute(); $id=$q->insert_id; $q->close();
-      echo json_encode(['ok'=>$ok?1:0,'id'=>$id]); exit;
+      $q->execute(); $id=$q->insert_id; $q->close();
+      echo json_encode(['ok'=>1,'id'=>$id]); exit;
     }
-  } catch(Throwable $e){
-    echo json_encode(['ok'=>0,'error'=>'DB error']); exit;
+
+  } catch (Throwable $e) {
+    echo json_encode(['ok'=>0,'error'=>$e->getMessage()]); exit;
   }
 }
 
@@ -486,7 +522,8 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                     <select class="form-control" name="driver_id" id="modalDriverSelect">
                       <option value="">— None —</option>
                       <?php if (table_exists($mysqli,'accounts')):
-                        $q=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver' AND is_active=1 ORDER BY name");
+                        $whereDelete = column_exists($mysqli,'accounts','deleted_at') ? "AND deleted_at IS NULL" : "";
+                        $q=$mysqli->query("SELECT id,name FROM accounts WHERE role='driver' AND is_active=1 $whereDelete ORDER BY name");
                         if ($q) while($d=$q->fetch_assoc()): ?>
                           <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
                       <?php endwhile; endif; ?>
@@ -608,7 +645,6 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
   // NEW: vehicles w/ name + category (for modal filtering)
   const VEHICLES = <?= json_encode($vehiclesForSelect, JSON_UNESCAPED_UNICODE) ?>;
 
-  // Build vehicle options according to selected type
   function rebuildVehicleOptions(typeValue){
     const $veh = $('#modalVehicleSelect');
     const cur  = $veh.val();
@@ -623,11 +659,9 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
       $veh.append($('<option/>').val(v.id).text(label));
     });
 
-    // try keep previous selection if still valid
     if (cur && $veh.find('option[value="'+cur+'"]').length) $veh.val(cur);
   }
 
-  // DataTable — wrap in DOM ready so search works reliably
   $(function(){
     $('#dataTable').DataTable({
       pageLength: 10,
@@ -637,7 +671,6 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
     });
   });
 
-  // FullCalendar init (below the list)
   let calendar;
   (function initCalendar(){
     const calEl = document.getElementById('kayaCalendar');
@@ -718,13 +751,12 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
     var $veh = $('#modalVehicleSelect');
     var $drv = $('#modalDriverSelect');
 
-    // initial build (no type filter) + keep in sync with type select
     $('#newTripModal').on('shown.bs.modal', function(){
       rebuildVehicleOptions($('#modalVehicleType').val() || '');
     });
     $('#modalVehicleType').on('change', function(){
       rebuildVehicleOptions(this.value || '');
-      $veh.trigger('change'); // re-run pairing after list changes
+      $veh.trigger('change');
     });
 
     $veh.on('change', function(){
@@ -746,9 +778,8 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
   })();
 
   /* =============================================================
-     Location Suggestions + Map Picker  (unchanged below)
+     Location Suggestions + Map Picker
      ============================================================= */
-
   function composePhotonLabel(f){
     if (!f || !f.properties) return '';
     const p = f.properties;
@@ -854,7 +885,7 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
     reverseNice(lat,lng).then(function(lbl){ lastPicked = {label: lbl || '', lat: lat, lng: lng}; });
   }
   $('#mapModal').on('shown.bs.modal', function(ev){
-    var btn = $(ev.relatedTarget); pickingFor = (btn && btn.data('for')) ? String(btn.data('for')) : 'pickup'; initMap();
+    var btn = $(ev.relatedTarget); pickingFor = (btn && btn.data('for')) ? String(btn.data='pickup') : 'pickup'; initMap();
     var lat = $('#'+pickingFor+'_lat').val(), lng = $('#'+pickingFor+'_lng').val();
     if (lat && lng) { setMarker(parseFloat(lat), parseFloat(lng)); }
     else { var text = $('#'+pickingFor).val();

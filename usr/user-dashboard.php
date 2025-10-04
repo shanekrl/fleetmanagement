@@ -1,103 +1,336 @@
 <?php
+// usr/user-dashboard.php — Driver view (NEW DB ONLY)
 session_start();
-include('vendor/inc/config.php');
-include('vendor/inc/checklogin.php');
+require_once __DIR__ . '/vendor/inc/config.php';
+require_once __DIR__ . '/vendor/inc/checklogin.php';
 check_login();
-$driverUserId = (int)($_SESSION['u_id'] ?? 0);
 
-/* Resolve “driver add-table id” if you need it later */
-$driverAddId = null;
-if ($driverUserId) {
-  if ($s=$mysqli->prepare("SELECT d.d_u_id FROM tms_user u JOIN tms_user_add_driver d ON d.u_email=u.u_email WHERE u.u_id=? LIMIT 1")){
-    $s->bind_param('i',$driverUserId); $s->execute(); $s->bind_result($driverAddId); $s->fetch(); $s->close();
+/* Signed-in driver (accounts.id) */
+$driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
+
+$tripRequests = [];
+$incomingTrips = [];
+
+if ($driverAccountId) {
+  // Trip Requests (awaiting decision)
+  if ($s = $mysqli->prepare("
+      SELECT id AS booking_id, booking_type, pickup_point, dropoff_point,
+             COALESCE(scheduled_start_at, created_at) AS scheduled_start_at,
+             status, contact_name, contact_phone
+        FROM bookings
+       WHERE driver_id=? AND status IN ('pending','awaiting_driver')
+       ORDER BY COALESCE(scheduled_start_at, created_at) ASC, id ASC
+  ")) {
+    $s->bind_param('i', $driverAccountId);
+    $s->execute();
+    $tripRequests = $s->get_result()->fetch_all(MYSQLI_ASSOC);
+    $s->close();
+  }
+
+  // Incoming (already accepted or in progress)
+  if ($s = $mysqli->prepare("
+      SELECT id AS booking_id, booking_type, pickup_point, dropoff_point,
+             COALESCE(scheduled_start_at, created_at) AS scheduled_start_at,
+             status, contact_name, contact_phone
+        FROM bookings
+       WHERE driver_id=? AND status IN ('accepted','in_progress')
+       ORDER BY COALESCE(scheduled_start_at, NOW()) ASC, id ASC
+  ")) {
+    $s->bind_param('i', $driverAccountId);
+    $s->execute();
+    $incomingTrips = $s->get_result()->fetch_all(MYSQLI_ASSOC);
+    $s->close();
   }
 }
 
-/* Next pending assignment for this driver from tms_bookings */
-$booking = null;
-if ($driverAddId) {
-  $sql = "SELECT booking_id, contact_phone, pickup_point, dropoff_point, scheduled_at, status, booking_type
-            FROM tms_bookings
-           WHERE driver_id=? AND status='pending' AND (scheduled_at IS NULL OR scheduled_at>=NOW())
-        ORDER BY COALESCE(scheduled_at, NOW()) ASC LIMIT 1";
-  if ($s=$mysqli->prepare($sql)) {
-    $s->bind_param('i',$driverAddId); $s->execute();
-    $r=$s->get_result(); $booking=$r->fetch_assoc(); $s->close();
-  }
+/* helpers */
+function fmt_compact($dt){
+  if(!$dt) return '—';
+  $ts = strtotime($dt);
+  return (date('Y-m-d',$ts)===date('Y-m-d'))
+    ? 'TODAY, '.strtoupper(date('g:i A',$ts))
+    : strtoupper(date('M j, g:i A',$ts));
+}
+function badge_color($s){
+  return [
+    'in_progress'=>'bg-green-600',
+    'accepted'   =>'bg-blue-600',
+    'completed'  =>'bg-blue-600',
+    'cancelled'  =>'bg-red-600',
+    'rejected'   =>'bg-red-600',
+    'pending'    =>'bg-gray-600',
+    'awaiting_driver'=>'bg-gray-600',
+  ][$s] ?? 'bg-gray-500';
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <?php include('vendor/inc/head.php'); ?>
-  <link rel="stylesheet" href="css/driver-theme.css">
+  <?php include __DIR__ . '/vendor/inc/head.php'; ?>
+
+  <!-- Minimal fallback so Start/Resume is visible even if Tailwind fails -->
+  <style>
+    .btn-start {
+      background:#000047 !important;
+      color:#fff !important;
+      padding:.5rem .75rem !important;
+      border-radius:.75rem !important;
+      font-weight:600 !important;
+      display:inline-block !important;
+      text-decoration:none !important;
+    }
+    .disclosure .route{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .disclosure[aria-expanded="true"] .route{white-space:normal;overflow:visible}
+    .disclosure[aria-expanded="false"] + .panel{display:none}
+    .disclosure[aria-expanded="true"] + .panel{display:block}
+    .disclosure .fa-chevron-down{transition:transform .2s ease}
+    .disclosure[aria-expanded="true"] .fa-chevron-down{transform:rotate(180deg)}
+  </style>
 </head>
-<body id="page-top">
-  <?php include('vendor/inc/nav.php'); ?>
+<body id="page-top" class="bg-slate-50 text-slate-900">
+  <?php include __DIR__ . '/vendor/inc/nav.php'; ?>
+
   <div id="wrapper">
-    <?php include('vendor/inc/sidebar.php'); ?>
-    <div id="content-wrapper">
-      <div class="container-fluid">
+    <?php include __DIR__ . '/vendor/inc/sidebar.php'; ?>
 
-        <h1 class="kaya-page-title text-center">Driver Dashboard</h1>
+    <div id="content-wrapper" class="w-full">
+      <div class="container-fluid flex justify-center">
+        <div class="w-full md:max-w-[520px]">
+          <h1 class="font-extrabold text-[22px] text-kaya-navy mt-3 mb-2">Driver Dashboard</h1>
 
-        <!-- New Appointment card -->
-        <div class="kaya-card kaya-section">
-          <div class="card-header py-2 px-3"><strong>New Appointment</strong></div>
-          <div class="card-body">
-            <?php if ($booking): ?>
-              <div class="mb-2"><strong>When:</strong> <?= htmlspecialchars($booking['scheduled_at'] ?: '—') ?></div>
-              <div class="mb-2"><strong>Pickup:</strong> <?= htmlspecialchars($booking['pickup_point']) ?></div>
-              <div class="mb-2"><strong>Drop-off:</strong> <?= htmlspecialchars($booking['dropoff_point']) ?></div>
-              <div class="mb-3">
-                <span class="badge <?= $booking['booking_type']==='personal'?'badge-personal':'badge-admin' ?>">
-                  <?= strtoupper($booking['booking_type']) ?>
-                </span>
-                <span class="badge badge-pending ml-1">PENDING</span>
-              </div>
-              <div class="d-flex" style="gap:.5rem;flex-wrap:wrap">
-                <a class="btn btn-success btn-sm" href="accept_appointment.php?id=<?= (int)$booking['booking_id'] ?>">Accept</a>
-                <a class="btn btn-danger btn-sm"  href="decline_appointment.php?id=<?= (int)$booking['booking_id'] ?>">Decline</a>
-              </div>
-            <?php else: ?>
-              <div class="text-muted">No new assignment.</div>
-            <?php endif; ?>
-          </div>
-        </div>
-
-        <!-- Next accepted trip -->
-        <div class="kaya-card">
-          <div class="card-header py-2 px-3"><strong>Next Accepted Trip</strong></div>
-          <div class="card-body">
-            <?php
-              $next=null;
-              if ($driverAddId){
-                $q="SELECT booking_id,pickup_point,dropoff_point,scheduled_at
-                      FROM tms_bookings
-                     WHERE driver_id=? AND status IN ('accepted','in_progress')
-                  ORDER BY COALESCE(scheduled_at,NOW()) ASC LIMIT 1";
-                if ($s=$mysqli->prepare($q)){ $s->bind_param('i',$driverAddId); $s->execute(); $next=$s->get_result()->fetch_assoc(); $s->close(); }
-              }
+          <!-- Trip Requests -->
+          <section class="mb-6">
+            <h2 class="text-sm font-semibold text-slate-600 mb-2">Trip Requests</h2>
+            <?php if (!$driverAccountId): ?>
+              <p class="text-sm text-red-600">Driver account not linked to this session.</p>
+            <?php elseif (!$tripRequests): ?>
+              <p class="text-sm text-slate-500">No trip requests right now.</p>
+            <?php else: foreach($tripRequests as $t):
+              $bid   = (int)$t['booking_id'];
+              $route = trim(($t['pickup_point'] ?? '—').' → '.($t['dropoff_point'] ?? '—'));
             ?>
-            <?php if ($next): ?>
-              <div class="mb-2"><strong>When:</strong> <?= htmlspecialchars($next['scheduled_at'] ?: '—') ?></div>
-              <div class="mb-2"><strong>Pickup:</strong> <?= htmlspecialchars($next['pickup_point']) ?></div>
-              <div class="mb-3"><strong>Drop-off:</strong> <?= htmlspecialchars($next['dropoff_point']) ?></div>
-              <a class="btn btn-kaya-primary" href="driver_map.php?booking_id=<?= (int)$next['booking_id'] ?>">Open Map</a>
-            <?php else: ?>
-              <div class="text-muted">Nothing accepted yet.</div>
+              <article class="rounded-2xl shadow-lg mb-3 overflow-hidden">
+                <button class="disclosure w-full bg-[#0B0F2F] text-white px-4 py-3 text-left" aria-expanded="false">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="font-semibold route"><?= htmlspecialchars($route) ?></div>
+                      <div class="text-[12px] opacity-80"><?= fmt_compact($t['scheduled_start_at']) ?></div>
+                    </div>
+                    <i class="fas fa-chevron-down ml-2"></i>
+                  </div>
+                </button>
+
+                <div class="panel bg-white px-4 pb-4 pt-3">
+                  <div class="mb-3 flex gap-2">
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= badge_color($t['status']) ?>"><?= strtoupper($t['status']) ?></span>
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= ($t['booking_type']==='personal'?'bg-amber-500':'bg-sky-500') ?>">
+                      <?= strtoupper($t['booking_type'] ?: 'ADMIN') ?>
+                    </span>
+                  </div>
+
+                  <div class="flex gap-3">
+                    <button class="btn-accept inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white text-[#0B0F2F] font-semibold border border-white shadow-sm"
+                            data-id="<?= $bid ?>">Accept</button>
+                    <button class="btn-reject inline-flex items-center justify-center px-4 py-2 rounded-xl border border-slate-300 font-semibold"
+                            data-id="<?= $bid ?>">Reject</button>
+                  </div>
+
+                  <?php if ($t['contact_name'] || $t['contact_phone']): ?>
+                    <div class="mt-3 text-xs">
+                      <div>Customer: <span class="font-semibold"><?= htmlspecialchars($t['contact_name'] ?: '—') ?></span></div>
+                      <div>Contact No: <span class="font-semibold"><?= htmlspecialchars($t['contact_phone'] ?: '—') ?></span></div>
+                    </div>
+                  <?php endif; ?>
+                </div>
+              </article>
+            <?php endforeach; endif; ?>
+          </section>
+
+          <!-- Incoming Trips -->
+          <section class="mb-6">
+            <h2 class="text-sm font-semibold text-slate-600 mb-2">Incoming Trips</h2>
+            <?php if ($driverAccountId && !$incomingTrips): ?>
+              <p class="text-sm text-slate-500">No incoming trips yet.</p>
             <?php endif; ?>
-          </div>
+            <?php foreach($incomingTrips as $t):
+              $bid   = (int)$t['booking_id'];
+              $route = trim(($t['pickup_point'] ?? '—').' → '.($t['dropoff_point'] ?? '—'));
+            ?>
+              <article class="rounded-2xl shadow-lg mb-3 overflow-hidden">
+                <button class="disclosure w-full bg-[#0B0F2F] text-white px-4 py-3 text-left" aria-expanded="false">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="font-semibold route"><?= htmlspecialchars($route) ?></div>
+                      <div class="text-[12px] opacity-80"><?= fmt_compact($t['scheduled_start_at']) ?></div>
+                    </div>
+                    <i class="fas fa-chevron-down ml-2"></i>
+                  </div>
+                </button>
+
+                <div class="panel bg-white px-4 pb-4 pt-3">
+                  <div class="mb-3 w-full h-[180px] bg-slate-200 rounded-xl"></div>
+
+                  <div class="mb-3 flex gap-2">
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= badge_color($t['status']) ?>"><?= strtoupper($t['status']) ?></span>
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= ($t['booking_type']==='personal'?'bg-amber-500':'bg-sky-500') ?>">
+                      <?= strtoupper($t['booking_type'] ?: 'ADMIN') ?>
+                    </span>
+                  </div>
+
+                  <div class="flex gap-2 flex-wrap">
+                    <?php
+                      $status = strtolower(trim((string)$t['status']));
+                      $btype  = strtolower(trim((string)$t['booking_type'] ?: 'admin'));
+                      if ($status === 'accepted'):
+                    ?>
+                      <a class="btn-start text-sm"
+                         href="driver-trip-start.php?booking_id=<?= $bid ?>">Start Trip</a>
+
+                      <!-- Cancel via API (no redirect). Reason required for admin bookings -->
+                      <button
+                        type="button"
+                        class="btn-cancel px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold"
+                        data-id="<?= $bid ?>"
+                        data-type="<?= htmlspecialchars($btype) ?>">
+                        Cancel Trip
+                      </button>
+                    <?php else: /* in_progress */ ?>
+                      <a class="btn-start text-sm"
+                         href="driver-trip-start.php?booking_id=<?= $bid ?>">Resume</a>
+                      <button class="px-3 py-2 rounded-xl bg-red-600/60 text-white text-sm font-semibold" disabled>End Trip (on map)</button>
+                    <?php endif; ?>
+                  </div>
+
+                  <?php if ($t['contact_name'] || $t['contact_phone']): ?>
+                    <div class="mt-3 text-xs">
+                      <div>Customer: <span class="font-semibold"><?= htmlspecialchars($t['contact_name'] ?: '—') ?></span></div>
+                      <div>Contact No: <span class="font-semibold"><?= htmlspecialchars($t['contact_phone'] ?: '—') ?></span></div>
+                    </div>
+                  <?php endif; ?>
+                </div>
+              </article>
+            <?php endforeach; ?>
+          </section>
         </div>
       </div>
-      <?php include('vendor/inc/footer.php'); ?>
+
+      <?php include __DIR__ . '/vendor/inc/footer.php'; ?>
     </div>
   </div>
 
-  <a class="scroll-to-top rounded" href="#page-top"><i class="fas fa-angle-up"></i></a>
+  <!-- Single-open accordion -->
+  <script>
+    document.querySelectorAll('.disclosure').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const isOpen = b.getAttribute('aria-expanded')==='true';
+        document.querySelectorAll('.disclosure').forEach(x=>x.setAttribute('aria-expanded','false'));
+        if(!isOpen) b.setAttribute('aria-expanded','true');
+      });
+    });
 
+    // Actions API endpoint (same folder)
+    const ACTION_URL = 'driver-actions.php';
+
+    const postJSON = (payload) =>
+      fetch(ACTION_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      }).then(async r=>{
+        const text = await r.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { error:text }; }
+        if (!r.ok || data.error) throw new Error(data.error || `Request failed (${r.status})`);
+        return data;
+      });
+
+    // Accept / Reject (Requests)
+    document.querySelectorAll('.btn-accept').forEach(b=>b.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      postJSON({ action:'accept', booking_id:b.dataset.id })
+        .then(()=>location.reload())
+        .catch(err=>alert(err.message));
+    }));
+    document.querySelectorAll('.btn-reject').forEach(b=>b.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const reason = prompt('Reason for rejection?'); if(!reason) return;
+      postJSON({ action:'reject', booking_id:b.dataset.id, reason })
+        .then(()=>location.reload())
+        .catch(err=>alert(err.message));
+    }));
+
+    // Cancel Trip — requires reason for admin bookings
+    document.querySelectorAll('.btn-cancel').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const bookingId = Number(btn.dataset.id);
+        const type = String(btn.dataset.type || 'admin').toLowerCase();
+
+        let reason = '';
+        if (type === 'admin') {
+          reason = prompt('Reason for cancelling this admin booking?');
+          if (!reason || !reason.trim()) {
+            alert('A reason is required for admin bookings.');
+            return;
+          }
+        }
+
+        postJSON({ action: 'cancel_trip', booking_id: bookingId, reason })
+          .then(() => location.reload())
+          .catch(err => alert(err.message));
+      });
+    });
+  </script>
+
+  <!-- keep vendor bundles as-is -->
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+
+  <!-- Trip Log Modal (left intact from your snippet) -->
+  <div class="modal fade" id="logTripModal" tabindex="-1" role="dialog" aria-labelledby="logTripModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document" >
+      <div class="modal-content">
+        <div class="modal-header" style="background-color: #000047; border-color: navy; color:antiquewhite;">
+          <h5 class="modal-title w-100 text-center" id="logTripModalLabel">PLEASE PROVIDE DETAILS OF THE TRIP</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body" style="background-color: #000047; border-color: navy; color:antiquewhite;">
+          <form method="POST" id="logTripForm" action="">
+            <div class="form-group text-center">
+              <label for="trip_id">Trip ID</label>
+              <input type="text" id="trip_id" name="trip_id" class="form-control w-50 mx-auto" required>
+            </div>
+            <div class="form-group text-center">
+              <label for="date">Date</label>
+              <input type="date" id="date" name="date" class="form-control w-50 mx-auto" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="pickup">Pick-Up Location</label>
+                <input type="text" id="pickup" name="pickup" class="form-control" required>
+              </div>
+              <div class="form-group col-md-6">
+                <label for="dropoff">Drop-Off Location</label>
+                <input type="text" id="dropoff" name="dropoff" class="form-control" required>
+              </div>
+            </div>
+            <div class="form-group text-center">
+              <label for="odometer">Odometer Reading</label>
+              <input type="number" id="odometer" name="odometer" class="form-control w-50 mx-auto" required>
+            </div>
+            <div class="text-center">
+              <button type="submit" name="add_log" class="btn btn-success" style="background-color: navy; border-color: navy;">+ Log Trip</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
