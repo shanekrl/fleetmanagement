@@ -22,6 +22,12 @@ function table_exists(mysqli $db, string $name): bool {
   $res = $db->query("SHOW TABLES LIKE '{$n}'");
   return $res && $res->num_rows > 0;
 }
+function column_exists(mysqli $db, string $table, string $col): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `{$t}` LIKE '{$c}'");
+  return $r && $r->num_rows > 0;
+}
 
 /* ---------- inputs (Trip History filters) ---------- */
 $th_from   = dt($_GET['th_from']  ?? date('Y-m-d', strtotime('-30 days')));
@@ -34,10 +40,10 @@ $vr_from       = dt($_GET['vr_from'] ?? date('Y-m-01'));
 $vr_to         = dt($_GET['vr_to']   ?? date('Y-m-d'));
 
 /* ---------- presence checks ---------- */
-$HAS_BOOKINGS        = table_exists($mysqli, 'bookings');
-$HAS_TMS_BOOKINGS    = table_exists($mysqli, 'tms_bookings');
-$HAS_TMS_VEHICLE     = table_exists($mysqli, 'tms_vehicle');
-$HAS_DRIVER_REPORT   = table_exists($mysqli, 'tms_driver_report');
+$HAS_BOOKINGS      = table_exists($mysqli, 'bookings');
+$HAS_TMS_BOOKINGS  = table_exists($mysqli, 'tms_bookings');
+$HAS_TMS_VEHICLE   = table_exists($mysqli, 'tms_vehicle');
+$HAS_DRIVER_REPORT = table_exists($mysqli, 'tms_driver_report');
 
 /* ---------- Trip History (prefer NEW bookings) ---------- */
 $trip_rows = [];
@@ -50,7 +56,6 @@ if ($HAS_BOOKINGS) {
             b.dropoff_point,
             b.scheduled_start_at,
             b.status,
-            b.payment_status,
             b.driver_id,
             b.vehicle_id,
             (SELECT name FROM accounts a WHERE a.id=b.driver_id) AS driver_name,
@@ -58,9 +63,9 @@ if ($HAS_BOOKINGS) {
           FROM bookings b
           WHERE 1=1";
   $params=[]; $types='';
-  if ($th_from) { $sql .= " AND b.scheduled_start_at >= ?";                           $params[]=$th_from.' 00:00:00'; $types.='s'; }
-  if ($th_to)   { $sql .= " AND b.scheduled_start_at < DATE_ADD(?, INTERVAL 1 DAY)";  $params[]=$th_to.' 00:00:00';   $types.='s'; }
-  if ($th_status!==''){ $sql .= " AND b.status = ?";                                   $params[]=$th_status;           $types.='s'; }
+  if ($th_from) { $sql .= " AND b.scheduled_start_at >= ?";                          $params[]=$th_from.' 00:00:00'; $types.='s'; }
+  if ($th_to)   { $sql .= " AND b.scheduled_start_at < DATE_ADD(?, INTERVAL 1 DAY)"; $params[]=$th_to.' 00:00:00';   $types.='s'; }
+  if ($th_status!==''){ $sql .= " AND b.status = ?";                                  $params[]=$th_status;           $types.='s'; }
   $sql .= " ORDER BY b.scheduled_start_at DESC, b.id DESC";
 
   if ($st = $mysqli->prepare($sql)) {
@@ -80,7 +85,6 @@ if ($HAS_BOOKINGS) {
             b.dropoff_point,
             b.scheduled_at      AS scheduled_start_at,
             b.status,
-            b.payment_status,
             b.driver_id,
             b.vehicle_id,
             (SELECT CONCAT(v_name,' (',v_reg_no,')') FROM tms_vehicle v WHERE v.v_id=b.vehicle_id) AS vehicle_label,
@@ -88,9 +92,9 @@ if ($HAS_BOOKINGS) {
           FROM tms_bookings b
           WHERE 1=1";
   $params=[]; $types='';
-  if ($th_from) { $sql .= " AND b.scheduled_at >= ?";                           $params[]=$th_from.' 00:00:00'; $types.='s'; }
-  if ($th_to)   { $sql .= " AND b.scheduled_at < DATE_ADD(?, INTERVAL 1 DAY)";  $params[]=$th_to.' 00:00:00';   $types.='s'; }
-  if ($th_status!==''){ $sql .= " AND b.status = ?";                             $params[]=$th_status;           $types.='s'; }
+  if ($th_from) { $sql .= " AND b.scheduled_at >= ?";                          $params[]=$th_from.' 00:00:00'; $types.='s'; }
+  if ($th_to)   { $sql .= " AND b.scheduled_at < DATE_ADD(?, INTERVAL 1 DAY)"; $params[]=$th_to.' 00:00:00';   $types.='s'; }
+  if ($th_status!==''){ $sql .= " AND b.status = ?";                            $params[]=$th_status;           $types.='s'; }
   $sql .= " ORDER BY b.scheduled_at DESC, b.booking_id DESC";
 
   if ($st = $mysqli->prepare($sql)) {
@@ -105,7 +109,8 @@ if ($HAS_BOOKINGS) {
 /* ---------- Vehicle list (legacy source) ---------- */
 $vehicles = [];
 if ($HAS_TMS_VEHICLE) {
-  if ($q = $mysqli->query("SELECT v_id AS v_id, CONCAT(v_name,' (',v_reg_no,')') AS label FROM tms_vehicle WHERE deleted_at IS NULL ORDER BY v_name, v_reg_no")) {
+  $where = column_exists($mysqli,'tms_vehicle','deleted_at') ? "WHERE deleted_at IS NULL" : "";
+  if ($q = $mysqli->query("SELECT v_id AS v_id, CONCAT(v_name,' (',v_reg_no,')') AS label FROM tms_vehicle $where ORDER BY v_name, v_reg_no")) {
     while ($r = $q->fetch_assoc()) $vehicles[] = $r;
     $q->close();
   }
@@ -252,7 +257,6 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
 
       <h1 class="kaya-page-title">Reports</h1>
 
-      <!-- Tabs: Fleet Summary REMOVED -->
       <ul class="nav nav-pills nav-kaya mb-3" id="reportTabs" role="tablist">
         <li class="nav-item"><a class="nav-link active" id="tab-history" data-toggle="tab" href="#history" role="tab">Trip History</a></li>
         <li class="nav-item"><a class="nav-link" id="tab-vehicle" data-toggle="tab" href="#vehicle" role="tab">Vehicle Report</a></li>
@@ -307,7 +311,6 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                     <th>Driver</th>
                     <th>Vehicle</th>
                     <th>Status</th>
-                    <th>Payment</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,7 +325,6 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                     <td><?= h($r['driver_name'] ?: ($r['driver_id'] ?: '—')) ?></td>
                     <td><?= h($r['vehicle_label'] ?: ($r['vehicle_id'] ?: '—')) ?></td>
                     <td><?= h(ucwords(str_replace('_',' ',$r['status']))) ?></td>
-                    <td><?= h(ucfirst($r['payment_status'])) ?></td>
                   </tr>
                   <?php endforeach; ?>
                 </tbody>

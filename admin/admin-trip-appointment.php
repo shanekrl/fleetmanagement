@@ -347,9 +347,10 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
 
                 $isMine = (!$isAdmin && $r['driver_id']!==null && (int)$r['driver_id']===(int)$currentDriverId);
 
-                $canAdminApprove  = $isAdmin && in_array(strtolower($r['status']),['pending','awaiting_driver']);
-                $canAdminComplete = $isAdmin && in_array(strtolower($r['status']),['accepted','in_progress']);
+                $canAdminApprove  = false; // hide/remove the Approve action for admins
+                $canAdminComplete = false; //admin can't complete the trip that's up to the driver
                 $canAdminCancel   = $isAdmin && in_array(strtolower($r['status']),['pending','awaiting_driver','accepted','in_progress']);
+
 
                 $canDriverAccept  = !$isAdmin && $isMine && in_array(strtolower($r['status']),['pending','awaiting_driver']);
                 $canDriverDecline = !$isAdmin && $isMine && in_array(strtolower($r['status']),['pending','awaiting_driver']);
