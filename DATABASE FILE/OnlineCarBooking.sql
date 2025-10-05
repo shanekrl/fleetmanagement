@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 04, 2025 at 10:59 PM
+-- Generation Time: Oct 05, 2025 at 03:16 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -29,11 +29,15 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `accounts` (
   `id` int(10) UNSIGNED NOT NULL,
-  `role` enum('admin','driver','client') NOT NULL,
+  `role` enum('superadmin','admin','driver','client') NOT NULL,
   `name` varchar(120) NOT NULL,
   `email` varchar(190) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `phone` varchar(32) DEFAULT NULL,
+  `twofa_secret` varchar(128) DEFAULT NULL,
+  `twofa_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `failed_attempts` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `locked_until` datetime DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -44,18 +48,54 @@ CREATE TABLE `accounts` (
 -- Dumping data for table `accounts`
 --
 
-INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'admin', 'Admin', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO', NULL, 1, '2025-09-12 20:14:29', '2025-09-12 20:14:29', NULL),
-(2, 'driver', 'Shane Lopez', 'shaaane@mail.com', '$2y$10$MWD3iKYEN5eQOz6HKPkGV.jSQ.s4nIBgu39NRqVFKW4z.ppsMem7G', NULL, 0, '2025-09-12 20:14:29', '2025-10-04 22:01:02', '2025-10-04 22:01:02'),
-(4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', 0, '2025-09-22 05:09:31', '2025-10-04 22:01:07', '2025-10-04 22:01:07'),
-(5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', 0, '2025-09-26 20:53:29', '2025-10-04 22:01:12', '2025-10-04 22:01:12'),
-(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', 0, '2025-09-28 15:16:43', '2025-10-04 22:01:16', '2025-10-04 22:01:16'),
-(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', 0, '2025-09-29 04:27:49', '2025-10-04 22:01:21', '2025-10-04 22:01:21'),
-(8, 'driver', 'Rey Cabral', 'r.cabral@gmail.com', '$2y$10$ypv7rgC9tI2is0px2KaEs.EKaqJTIYExvirC535OzhAYIKykHmFii', '09877651234', 1, '2025-09-30 00:07:41', '2025-09-30 00:07:41', NULL),
-(9, 'driver', 'Arnold Lagman', 'a.lagman@gmail.com', '$2y$10$u0hXfoN/f1p6LIMwofkUke3O.MfqOUQrcfNqhjwpNbGPoiFEYrDo2', '09871234563', 1, '2025-09-30 00:08:30', '2025-09-30 00:08:30', NULL),
-(10, 'driver', 'Nestor Sanchez', 'n.sanchez@gmail.com', '$2y$10$L7BNQJFnvbyrZLjVP6PUzOjdemDyWJZilhYG4GLm90ptw190ye6/u', '0912345641', 1, '2025-09-30 00:09:46', '2025-09-30 00:09:46', NULL),
-(11, 'driver', 'Richie Sibal', 'r.sibal@gmail.com', '$2y$10$tByemB9al7eCaqMdh9F79Oq5XMdaunDQpJ31SlkiU6uFfJZ/yzYsS', '0768126543', 1, '2025-09-30 00:10:51', '2025-09-30 00:10:51', NULL),
-(12, 'driver', 'Manuel Valencia', 'm.valencia@gmail.com', '$2y$10$cCUgKiKyfeGYiYkZMYQSwe.wfSggzjPfAsYbTbqiSPySVuWQB3xfK', '09236571234', 1, '2025-09-30 00:11:35', '2025-09-30 00:11:35', NULL);
+INSERT INTO `accounts` (`id`, `role`, `name`, `email`, `password_hash`, `phone`, `twofa_secret`, `twofa_enabled`, `failed_attempts`, `locked_until`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'superadmin', 'Admin', 'admin@gmail.com', '$2y$10$fAIUbxhK/sEWluSFpNbTUeMeQYjKoToz9anTnD4YK7dOP9u7acJWO', NULL, NULL, 0, 0, NULL, 1, '2025-09-12 20:14:29', '2025-10-05 18:42:03', NULL),
+(2, 'driver', 'Shane Lopez', 'shaaane@mail.com', '$2y$10$MWD3iKYEN5eQOz6HKPkGV.jSQ.s4nIBgu39NRqVFKW4z.ppsMem7G', NULL, NULL, 0, 0, NULL, 0, '2025-09-12 20:14:29', '2025-10-04 22:01:02', '2025-10-04 22:01:02'),
+(4, 'driver', 'Test Driver', 'test@mail.com', '$2y$10$/jDtqLb3fFppBAl/An.EjOoh3g3JQvtAGYchWeWDMuY8ZGrwRbN8S', '09668226441', NULL, 0, 0, NULL, 0, '2025-09-22 05:09:31', '2025-10-04 22:01:07', '2025-10-04 22:01:07'),
+(5, 'driver', 'Alex Turner', '505@mail.com', '$2y$10$huUzbRwfW3XpSWZ9.WoO6uUwHKeN448sfYTEzri7NxuHNT2dZZjey', '09942317653', NULL, 0, 0, NULL, 0, '2025-09-26 20:53:29', '2025-10-04 22:01:12', '2025-10-04 22:01:12'),
+(6, 'driver', 'Noah Enguerra', 'noah@mail.com', '$2y$10$7bNJgxVl/rUpyANp58zFlO8J3iG.NxLb5qsr9L7Iz95nAFj28V2zq', '09123456789', NULL, 0, 0, NULL, 0, '2025-09-28 15:16:43', '2025-10-04 22:01:16', '2025-10-04 22:01:16'),
+(7, 'driver', 'Keihle Pascual', 'kei@mail.com', '$2y$10$3Spppd0TQP/ZpbtcpY06X.8t.P.4b5/rOZwzpGSAzR0597.U9kyzS', '09784563214', NULL, 0, 0, NULL, 0, '2025-09-29 04:27:49', '2025-10-04 22:01:21', '2025-10-04 22:01:21'),
+(8, 'driver', 'Rey Cabral', 'r.cabral@gmail.com', '$2y$10$ypv7rgC9tI2is0px2KaEs.EKaqJTIYExvirC535OzhAYIKykHmFii', '09877651234', NULL, 0, 0, NULL, 1, '2025-09-30 00:07:41', '2025-09-30 00:07:41', NULL),
+(9, 'driver', 'Arnold Lagman', 'a.lagman@gmail.com', '$2y$10$u0hXfoN/f1p6LIMwofkUke3O.MfqOUQrcfNqhjwpNbGPoiFEYrDo2', '09871234563', NULL, 0, 0, NULL, 1, '2025-09-30 00:08:30', '2025-09-30 00:08:30', NULL),
+(10, 'driver', 'Nestor Sanchez', 'n.sanchez@gmail.com', '$2y$10$L7BNQJFnvbyrZLjVP6PUzOjdemDyWJZilhYG4GLm90ptw190ye6/u', '0912345641', NULL, 0, 0, NULL, 1, '2025-09-30 00:09:46', '2025-09-30 00:09:46', NULL),
+(11, 'driver', 'Richie Sibal', 'r.sibal@gmail.com', '$2y$10$tByemB9al7eCaqMdh9F79Oq5XMdaunDQpJ31SlkiU6uFfJZ/yzYsS', '0768126543', NULL, 0, 0, NULL, 1, '2025-09-30 00:10:51', '2025-09-30 00:10:51', NULL),
+(12, 'driver', 'Manuel Valencia', 'm.valencia@gmail.com', '$2y$10$cCUgKiKyfeGYiYkZMYQSwe.wfSggzjPfAsYbTbqiSPySVuWQB3xfK', '09236571234', NULL, 0, 0, NULL, 1, '2025-09-30 00:11:35', '2025-09-30 00:11:35', NULL),
+(13, 'admin', 'Jovita Tipon', 'tiponjovita@gmail.com', '$2y$10$0CJybIbUH/Ootz/5M58FMeDOIpXVvnHNQ6DaZtkjdPoVmB6rDTmcS', NULL, NULL, 0, 0, NULL, 1, '2025-10-05 20:18:01', '2025-10-05 20:18:01', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `audit_logs`
+--
+
+CREATE TABLE `audit_logs` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `occurred_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `actor_id` int(11) DEFAULT NULL,
+  `actor_email` varchar(190) DEFAULT NULL,
+  `actor_role` enum('superadmin','admin','driver','system') DEFAULT NULL,
+  `ip_address` varbinary(16) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `action` varchar(64) NOT NULL,
+  `entity_type` varchar(64) DEFAULT NULL,
+  `entity_id` varchar(64) DEFAULT NULL,
+  `status` enum('success','failure','info') NOT NULL DEFAULT 'success',
+  `message` varchar(255) DEFAULT NULL,
+  `details_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`details_json`)),
+  `before_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`before_json`)),
+  `after_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`after_json`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `audit_logs`
+--
+
+INSERT INTO `audit_logs` (`id`, `occurred_at`, `actor_id`, `actor_email`, `actor_role`, `ip_address`, `user_agent`, `action`, `entity_type`, `entity_id`, `status`, `message`, `details_json`, `before_json`, `after_json`) VALUES
+(1, '2025-10-05 19:01:49', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '1', 'success', NULL, '{\"role\":\"superadmin\"}', NULL, NULL),
+(2, '2025-10-05 20:35:35', 1, NULL, NULL, '', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/138.0.0.0 Safari\\/537.36 OPR\\/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
+(3, '2025-10-05 20:36:03', 13, NULL, NULL, '', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/138.0.0.0 Safari\\/537.36 OPR\\/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL),
+(4, '2025-10-05 21:14:55', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
+(5, '2025-10-05 21:15:18', 13, 'tiponjovita@gmail.com', 'admin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL);
 
 -- --------------------------------------------------------
 
@@ -70,6 +110,20 @@ CREATE TABLE `auth_logins` (
   `user_agent` varchar(255) DEFAULT NULL,
   `login_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `auth_logins`
+--
+
+INSERT INTO `auth_logins` (`id`, `account_id`, `ip_addr`, `user_agent`, `login_at`) VALUES
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 19:01:49'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 20:29:25'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 20:35:35'),
+(0, 13, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 20:36:03'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:09:58'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:10:23'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:14:55'),
+(0, 13, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:15:18');
 
 -- --------------------------------------------------------
 
@@ -112,7 +166,8 @@ INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver
 (4, 'admin', 1, NULL, 7, 2, 1, 'Samantha Ticsay', '09988233611', 'Cuatro de Julio Street, Salapungan, Ninoy Aquino, Pandan, Angeles, Central Luzon, 2009, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 13:30:00', NULL, 'completed', '', '2025-09-29 23:33:47', '2025-09-29 23:35:24'),
 (5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'cancelled', 'yay\nDriver cancel reason: wala na', '2025-09-30 00:34:32', '2025-10-04 20:01:52'),
 (6, 'admin', 1, NULL, 8, 8, 1, 'Lando Norris', '09998225432', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-08 11:02:00', NULL, 'completed', 'Driver reject reason: yoko nga', '2025-10-04 20:33:39', '2025-10-04 23:06:49'),
-(7, 'personal', 8, NULL, 8, 8, 1, 'Ayoko Na', '09991112345', 'Angeles University Foundation', 'SM Clark Skyline, SM City Clark, Angeles, Central Luzon, 2024, Philippines', 15.1449885, 120.5943169, 15.1688409, 120.5801715, '2025-10-06 07:40:00', NULL, 'completed', 'Created by driver', '2025-10-05 04:40:50', '2025-10-05 04:43:19');
+(7, 'personal', 8, NULL, 8, 8, 1, 'Ayoko Na', '09991112345', 'Angeles University Foundation', 'SM Clark Skyline, SM City Clark, Angeles, Central Luzon, 2024, Philippines', 15.1449885, 120.5943169, 15.1688409, 120.5801715, '2025-10-06 07:40:00', NULL, 'completed', 'Created by driver', '2025-10-05 04:40:50', '2025-10-05 04:43:19'),
+(8, 'admin', 1, NULL, 8, 8, 1, 'Felicity Morelli', '09998776543', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-05 06:01:00', NULL, 'accepted', '', '2025-10-05 05:02:10', '2025-10-05 05:08:35');
 
 -- --------------------------------------------------------
 
@@ -171,7 +226,8 @@ INSERT INTO `booking_events` (`id`, `booking_id`, `actor_id`, `actor_role`, `eve
 (36, 6, 8, 'driver', 'complete_trip', '[]', '2025-10-04 23:06:49'),
 (37, 7, 8, 'driver', 'restore', '{\"from\":\"in_progress\",\"to\":\"accepted\"}', '2025-10-05 04:41:36'),
 (38, 7, 8, 'driver', 'cancel', '{\"reason\":\"\"}', '2025-10-05 04:41:39'),
-(39, 7, 8, 'driver', 'complete_trip', '[]', '2025-10-05 04:43:19');
+(39, 7, 8, 'driver', 'complete_trip', '[]', '2025-10-05 04:43:19'),
+(40, 8, 8, 'driver', 'accept', '[]', '2025-10-05 05:08:35');
 
 -- --------------------------------------------------------
 
@@ -1395,7 +1451,18 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 ALTER TABLE `accounts`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_accounts_email` (`email`),
   ADD KEY `idx_accounts_deleted_at` (`deleted_at`);
+
+--
+-- Indexes for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_audit_when` (`occurred_at`),
+  ADD KEY `idx_audit_action` (`action`),
+  ADD KEY `idx_audit_entity` (`entity_type`,`entity_id`),
+  ADD KEY `idx_audit_actor` (`actor_id`,`action`);
 
 --
 -- Indexes for table `bookings`
@@ -1504,19 +1571,25 @@ ALTER TABLE `vehicle_assignments`
 -- AUTO_INCREMENT for table `accounts`
 --
 ALTER TABLE `accounts`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+
+--
+-- AUTO_INCREMENT for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `booking_events`
 --
 ALTER TABLE `booking_events`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
 -- AUTO_INCREMENT for table `booking_offers`
