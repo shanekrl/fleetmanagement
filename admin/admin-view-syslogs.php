@@ -150,6 +150,9 @@
 
   <!-- Scripts (your footer already wires the sidebar toggle for consistency) -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.smooth_marker_bouncing"></script>
+  <script src="https://unpkg.com/leaflet.smoothmarkerbouncing"></script>
+  <script src="https://unpkg.com/leaflet.marker.slideto"></script>
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
