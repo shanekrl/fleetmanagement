@@ -4,9 +4,13 @@ session_start();
 include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');
 check_login();
+require_once 'vendor/inc/audit.php'; // ✅ add audit helper
 
-$isAdmin = function_exists('is_admin') ? is_admin() : isset($_SESSION['a_id']);
-$aid     = (int)($_SESSION['a_id'] ?? 0);
+$isAdmin = function_exists('is_admin') ? is_admin() : (
+  isset($_SESSION['role']) && in_array(strtolower($_SESSION['role']), ['admin','superadmin'], true)
+);
+$aid = (int)($_SESSION['account_id'] ?? ($_SESSION['a_id'] ?? 0));
+$actorId = $aid; // ✅ use this as the audit actor
 
 /* ----- safety: avoid collation warnings ----- */
 $mysqli->set_charset('utf8mb4');
@@ -149,6 +153,19 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking']))
       $newId = $stmt->insert_id;
       $stmt->close();
 
+      /* ✅ AUDIT: booking created (new schema) */
+      audit_log($mysqli, $actorId, 'booking_create', $newId, [
+        'status'        => 'success',
+        'portal'        => $isAdmin ? 'admin' : 'driver',
+        'booking_type'  => $booking_type,
+        'pax'           => (int)$pax,
+        'driver_id'     => $driver_id,
+        'vehicle_id'    => $vehicle_id,
+        'scheduled_at'  => $scheduled,
+        'pickup_point'  => $pickup,
+        'dropoff_point' => $dropoff
+      ]);
+
       echo json_encode(['ok'=>1,'id'=>$newId]); exit;
 
     } else {
@@ -164,10 +181,36 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking']))
         $reg,$type,$drv,$cat,$email,$pwd
       );
       $q->execute(); $id=$q->insert_id; $q->close();
+
+      /* ✅ AUDIT: booking created (legacy) */
+      audit_log($mysqli, $actorId, 'booking_create_legacy', $id, [
+        'status'        => 'success',
+        'portal'        => $isAdmin ? 'admin' : 'driver',
+        'pax'           => (int)$pax,
+        'scheduled_date'=> $sched_date,
+        'scheduled_time'=> $sched_time,
+        'pickup_point'  => $pickup,
+        'dropoff_point' => $dropoff
+      ]);
+
       echo json_encode(['ok'=>1,'id'=>$id]); exit;
     }
 
   } catch (Throwable $e) {
+    /* ✅ AUDIT: booking create failure */
+    audit_log($mysqli, $actorId, 'booking_create', null, [
+      'status'  => 'failure',
+      'portal'  => $isAdmin ? 'admin' : 'driver',
+      'error'   => $e->getMessage(),
+      'input'   => [
+        'booking_type' => $booking_type,
+        'pax'          => (int)$pax,
+        'driver_id'    => $driver_id,
+        'vehicle_id'   => $vehicle_id,
+        'scheduled_at' => $scheduled
+      ]
+    ]);
+
     echo json_encode(['ok'=>0,'error'=>$e->getMessage()]); exit;
   }
 }
