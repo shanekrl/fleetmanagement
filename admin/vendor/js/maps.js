@@ -161,6 +161,87 @@ $(document).ready(function () {
         });
     }
 
+    $("#get_trip_movements").on("change", function () {
+        let selectedDate = $(this).val(); // yyyy-mm-dd
+        if (!selectedDate) return;
+
+        getVehicleMovements(selectedDate);
+    });
+
+
+    function getVehicleMovements(date) {
+        let params = new URLSearchParams(window.location.search);
+        let plateNo = params.get("PlateNo"); // ex: PlateNo=ABC1234
+
+        if (!plateNo) {
+            alert("No Plate Number selected!");
+            return;
+        }
+
+        $.ajax({
+            url: "admin-add-obdlogs.php",
+            type: "GET",
+            data: { 
+                plate_no: plateNo, 
+                date: date  // pass date to backend
+            },
+            dataType: "json",
+            success: function (response) {
+                
+                if (response.status === "success" && response.logs.length > 0) {
+                    playVehicleMovements(response.logs);
+                } else {
+                    alert("No logs found for this date.");
+                }
+            },
+            error: function (xhr, status, error) {
+                console.log(xhr);
+                console.log(error);
+            }
+        });
+    }
+
+    function playVehicleMovements(logs) {
+        console.log(logs);
+        let i = 0;
+        let id = logs[0].plate_no;
+
+        // Create marker if not exists
+        if (!markers[id]) {
+            markers[id] = L.marker(
+                [parseFloat(logs[0].latitude), parseFloat(logs[0].longitude)],
+                { icon: carIcon }
+            ).addTo(map);
+        }
+
+        let playback = setInterval(() => {
+            if (i >= logs.length) {
+                clearInterval(playback);
+                return;
+            }
+
+            let lat = parseFloat(logs[i].latitude);
+            let lng = parseFloat(logs[i].longitude);
+
+            if (!isNaN(lat) && !isNaN(lng)) {
+                markers[id].slideTo([lat, lng], {
+                    duration: 1000,
+                    keepAtCenter: false
+                });
+            }
+
+            // Update info cards too
+            $("#vehiclePlate").text(logs[i].plate_no);
+            $("#vehicleSpeed").text(logs[i].speed + " km/h");
+            $("#vehicleRPM").text(logs[i].rpm);
+            $("#vehicleTemperature").text(logs[i].coolant_temp);
+            $("#vehicleThrottle").text(logs[i].throttle);
+            $("#vehicleTime").text(logs[i].created_at || "N/A");
+
+            i++;
+        }, 1500); // move every 1.5 seconds
+    }
+
     // Auto refresh logs every 5 seconds
     setInterval(getVehicleLogs, 5000);
 });

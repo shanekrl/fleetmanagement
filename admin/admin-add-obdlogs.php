@@ -16,6 +16,7 @@ $inputData = json_decode($json, true);
 
 // Get plate_no from GET parameter
 $params_plate_no = $_GET['plate_no'] ?? null;
+$params_date = $_GET['date'] ?? null;
 
 // Always use real plate_no + GPS if provided, but randomize OBD data
 $plate     = $inputData["basic_info"]["plate_no"] ?? "";
@@ -28,7 +29,46 @@ $throttle = $inputData["engine_performance"]["throttle"] ?? "";
 $coolant_temp = $inputData["temperatures"]["coolant_temp"] ?? "";
 $fuel_level = $inputData["air_fuel"]["fuel_level"] ?? "";
 
-// Always randomize OBD + sensor data
+// GETTING THE MOVEMENTS BASED ON DATE
+
+// NEW: Vehicle Movements by date
+if (!empty($params_date)) {
+
+    if ($params_plate_no && $params_date) {
+        $stmt = $mysqli->prepare("
+            SELECT * 
+            FROM obd_logs 
+            WHERE plate_no = ? 
+              AND DATE(created_at) = ?
+            ORDER BY created_at ASC
+        ");
+        $stmt->bind_param("ss", $params_plate_no, $params_date);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $logs = [];
+        while ($row = $result->fetch_assoc()) {
+            $logs[] = $row;
+        }
+        $stmt->close();
+
+        echo json_encode([
+            "status" => "success",
+            "plate_no" => $params_plate_no,
+            "date" => $params_date,
+            "logs" => $logs
+        ]);
+        exit; // ✅ stop execution here
+    } else {
+        echo json_encode([
+            "status" => "error",
+            "message" => "plate_no and date are required"
+        ]);
+        exit;
+    }
+}
+//END
+
 
 $data = [
     "basic_info" => [
