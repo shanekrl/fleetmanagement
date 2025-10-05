@@ -58,6 +58,7 @@
                 <!-- Use <dl> for label/value pairs; replace placeholders later -->
                 <dl class="kaya-dl">
                   <div class="kaya-dl__row">
+                    <input type="date" id="get_trip_movements"/>
                     <dt>Date / Time</dt><dd id="th_date_time"></dd>
                   </div>
                   <div class="kaya-dl__row">
