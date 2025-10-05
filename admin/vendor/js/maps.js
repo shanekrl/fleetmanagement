@@ -59,8 +59,10 @@ function updateMarkers(data, trips = []) {
             marker.on("click", function () {
                 $("#vehiclePlate").text(v.plate_no);
                 $("#vehicleSpeed").text(v.speed + " km/h");
-                $("#vehicleRpm").text(v.rpm);
-                $("#vehicleFuel").text(v.fuel_level + "%");
+                $("#vehicleRPM").text(v.rpm);
+                $("#vehicleTemperature").text(v.coolant_temp);
+                $("#vehicleThrottle").text(v.throttle);
+                // $("#vehicleFuel").text(v.fuel_level + "%");
                 $("#vehicleTime").text(v.created_at || "N/A");
 
       

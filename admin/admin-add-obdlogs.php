@@ -22,27 +22,34 @@ $plate     = $inputData["basic_info"]["plate_no"] ?? "";
 $latitude  = $inputData["location"]["latitude"] ?? "";
 $longitude = $inputData["location"]["longitude"] ?? "";
 
+$speed = $inputData["engine_performance"]["speed"] ?? "";
+$rpm =  $inputData["engine_performance"]["rpm"] ?? "";
+$throttle = $inputData["engine_performance"]["throttle"] ?? "";
+$coolant_temp = $inputData["temperatures"]["coolant_temp"] ?? "";
+$fuel_level = $inputData["air_fuel"]["fuel_level"] ?? "";
+
 // Always randomize OBD + sensor data
+
 $data = [
     "basic_info" => [
         "plate_no" => $plate
     ],
     "engine_performance" => [
-        "speed"           => rand(0, 80),
-        "rpm"             => rand(700, 5000),
-        "load"            => rand(20, 100),
-        "throttle"        => rand(0, 100),
-        "intake_manifold" => rand(10, 100),
-        "maf"             => rand(2, 50)
+        "speed"           => $speed,
+        "rpm"             => $rpm,
+        "load"            => '0',
+        "throttle"        => $throttle,
+        "intake_manifold" => '0',
+        "maf"             => '0'
     ],
     "temperatures" => [
-        "coolant_temp"    => rand(70, 110),
-        "intake_air_temp" => rand(20, 60),
-        "ambient_temp"    => rand(15, 40),
-        "oil_temp"        => rand(60, 120)
+        "coolant_temp"    => $coolant_temp,
+        "intake_air_temp" => '0',
+        "ambient_temp"    => '0',
+        "oil_temp"        => '0'
     ],
     "air_fuel" => [
-        "fuel_level"      => rand(10, 100),
+        "fuel_level"      => $fuel_level,
         "fuel_type"       => "Gasoline"
     ],
     "location" => [
@@ -51,21 +58,50 @@ $data = [
     ]
 ];
 
+
+// $data = [
+//     "basic_info" => [
+//         "plate_no" => $plate
+//     ],
+//     "engine_performance" => [
+//         "speed"           => rand(0, 80),
+//         "rpm"             => rand(700, 5000),
+//         "load"            => rand(20, 100),
+//         "throttle"        => rand(0, 100),
+//         "intake_manifold" => rand(10, 100),
+//         "maf"             => rand(2, 50)
+//     ],
+//     "temperatures" => [
+//         "coolant_temp"    => rand(70, 110),
+//         "intake_air_temp" => rand(20, 60),
+//         "ambient_temp"    => rand(15, 40),
+//         "oil_temp"        => rand(60, 120)
+//     ],
+//     "air_fuel" => [
+//         "fuel_level"      => rand(10, 100),
+//         "fuel_type"       => "Gasoline"
+//     ],
+//     "location" => [
+//         "latitude"  => $latitude,   // real GPS
+//         "longitude" => $longitude   // real GPS
+//     ]
+// ];
+
 // Insert into DB if plate_no exists
 if (!empty($plate)) {
-    $speed           = $data["engine_performance"]["speed"];
-    $rpm             = $data["engine_performance"]["rpm"];
+    // $speed           = $data["engine_performance"]["speed"];
+    // $rpm             = $data["engine_performance"]["rpm"];
     $engine_load     = $data["engine_performance"]["load"];
-    $throttle        = $data["engine_performance"]["throttle"];
+    // $throttle        = $data["engine_performance"]["throttle"];
     $intake_manifold = $data["engine_performance"]["intake_manifold"];
     $maf             = $data["engine_performance"]["maf"];
 
-    $coolant_temp    = $data["temperatures"]["coolant_temp"];
+    // $coolant_temp    = $data["temperatures"]["coolant_temp"];
     $intake_air_temp = $data["temperatures"]["intake_air_temp"];
     $ambient_temp    = $data["temperatures"]["ambient_temp"];
     $oil_temp        = $data["temperatures"]["oil_temp"];
 
-    $fuel_level      = $data["air_fuel"]["fuel_level"];
+    // $fuel_level      = $data["air_fuel"]["fuel_level"];
     $fuel_type       = $data["air_fuel"]["fuel_type"];
 
     $logs_text       = json_encode($data, JSON_UNESCAPED_UNICODE);

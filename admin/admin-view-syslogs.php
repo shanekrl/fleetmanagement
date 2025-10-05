@@ -110,7 +110,16 @@
                     <dt>Fuel Level</dt><dd></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Speed</dt><dd id="vehicleSpeed">60 km/h</dd>
+                    <dt>Speed</dt><dd id="vehicleSpeed"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>RPM</dt><dd id="vehicleRPM"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>Temperature</dt><dd id="vehicleTemperature"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>Throttle</dt><dd id="vehicleThrottle"></dd>
                   </div>
                   <div class="kaya-dl__row">
                     <dt>OBD Status</dt><dd><span class="kaya-badge kaya-badge--warn">Needs Attention</span></dd>
