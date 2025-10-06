@@ -1,53 +1,78 @@
 <?php
+// usr/driver-trip-edit.php — edit a DIRECT (personal) booking created by the driver
 session_start();
+
 require_once __DIR__ . '/../admin/vendor/inc/config.php';
 require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-$driveraccountId = require_driver(); // ensure driver auth and get accounts.id
+// Enforce driver auth (returns accounts.id for the signed-in driver)
+$driverAccountId = require_driver();
+
 // Accept either ?id= or ?booking_id=
 $id = (int)($_GET['id'] ?? $_GET['booking_id'] ?? 0);
 
-if ($_SERVER['REQUEST_METHOD']==='POST') {
-  $id = (int)($_POST['id'] ?? 0);
-  $pax = max(1,(int)($_POST['pax'] ?? 1));
-  $pickup = trim($_POST['pickup'] ?? '');
-  $dropoff = trim($_POST['dropoff'] ?? '');
-  $dt = trim($_POST['scheduled_at'] ?? '');
+// Optional: easier debugging while we finalize
+// mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+// ini_set('display_errors', 1);
+// error_reporting(E_ALL);
 
-  $pickup_lat   = ($_POST['pickup_lat']  !== '' ? (float)$_POST['pickup_lat']  : null);
-  $pickup_lng   = ($_POST['pickup_lng']  !== '' ? (float)$_POST['pickup_lng']  : null);
-  $dropoff_lat  = ($_POST['dropoff_lat'] !== '' ? (float)$_POST['dropoff_lat'] : null);
-  $dropoff_lng  = ($_POST['dropoff_lng'] !== '' ? (float)$_POST['dropoff_lng'] : null);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $id     = (int)($_POST['id'] ?? 0);
+  $pax    = max(1, (int)($_POST['pax'] ?? 1));
+  $pickup = trim((string)($_POST['pickup'] ?? ''));
+  $dropoff= trim((string)($_POST['dropoff'] ?? ''));
+  $dt     = trim((string)($_POST['scheduled_at'] ?? ''));
 
+  // Hidden coord inputs (allow NULLs)
+  $pickup_lat  = ($_POST['pickup_lat']  !== '' ? (float)$_POST['pickup_lat']  : null);
+  $pickup_lng  = ($_POST['pickup_lng']  !== '' ? (float)$_POST['pickup_lng']  : null);
+  $dropoff_lat = ($_POST['dropoff_lat'] !== '' ? (float)$_POST['dropoff_lat'] : null);
+  $dropoff_lng = ($_POST['dropoff_lng'] !== '' ? (float)$_POST['dropoff_lng'] : null);
+
+  // Only allow editing of DIRECT (personal) bookings created by this driver
+  // and only while pending/accepted (not in_progress/completed/cancelled)
   $sql = "UPDATE bookings
              SET pax=?,
                  pickup_point=?, dropoff_point=?,
                  pickup_lat=?,  pickup_lng=?,
                  dropoff_lat=?, dropoff_lng=?,
                  scheduled_start_at=?, updated_at=NOW()
-           WHERE id=? AND booking_type='personal' AND created_by=? AND status IN ('pending','accepted')";
-  if ($st=$mysqli->prepare($sql)){
-    $st->bind_param('issddddsii',
-      $pax, $pickup, $dropoff,
+           WHERE id=? AND booking_type='personal'
+             AND created_by=? AND status IN ('pending','accepted')";
+  if ($st = $mysqli->prepare($sql)) {
+    // i s s d d d d s i i
+    $st->bind_param(
+      'issddddsii',
+      $pax,
+      $pickup, $dropoff,
       $pickup_lat, $pickup_lng,
       $dropoff_lat, $dropoff_lng,
       $dt, $id, $driverAccountId
     );
-    $st->execute(); $st->close();
+    $st->execute();
+    $st->close();
   }
+
   header('Location: driver-trips.php'); exit;
 }
 
+/* Load existing booking (must belong to this driver and be personal) */
 $row = null;
-if ($id>0) {
-  if ($st=$mysqli->prepare("SELECT id,pax,pickup_point,dropoff_point,scheduled_start_at,
-                                   pickup_lat,pickup_lng,dropoff_lat,dropoff_lng
-                              FROM bookings
-                             WHERE id=? AND booking_type='personal' AND created_by=? LIMIT 1")){
-    $st->bind_param('ii',$id,$driverAccountId); $st->execute(); $r=$st->get_result(); $row=$r->fetch_assoc(); $st->close();
+if ($id > 0) {
+  $sql = "SELECT id, pax, pickup_point, dropoff_point, scheduled_start_at,
+                 pickup_lat, pickup_lng, dropoff_lat, dropoff_lng
+            FROM bookings
+           WHERE id=? AND booking_type='personal' AND created_by=? LIMIT 1";
+  if ($st = $mysqli->prepare($sql)) {
+    $st->bind_param('ii', $id, $driverAccountId);
+    $st->execute();
+    $res = $st->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $st->close();
   }
 }
-function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
+
+function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 ?>
 <!doctype html>
 <html lang="en">
@@ -60,59 +85,76 @@ function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
   <?php include('vendor/inc/sidebar.php'); ?>
   <div id="content-wrapper">
     <div class="container-fluid">
-      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="driver-trips.php">Trips</a></li><li class="breadcrumb-item active">Edit</li></ol>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="driver-trips.php">Trips</a></li>
+        <li class="breadcrumb-item active">Edit</li>
+      </ol>
+
       <?php if(!$row): ?>
-        <div class="alert alert-warning">Not found or not editable.</div>
+        <div class="alert alert-warning">Not found, not yours, or not editable anymore.</div>
       <?php else: ?>
-      <form method="post" id="editTripForm">
-        <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-        <div class="card col-md-7 p-0">
-          <div class="card-body">
-            <div class="form-group"><label>Pax</label><input type="number" min="1" class="form-control" name="pax" value="<?php echo (int)$row['pax']; ?>"></div>
+        <form method="post" id="editTripForm">
+          <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
 
-            <div class="form-group">
-              <label>Pickup</label>
-              <div class="input-group">
-                <input class="form-control" id="pickup" name="pickup" value="<?php echo h($row['pickup_point']); ?>">
-                <div class="input-group-append">
-                  <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="pickup"><i class="fas fa-map-marker-alt"></i></button>
-                </div>
+          <div class="card col-md-7 p-0">
+            <div class="card-body">
+              <div class="form-group">
+                <label>Pax</label>
+                <input type="number" min="1" class="form-control" name="pax" value="<?php echo (int)$row['pax']; ?>">
               </div>
-              <input type="hidden" id="pickup_lat" name="pickup_lat" value="<?php echo h($row['pickup_lat']); ?>">
-              <input type="hidden" id="pickup_lng" name="pickup_lng" value="<?php echo h($row['pickup_lng']); ?>">
+
+              <div class="form-group">
+                <label>Pickup</label>
+                <div class="input-group">
+                  <input class="form-control" id="pickup" name="pickup" value="<?php echo h($row['pickup_point']); ?>">
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="pickup">
+                      <i class="fas fa-map-marker-alt"></i>
+                    </button>
+                  </div>
+                </div>
+                <input type="hidden" id="pickup_lat" name="pickup_lat" value="<?php echo h($row['pickup_lat']); ?>">
+                <input type="hidden" id="pickup_lng" name="pickup_lng" value="<?php echo h($row['pickup_lng']); ?>">
+              </div>
+
+              <div class="form-group">
+                <label>Dropoff</label>
+                <div class="input-group">
+                  <input class="form-control" id="dropoff" name="dropoff" value="<?php echo h($row['dropoff_point']); ?>">
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="dropoff">
+                      <i class="fas fa-map-pin"></i>
+                    </button>
+                  </div>
+                </div>
+                <input type="hidden" id="dropoff_lat" name="dropoff_lat" value="<?php echo h($row['dropoff_lat']); ?>">
+                <input type="hidden" id="dropoff_lng" name="dropoff_lng" value="<?php echo h($row['dropoff_lng']); ?>">
+              </div>
+
+              <div class="form-group">
+                <label>Scheduled At</label>
+                <input
+                  type="datetime-local"
+                  class="form-control"
+                  name="scheduled_at"
+                  value="<?php echo $row['scheduled_start_at'] ? date('Y-m-d\TH:i', strtotime($row['scheduled_start_at'])) : ''; ?>">
+              </div>
             </div>
 
-            <div class="form-group">
-              <label>Dropoff</label>
-              <div class="input-group">
-                <input class="form-control" id="dropoff" name="dropoff" value="<?php echo h($row['dropoff_point']); ?>">
-                <div class="input-group-append">
-                  <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="dropoff"><i class="fas fa-map-pin"></i></button>
-                </div>
-              </div>
-              <input type="hidden" id="dropoff_lat" name="dropoff_lat" value="<?php echo h($row['dropoff_lat']); ?>">
-              <input type="hidden" id="dropoff_lng" name="dropoff_lng" value="<?php echo h($row['dropoff_lng']); ?>">
-            </div>
-
-            <div class="form-group">
-              <label>Scheduled At</label>
-              <input type="datetime-local" class="form-control" name="scheduled_at"
-                     value="<?php echo $row['scheduled_start_at']? date('Y-m-d\TH:i',strtotime($row['scheduled_start_at'])):''; ?>">
+            <div class="card-footer d-flex">
+              <button class="btn btn-primary mr-2">Save</button>
+              <a class="btn btn-outline-secondary" href="driver-trips.php">Cancel</a>
             </div>
           </div>
-          <div class="card-footer d-flex">
-            <button class="btn btn-primary mr-2">Save</button>
-            <a class="btn btn-outline-secondary" href="driver-trips.php">Cancel</a>
-          </div>
-        </div>
-      </form>
+        </form>
       <?php endif; ?>
+
       <?php include('vendor/inc/footer.php'); ?>
     </div>
   </div>
 </div>
 
-<!-- Shared Map Picker Modal (same component) -->
+<!-- Shared Map Picker Modal -->
 <div class="modal fade" id="mapModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
     <div class="modal-content">
@@ -124,7 +166,9 @@ function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
         <div class="form-group mb-2">
           <div class="input-group">
             <input id="geoQuery" type="text" class="form-control" placeholder="Search address / place">
-            <div class="input-group-append"><button id="btnGeoSearch" class="btn btn-outline-secondary" type="button"><i class="fas fa-search"></i></button></div>
+            <div class="input-group-append">
+              <button id="btnGeoSearch" class="btn btn-outline-secondary" type="button"><i class="fas fa-search"></i></button>
+            </div>
           </div>
           <div id="geoResults" class="nominatim-results mt-2" style="max-height:160px; overflow:auto; border:1px solid #eaecef; border-radius:.25rem;"></div>
         </div>
@@ -160,7 +204,7 @@ function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
     });
   })();
 
-  /* ===== Autocomplete (same engine as create modal) ===== */
+  /* ===== Autocomplete (Photon → fallback Nominatim) ===== */
   function composePhotonLabel(f){
     if (!f || !f.properties) return '';
     const p = f.properties, parts = [];
@@ -200,10 +244,13 @@ function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
     return $.ajax({
       url, method:'GET', dataType:'json', timeout:8000,
       headers: {'Accept':'application/json','Accept-Language':'en-PH'},
-      data: { format:'jsonv2', lat, lon }
-    }).then(rec=>rec && rec.display_name ? rec.display_name : null).catch(()=>null);
+      data: { format:'jsonv2', lat, lon, zoom:18, addressdetails:1, namedetails:1 }
+    }).then(rec=>rec && (rec.name || rec.display_name) ? (rec.name || rec.display_name) : null)
+      .catch(()=>null);
   }
-  function reverseNice(lat, lon){ return nominatimReverse(lat,lon).then(lbl => lbl || (lat.toFixed(6)+', '+lon.toFixed(6))); }
+  function reverseNice(lat, lon){
+    return nominatimReverse(lat,lon).then(lbl => lbl || (lat.toFixed(6)+', '+lon.toFixed(6)));
+  }
 
   function attachAutocomplete($input, $lat, $lng){
     if ($input.data('kaya-autocomplete')) return;
@@ -222,13 +269,18 @@ function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
             nominatimSearch(req.term,8).then(list=>{
               resp((list||[]).map(it=>{
                 const label = composeNominatimLabel(it);
-                return {label: label, value: label, lat: parseFloat(it.lat), lon: parseFloat(it.lon)};
+                return { label: label, value: label, lat: parseFloat(it.lat), lon: parseFloat(it.lon) };
               }));
             }).catch(()=>resp([]));
           }
         }).catch(()=>resp([]));
       },
-      select: function(e, ui){ if (ui && ui.item){ $lat.val(parseFloat(ui.item.lat).toFixed(8)); $lng.val(parseFloat(ui.item.lon).toFixed(8)); } },
+      select: function(e, ui){
+        if (ui && ui.item){
+          $lat.val(parseFloat(ui.item.lat).toFixed(8));
+          $lng.val(parseFloat(ui.item.lon).toFixed(8));
+        }
+      },
       open: function(){ $('.ui-autocomplete').css('z-index', 2000); }
     });
     $input.on('input', function(){ $lat.val(''); $lng.val(''); });
@@ -314,7 +366,7 @@ function h($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
       $('#'+pickingFor+'_lng').val(pos.lng.toFixed(8));
       $('#mapModal').modal('hide');
     };
-    if (lastPicked.lat===pos.lat && lastPicked.lng===pos.lng && lastPicked.label){ apply(lastPicked.label); }
+    if (lastPicked.label){ apply(lastPicked.label); }
     else { reverseNice(pos.lat,pos.lng).then(apply).catch(function(){ apply(''); }); }
   });
 </script>
