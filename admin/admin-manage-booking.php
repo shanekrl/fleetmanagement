@@ -51,7 +51,7 @@ if (table_exists($mysqli,'v_booking_grid')) {
           FROM bookings b
           LEFT JOIN accounts c ON c.id=b.client_id
           LEFT JOIN accounts d ON d.id=b.driver_id
-          LEFT JOIN tms.vehicle v ON v.id=b.v_id
+          LEFT JOIN tms_vehicle v ON v.id=b.v_id
           WHERE b.status IN ('cancelled','rejected')
           ORDER BY COALESCE(b.scheduled_start_at, b.created_at) DESC, b.id DESC";
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
