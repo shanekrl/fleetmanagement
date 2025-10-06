@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../admin/vendor/inc/config.php';
 require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-$driverUserId = require_driver();
+$driverUserId = require_driver;
 $driverAddId = null;
 if ($driverUserId) {
   if ($s=$mysqli->prepare("SELECT d.d_u_id FROM tms_user u JOIN tms_user_add_driver d ON d.u_email=u.u_email WHERE u.u_id=? LIMIT 1")){
