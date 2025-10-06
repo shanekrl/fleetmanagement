@@ -1,18 +1,18 @@
 <?php
+// Driver login page (uses shared admin config + unified auth flow)
 session_start();
-include('admin/vendor/inc/config.php');
+require_once __DIR__ . '/admin/vendor/inc/config.php'; // single source of $mysqli
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <?php include("vendor/inc/head.php");?>
+  <?php include __DIR__ . '/vendor/inc/head.php'; ?>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/login.css">
 
   <style>
     :root{ --kaya-ink:#000047; --kaya-nav:#0A0F2C; --kaya-border:#e5e7eb; }
     html,body{height:100%; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:#111827;}
-
     .split-container{display:flex; min-height:100vh; margin:0; padding:0; background:#f8fafc;}
     .left-side{ flex:1; position:relative; background:#0b102f;
       background-image:url('assets/images/login-bg.jpg'); background-size:cover; background-position:center; }
@@ -23,12 +23,10 @@ include('admin/vendor/inc/config.php');
     .brand{ font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#fff; font-size:1.1rem; opacity:.9; }
     .hero-title{font-weight:800; font-size:2.1rem; line-height:1.15; margin:.75rem 0 .5rem;}
     .hero-sub{opacity:.9; max-width:34ch}
-
     .right-side{flex:1; display:flex; align-items:center; justify-content:center; padding:2rem;}
     .login-form-box{ width:420px; max-width:94vw; background:#fff; border:1px solid var(--kaya-border);
       border-radius:1rem; box-shadow:0 14px 40px rgba(2,6,23,.08); padding:1.75rem 1.5rem 2rem; }
     .login-title{ font-weight:800; color:var(--kaya-ink); font-size:1.75rem; line-height:1.2; text-align:center; margin:0 0 1rem; }
-
     .kaya-field{ margin-bottom:1rem; }
     .kaya-field label{ display:block; font-weight:600; color:#374151; font-size:.92rem; margin-bottom:.35rem; }
     .kaya-ctrl{ position:relative; background:#eef2ff; border-radius:.6rem; }
@@ -39,19 +37,15 @@ include('admin/vendor/inc/config.php');
     .kaya-input{ width:100%; border:none; outline:0; background:transparent;
       padding:.8rem .9rem .7rem 2.2rem; border-radius:.6rem; font-size:1rem; color:#111827; }
     .kaya-input:focus{ box-shadow:inset 0 0 0 2px rgba(0,0,71,.08); }
-
     .btn-kaya-primary{ display:block; width:100%; background:var(--kaya-nav); border:1px solid var(--kaya-nav);
       color:#fff; padding:.9rem 1rem; border-radius:9999px; font-weight:700; letter-spacing:.02em; }
     .btn-kaya-primary:hover{ background:#0c1438; border-color:#0c1438; color:#fff; }
-
     .login-meta{ text-align:center; margin-top:1rem; font-size:.92rem; }
     .login-meta a{ color:var(--kaya-ink); font-weight:600; }
-
     @media (max-width: 992px){ .left-content{ padding:2rem; } }
     @media (max-width: 768px){ .split-container{flex-direction:column;} .left-side{ display:none; } }
   </style>
 </head>
-
 <body class="split-container">
 
   <aside class="left-side">
@@ -70,7 +64,8 @@ include('admin/vendor/inc/config.php');
         <div class="alert alert-danger mb-3"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
       <?php endif; ?>
 
-      <form action="login-process.php" method="post" autocomplete="off">
+      <form action="login-process.php" method="post" autocomplete="off" novalidate>
+        <!-- Tell login-process we expect a DRIVER account -->
         <input type="hidden" name="expect_role" value="driver">
 
         <div class="kaya-field">

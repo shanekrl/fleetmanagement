@@ -1,27 +1,25 @@
 <?php
-// usr/user-dashboard.php - driver view (uses new db sch)
+// usr/user-dashboard.php — Driver dashboard using shared config + guards
 session_start();
-// usr/user-dashboard.php
-require_once __DIR__ . '/../admin/vendor/inc/config.php'; // <- point to the same one
-//require_once __DIR__ . '/vendor/inc/checklogin.php';
-require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
-check_login();
 
-//error checking
+require_once __DIR__ . '/../admin/vendor/inc/config.php';      // share the same mysqli/config
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';  // unified guards
+
+// Enforce authentication & driver role
+check_login('driver');                 // sets session if legacy
+$driverAccountId = require_driver();   // returns accounts.id (or legacy fallback)
+
+// error visibility (remove on production)
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-$driverAccountId = require_driver();
-
-
-/* Signed-in driver (accounts.id) */
-//$driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
-
-$tripRequests = [];
+// Data buckets
+$tripRequests  = [];
 $incomingTrips = [];
 
-if ($driverAccountId) {
+// Fetch data only if we have a valid driver account id
+if ($driverAccountId > 0) {
   // Trip Requests (awaiting decision)
   if ($s = $mysqli->prepare("
       SELECT id AS booking_id, booking_type, pickup_point, dropoff_point,
@@ -37,7 +35,7 @@ if ($driverAccountId) {
     $s->close();
   }
 
-  // Incoming (already accepted or in progress)
+  // Incoming (accepted or in-progress)
   if ($s = $mysqli->prepare("
       SELECT id AS booking_id, booking_type, pickup_point, dropoff_point,
              COALESCE(scheduled_start_at, created_at) AS scheduled_start_at,
@@ -78,7 +76,7 @@ function badge_color($s){
 <head>
   <?php include __DIR__ . '/vendor/inc/head.php'; ?>
 
-  <!-- fallback so start/resume is visible even if tw fails -->
+  <!-- fallback so start/resume is visible even if Tailwind fails -->
   <style>
     .btn-start {
       background:#000047 !important;
@@ -299,7 +297,7 @@ function badge_color($s){
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
 
-  <!-- Trip Log Modal (left intact from your snippet) -->
+  <!-- Trip Log Modal (kept for future) -->
   <div class="modal fade" id="logTripModal" tabindex="-1" role="dialog" aria-labelledby="logTripModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document" >
       <div class="modal-content">
@@ -341,6 +339,5 @@ function badge_color($s){
       </div>
     </div>
   </div>
-
 </body>
 </html>
