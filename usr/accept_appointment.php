@@ -1,10 +1,9 @@
 <?php
 session_start();
-include('vendor/inc/config.php');
-include('vendor/inc/checklogin.php');
-check_login();
+require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-$driverAccountId = (int)($_SESSION['account_id'] ?? 0);
+$driverAccountId = require_driver();
 $bookingId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
 if (!$driverAccountId || !$bookingId) {

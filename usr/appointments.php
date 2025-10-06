@@ -1,8 +1,7 @@
 <?php
 session_start();
-include('vendor/inc/config.php');
-include('vendor/inc/checklogin.php');
-check_login();
+require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 // Fetch appointment schedules from DB
 $appointments = [];
 $result = $mysqli->query("

@@ -1,11 +1,9 @@
 <?php
 session_start();
-include('vendor/inc/config.php');
-include('vendor/inc/checklogin.php');
-check_login();
+require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-// Use the same account id style as driver-trips
-$driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? $_SESSION['u_id'] ?? 0);
+$driveraccountId = require_driver(); // ensure driver auth and get accounts.id
 // Accept either ?id= or ?booking_id=
 $id = (int)($_GET['id'] ?? $_GET['booking_id'] ?? 0);
 
