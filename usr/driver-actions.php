@@ -20,7 +20,7 @@ $tryPaths = [
   $HERE . '/../vendor/inc/checklogin.php'
 ];
 foreach ($tryPaths as $p) { if (file_exists($p)) { require_once $p; break; } }
-if (function_exists('check_login')) { check_login(); }
+if (function_exists('require_driver')) { require_driver(); }
 
 header('Content-Type: application/json');
 
