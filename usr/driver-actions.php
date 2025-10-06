@@ -2,20 +2,21 @@
 // driver-actions.php  (works from project root OR /usr)
 // JSON API for driver actions on NEW DB (bookings, booking_runs, booking_events)
 
-session_start();
+session_start();require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
 /* Robust includes whether this file lives at / or /usr */
 $HERE = __DIR__;
 $tryPaths = [
-  $HERE . '/vendor/inc/config.php',
-  $HERE . '/../vendor/inc/config.php'
+  $HERE . '/../admin/vendor/inc/config.php',
+  $HERE . '/../admin/vendor/inc/checklogin.php'
 ];
 $found = false;
 foreach ($tryPaths as $p) { if (file_exists($p)) { require_once $p; $found = true; break; } }
 if (!$found) { http_response_code(500); header('Content-Type: application/json'); echo json_encode(['error'=>'Config not found']); exit; }
 
 $tryPaths = [
-  $HERE . '/vendor/inc/checklogin.php',
+  $HERE . '/../admin/vendor/inc/checklogin.php',
   $HERE . '/../vendor/inc/checklogin.php'
 ];
 foreach ($tryPaths as $p) { if (file_exists($p)) { require_once $p; break; } }
@@ -34,7 +35,7 @@ if (!$action || !$bookingId) {
 }
 
 /* Current driver id (accounts.id) */
-$driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
+$driverAccountId = require_driver();
 if (!$driverAccountId) { http_response_code(403); echo json_encode(['error'=>'Not signed in']); exit; }
 
 /* Load booking (NEW DB ONLY) */
