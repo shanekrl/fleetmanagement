@@ -5,6 +5,11 @@ require_once __DIR__ . '/vendor/inc/config.php';
 require_once __DIR__ . '/vendor/inc/checklogin.php';
 check_login();
 
+//error checking
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 /* Signed-in driver (accounts.id) */
 $driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
 
