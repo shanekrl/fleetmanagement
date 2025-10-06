@@ -4,6 +4,12 @@ include('vendor/inc/config.php');
 include('vendor/inc/checklogin.php');
 check_login();
 
+//error checking
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+
 $mysqli->set_charset('utf8mb4');
 @$mysqli->query("SET collation_connection='utf8mb4_unicode_ci'");
 
