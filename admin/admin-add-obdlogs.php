@@ -29,10 +29,10 @@ $load        = $inputData["engine_performance"]["load"] ?? "";
 $throttle    = $inputData["engine_performance"]["throttle"] ?? "";
 
 // Temperatures
-$coolant_temp = $inputData["temperatures"]["coolant_temp"] ?? "";
-$intake_air_temp = $inputData["temperatures"]["intake_air_temp"] ?? "";
-$ambient_temp = $inputData["temperatures"]["ambient_temp"] ?? "";
-$oil_temp     = $inputData["temperatures"]["oil_temp"] ?? "";
+$coolant_temp     = $inputData["temperatures"]["coolant_temp"] ?? "";
+$intake_air_temp  = $inputData["temperatures"]["intake_air_temp"] ?? "";
+$ambient_temp     = $inputData["temperatures"]["ambient_temp"] ?? "";
+$oil_temp         = $inputData["temperatures"]["oil_temp"] ?? "";
 
 // Air/Fuel
 $map          = $inputData["air_fuel"]["map"] ?? "";
@@ -40,20 +40,20 @@ $maf          = $inputData["air_fuel"]["maf"] ?? "";
 $fuel_level   = $inputData["air_fuel"]["fuel_level"] ?? "";
 $fuel_type    = $inputData["air_fuel"]["fuel_type"] ?? "Gasoline";
 
-// Extra sensor data (added)
-$fuel_pressure     = $inputData["extra"]["fuel_pressure"] ?? "";
-$fuel_rate         = $inputData["extra"]["fuel_rate"] ?? "";
-$battery_voltage   = $inputData["extra"]["battery_voltage"] ?? "";
-$odometer          = $inputData["extra"]["odometer"] ?? "";
-$mil_status        = $inputData["extra"]["mil_status"] ?? "";
-$timing_advance    = $inputData["extra"]["timing_advance"] ?? "";
-$stft              = $inputData["extra"]["stft"] ?? "";
-$ltft              = $inputData["extra"]["ltft"] ?? "";
-$fuel_rail_pressure= $inputData["extra"]["fuel_rail_pressure"] ?? "";
-$atf_temp          = $inputData["extra"]["atf_temp"] ?? "";
-$distance_mil      = $inputData["extra"]["distance_mil"] ?? "";
-$distance_clear    = $inputData["extra"]["distance_clear"] ?? "";
-$run_time          = $inputData["extra"]["run_time"] ?? "";
+// Extra sensor data
+$fuel_pressure      = $inputData["extra"]["fuel_pressure"] ?? "";
+$fuel_rate          = $inputData["extra"]["fuel_rate"] ?? "";
+$battery_voltage    = $inputData["extra"]["battery_voltage"] ?? "";
+$odometer           = $inputData["extra"]["odometer"] ?? "";
+$mil_status         = $inputData["extra"]["mil_status"] ?? "";
+$timing_advance     = $inputData["extra"]["timing_advance"] ?? "";
+$stft               = $inputData["extra"]["stft"] ?? "";
+$ltft               = $inputData["extra"]["ltft"] ?? "";
+$fuel_rail_pressure = $inputData["extra"]["fuel_rail_pressure"] ?? "";
+$atf_temp           = $inputData["extra"]["atf_temp"] ?? "";
+$distance_mil       = $inputData["extra"]["distance_mil"] ?? "";
+$distance_clear     = $inputData["extra"]["distance_clear"] ?? "";
+$run_time           = $inputData["extra"]["run_time"] ?? "";
 
 // ==========================
 // FETCH MOVEMENTS BY DATE
