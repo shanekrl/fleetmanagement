@@ -1,77 +1,75 @@
 <?php
-  session_start();
-  include('vendor/inc/config.php');
-  include('vendor/inc/checklogin.php');
-  check_login();
+session_start();
+require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-  // Prefer accounts id; fall back to legacy user id
-  $accountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
-  $legacyUid = (int)($_SESSION['u_id'] ?? 0);
+$accountId = require_driver(); // ensure driver auth and get accounts.id
+$legacyUid = (int)($_SESSION['u_id'] ?? 0);
 
-  function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
-  $profile = null;
+$profile = null;
 
-  // Try modern schema first
-  if ($accountId > 0) {
-    if ($q = $mysqli->prepare("
-        SELECT COALESCE(NULLIF(TRIM(a.name),''),'Driver') AS name,
-               COALESCE(a.email,'')  AS email,
-               COALESCE(a.phone,'')  AS phone,
-               COALESCE(dp.address,'')        AS address,
-               COALESCE(dp.license_no,'')     AS license_no,
-               COALESCE(dp.current_status,'') AS current_status
+/* Try modern schema first */
+if ($accountId > 0) {
+  if ($q = $mysqli->prepare("
+      SELECT COALESCE(NULLIF(TRIM(a.name),''),'Driver') AS name,
+             COALESCE(a.email,'')  AS email,
+             COALESCE(a.phone,'')  AS phone,
+             COALESCE(dp.address,'')        AS address,
+             COALESCE(dp.license_no,'')     AS license_no,
+             COALESCE(dp.current_status,'') AS current_status
         FROM accounts a
-        LEFT JOIN driver_profile dp ON dp.account_id = a.id
-        WHERE a.id = ?
-        LIMIT 1
-    ")) {
-      $q->bind_param('i', $accountId);
-      $q->execute();
-      $res = $q->get_result();
-      $profile = $res ? $res->fetch_assoc() : null;
-      $q->close();
-    }
+   LEFT JOIN driver_profile dp ON dp.account_id = a.id
+       WHERE a.id = ?
+       LIMIT 1
+  ")) {
+    $q->bind_param('i', $accountId);
+    $q->execute();
+    $res = $q->get_result();
+    $profile = $res ? $res->fetch_assoc() : null;
+    $q->close();
   }
+}
 
-  // Fallback to legacy tms_user if not found
-  if (!$profile && $legacyUid > 0) {
-    if ($q = $mysqli->prepare("
-        SELECT TRIM(CONCAT(COALESCE(u_fname,''),' ',COALESCE(u_lname,''))) AS name,
-               COALESCE(u_email,'')  AS email,
-               COALESCE(u_phone,'')  AS phone,
-               COALESCE(u_addr,'')   AS address
+/* Fallback to legacy tms_user if not found */
+if (!$profile && $legacyUid > 0) {
+  if ($q = $mysqli->prepare("
+      SELECT TRIM(CONCAT(COALESCE(u_fname,''),' ',COALESCE(u_lname,''))) AS name,
+             COALESCE(u_email,'')  AS email,
+             COALESCE(u_phone,'')  AS phone,
+             COALESCE(u_addr,'')   AS address
         FROM tms_user
-        WHERE u_id = ?
-        LIMIT 1
-    ")) {
-      $q->bind_param('i', $legacyUid);
-      $q->execute();
-      $res = $q->get_result();
-      $legacy = $res ? $res->fetch_assoc() : null;
-      $q->close();
+       WHERE u_id = ?
+       LIMIT 1
+  ")) {
+    $q->bind_param('i', $legacyUid);
+    $q->execute();
+    $res = $q->get_result();
+    $legacy = $res ? $res->fetch_assoc() : null;
+    $q->close();
 
-      if ($legacy) {
-        $profile = [
-          'name'           => $legacy['name'] ?: 'Driver',
-          'email'          => $legacy['email'] ?? '',
-          'phone'          => $legacy['phone'] ?? '',
-          'address'        => $legacy['address'] ?? '',
-          'license_no'     => '',
-          'current_status' => ''
-        ];
-      }
+    if ($legacy) {
+      $profile = [
+        'name'           => $legacy['name'] ?: 'Driver',
+        'email'          => $legacy['email'] ?? '',
+        'phone'          => $legacy['phone'] ?? '',
+        'address'        => $legacy['address'] ?? '',
+        'license_no'     => '',
+        'current_status' => ''
+      ];
     }
   }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
-  <?php include('vendor/inc/head.php'); ?>
+  <?php include __DIR__ . '/vendor/inc/head.php'; ?>
   <body id="page-top">
-    <?php include('vendor/inc/nav.php'); ?>
+    <?php include __DIR__ . '/vendor/inc/nav.php'; ?>
 
     <div id="wrapper">
-      <?php include('vendor/inc/sidebar.php'); ?>
+      <?php include __DIR__ . '/vendor/inc/sidebar.php'; ?>
 
       <div id="content-wrapper">
         <div class="container-fluid">
@@ -143,7 +141,7 @@
             <div class="alert alert-warning">We couldn’t find your profile details.</div>
           <?php endif; ?>
 
-          <?php include('vendor/inc/footer.php'); ?>
+          <?php include __DIR__ . '/vendor/inc/footer.php'; ?>
         </div>
       </div>
     </div>
@@ -158,7 +156,7 @@
     <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
     <script src="vendor/js/sb-admin.min.js"></script>
 
-    <!-- Sidebar toggle helper (ensures hamburger works) -->
+    <!-- Sidebar toggle helper -->
     <script>
       (function () {
         var btn = document.getElementById('sidebarToggle');

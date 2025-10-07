@@ -1,11 +1,10 @@
 <?php
 // usr/driver-trips.php — Driver Trips (Completed / Cancelled) + Direct Booking modal + location picker
 session_start();
-require_once __DIR__ . '/vendor/inc/config.php';
-require_once __DIR__ . '/vendor/inc/checklogin.php';
-check_login();
+require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-$driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
+$driverAccountId = require_driver();
 
 /* ---------- helpers ---------- */
 function table_exists(mysqli $db, string $t): bool {
@@ -244,7 +243,7 @@ if ($driverAccountId) {
 </div>
 
 <!-- New Direct Booking Modal -->
-<div class="modal fade" id="newTripModal" tabindex="-1" role="dialog" aria-labelledby="newTripLabel" aria-hidden="true">
+ <div class="modal fade" id="newTripModal" tabindex="-1" role="dialog" aria-labelledby="newTripLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
     <div class="modal-content">
       <form id="newTripForm">
@@ -314,7 +313,7 @@ if ($driverAccountId) {
           <div id="geoResults" class="nominatim-results mt-2"></div>
         </div>
         <div id="kayaMap"></div>
-        <small class="text-muted d-block mt-2">Drag the marker to fine-tune. We’ll reverse-geocode and fill the field.</small>
+        <small class="text-muted d-block mt-2">Drag the marker to fine-tune. We will reverse-geocode and fill the field.</small>
       </div>
       <div class="modal-footer">
         <button type="button" id="btnUsePoint" class="btn btn-kaya"><i class="fas fa-check mr-1"></i> Use this point</button>
@@ -323,6 +322,7 @@ if ($driverAccountId) {
     </div>
   </div>
 </div>
+<!-- ... (modal + map code unchanged) ... -->
 
 <!-- JS -->
 <script src="vendor/jquery/jquery.min.js"></script>
@@ -621,4 +621,3 @@ function reverseNice(lat, lon){
 
 </body>
 </html>
-

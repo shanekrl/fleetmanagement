@@ -1,11 +1,10 @@
 <?php
 // usr/driver-trip-start.php — full-screen live trip card
 session_start();
-require_once __DIR__ . '/vendor/inc/config.php';
-require_once __DIR__ . '/vendor/inc/checklogin.php';
-check_login();
+require_once __DIR__ . '/../admin/vendor/inc/config.php';
+require_once __DIR__ . '/../admin/vendor/inc/checklogin.php';
 
-$driverAccountId = (int)($_SESSION['account_id'] ?? $_SESSION['driver_account_id'] ?? 0);
+$driverAccountId = require_driver();
 $bookingId       = (int)($_GET['booking_id'] ?? 0);
 if (!$driverAccountId || !$bookingId) { header('Location: user-dashboard.php'); exit; }
 
@@ -23,9 +22,7 @@ if ($s = $mysqli->prepare("
 }
 if (!$booking) { header('Location: user-dashboard.php'); exit; }
 
-/* If user landed here while the trip is still ACCEPTED,
-   immediately flip it to IN PROGRESS (auto-start) so the
-   screen always shows Cancel + End Trip like the prototype. */
+/* If user landed here while the trip is still ACCEPTED, flip to IN PROGRESS */
 if ($booking['status'] === 'accepted') {
   if ($u = $mysqli->prepare("UPDATE bookings SET status='in_progress', updated_at=NOW()
                               WHERE id=? AND driver_id=? AND status='accepted'")) {
@@ -121,7 +118,6 @@ function badge_color($s){
         </button>
       </div>
     <?php else: ?>
-      <!-- Fallback (shouldn’t show because we auto-start above) -->
       <a class="px-4 py-2 rounded-xl text-white bg-[#000047] text-sm font-semibold" href="user-dashboard.php">
         Back to Dashboard
       </a>
@@ -136,7 +132,6 @@ function badge_color($s){
   </div>
 
   <script>
-    // Actions API endpoint (this file and the API are both inside /usr/)
     const ACTION_URL = 'driver-actions.php';
     const bookingId  = <?= (int)$booking['booking_id'] ?>;
 

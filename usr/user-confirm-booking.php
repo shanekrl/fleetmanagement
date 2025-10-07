@@ -2,7 +2,7 @@
   session_start();
   include('vendor/inc/config.php');
   include('vendor/inc/checklogin.php');
-  check_login();
+  check_login(driver);
   $aid=$_SESSION['u_id'];
   //Add Booking
   if(isset($_POST['book_vehicle']))
@@ -61,7 +61,7 @@
                     100);
                 </script>
                 <?php } ?>
-                 </p> -->
+                 </p>
                 <!-- Breadcrumbs-->
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">

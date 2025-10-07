@@ -9,7 +9,6 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-
 $mysqli->set_charset('utf8mb4');
 @$mysqli->query("SET collation_connection='utf8mb4_unicode_ci'");
 
@@ -28,6 +27,7 @@ define('ACTION_ENDPOINT','booking_actions.php');
 /* data */
 $rows = [];
 if (table_exists($mysqli,'v_booking_grid')) {
+  // Preferred: already mapped to your real tables/columns
   $sql = "SELECT booking_id, scheduled_at, created_at, client_name, pax,
                  pickup, dropoff, vehicle_reg_no, booking_type, driver_name,
                  status
@@ -37,6 +37,7 @@ if (table_exists($mysqli,'v_booking_grid')) {
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
 } elseif (table_exists($mysqli,'bookings')) {
+<<<<<<< HEAD
   $sql = "SELECT b.id AS booking_id,
                  COALESCE(b.scheduled_start_at, b.created_at) AS scheduled_at,
                  b.created_at,
@@ -48,26 +49,43 @@ if (table_exists($mysqli,'v_booking_grid')) {
                  b.booking_type,
                  d.name          AS driver_name,
                  b.status
+=======
+  // Fallback: align with schema (bookings.vehicle_id -> tms_vehicle.v_id ; plate -> v_reg_no)
+  $sql = "SELECT 
+              b.id AS booking_id,
+              COALESCE(b.scheduled_start_at, b.created_at) AS scheduled_at,
+              b.created_at,
+              COALESCE(b.contact_name, COALESCE(c.name,'')) AS client_name,
+              b.pax,
+              b.pickup_point  AS pickup,
+              b.dropoff_point AS dropoff,
+              v.v_reg_no      AS vehicle_reg_no,
+              b.booking_type,
+              d.name          AS driver_name,
+              b.status
+>>>>>>> 6fe53416fe58332cad9a1fc6e40b9f02e79dde0b
           FROM bookings b
-          LEFT JOIN accounts c ON c.id=b.client_id
-          LEFT JOIN accounts d ON d.id=b.driver_id
-          LEFT JOIN tms_vehicle v ON v.id=b.v_id
+          LEFT JOIN accounts c ON c.id = b.client_id
+          LEFT JOIN accounts d ON d.id = b.driver_id
+          LEFT JOIN tms_vehicle v ON v.v_id = b.vehicle_id
           WHERE b.status IN ('cancelled','rejected')
           ORDER BY COALESCE(b.scheduled_start_at, b.created_at) DESC, b.id DESC";
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
 } elseif (table_exists($mysqli,'tms_user')) {
-  $sql = "SELECT u_id AS booking_id,
-                 FROM_UNIXTIME(NULLIF(u_car_createdat,0)) AS created_at,
-                 NULL AS scheduled_at,
-                 CONCAT(COALESCE(u_fname,''),' ',COALESCE(u_lname,'')) AS client_name,
-                 NULLIF(u_car_pax,'') AS pax,
-                 u_car_pickup  AS pickup,
-                 u_car_destination AS dropoff,
-                 u_car_regno   AS vehicle_reg_no,
-                 'admin'       AS booking_type,
-                 u_car_driver  AS driver_name,
-                 'cancelled'   AS status
+  // Legacy fallback (matches legacy columns)
+  $sql = "SELECT 
+              u_id AS booking_id,
+              FROM_UNIXTIME(NULLIF(u_car_createdat,0)) AS created_at,
+              NULL AS scheduled_at,
+              CONCAT(COALESCE(u_fname,''),' ',COALESCE(u_lname,'')) AS client_name,
+              NULLIF(u_car_pax,'') AS pax,
+              u_car_pickup  AS pickup,
+              u_car_destination AS dropoff,
+              u_car_regno   AS vehicle_reg_no,
+              'admin'       AS booking_type,
+              u_car_driver  AS driver_name,
+              'cancelled'   AS status
           FROM tms_user
           WHERE u_car_book_status IN ('Cancel','Cancelled')
           ORDER BY u_id DESC";
@@ -171,7 +189,6 @@ if (table_exists($mysqli,'v_booking_grid')) {
                       <i class="fas fa-undo"></i>
                     </button>
                   </form>
-                  <!-- Delete removed by request -->
                 </td>
               </tr>
               <?php endforeach; ?>

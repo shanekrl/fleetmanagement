@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 05, 2025 at 03:16 PM
+-- Generation Time: Oct 06, 2025 at 06:53 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.1.25
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -95,7 +95,21 @@ INSERT INTO `audit_logs` (`id`, `occurred_at`, `actor_id`, `actor_email`, `actor
 (2, '2025-10-05 20:35:35', 1, NULL, NULL, '', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/138.0.0.0 Safari\\/537.36 OPR\\/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
 (3, '2025-10-05 20:36:03', 13, NULL, NULL, '', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/138.0.0.0 Safari\\/537.36 OPR\\/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL),
 (4, '2025-10-05 21:14:55', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
-(5, '2025-10-05 21:15:18', 13, 'tiponjovita@gmail.com', 'admin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL);
+(5, '2025-10-05 21:15:18', 13, 'tiponjovita@gmail.com', 'admin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL),
+(6, '2025-10-06 10:52:27', 13, 'tiponjovita@gmail.com', 'admin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL),
+(7, '2025-10-06 10:59:45', 13, 'tiponjovita@gmail.com', 'admin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '13', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"admin\",\"status\":\"success\"}', NULL),
+(8, '2025-10-06 11:15:48', 13, 'tiponjovita@gmail.com', 'admin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'booking_restore', 'account', '5', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"status\":\"success\",\"portal\":\"admin\",\"to\":\"awaiting_driver\"}', NULL),
+(9, '2025-10-06 13:47:24', 12, 'm.valencia@gmail.com', 'driver', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '12', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"driver\",\"status\":\"success\"}', NULL),
+(10, '2025-10-06 14:13:25', 12, 'm.valencia@gmail.com', 'driver', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '12', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"driver\",\"status\":\"success\"}', NULL),
+(11, '2025-10-06 14:15:46', 12, 'm.valencia@gmail.com', 'driver', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '12', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"driver\",\"status\":\"success\"}', NULL),
+(12, '2025-10-06 14:17:58', 12, 'm.valencia@gmail.com', 'driver', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '12', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"driver\",\"status\":\"success\"}', NULL),
+(13, '2025-10-06 15:20:01', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
+(14, '2025-10-06 15:20:50', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
+(15, '2025-10-06 16:34:05', 8, 'r.cabral@gmail.com', 'driver', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '8', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"driver\",\"status\":\"success\"}', NULL),
+(16, '2025-10-06 18:17:13', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL),
+(17, '2025-10-06 18:18:25', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'booking_create', 'account', '9', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"status\":\"success\",\"portal\":\"admin\",\"booking_type\":\"admin\",\"pax\":1,\"driver_id\":12,\"vehicle_id\":7,\"scheduled_at\":\"2025-10-23 18:17:00\",\"pickup_point\":\"Angeles University Foundation Sports and Culture Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines\",\"dropoff_point\":\"Systems Plus College Foundation, Rizal Street, Angeles, Central Luzon, Philippines\"}', NULL),
+(18, '2025-10-06 18:18:46', 12, 'm.valencia@gmail.com', 'driver', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '12', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"driver\",\"status\":\"success\"}', NULL),
+(19, '2025-10-06 18:19:16', 1, 'admin@gmail.com', 'superadmin', 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', 'login_success', 'account', '1', 'success', NULL, '{\"ip\":\"::1\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0\"}', '{\"role\":\"superadmin\",\"status\":\"success\"}', NULL);
 
 -- --------------------------------------------------------
 
@@ -123,7 +137,19 @@ INSERT INTO `auth_logins` (`id`, `account_id`, `ip_addr`, `user_agent`, `login_a
 (0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:09:58'),
 (0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:10:23'),
 (0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:14:55'),
-(0, 13, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:15:18');
+(0, 13, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0 (Edition std-2)', '2025-10-05 21:15:18'),
+(0, 13, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 10:52:27'),
+(0, 13, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 10:59:45'),
+(0, 12, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 13:47:24'),
+(0, 12, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 14:13:25'),
+(0, 12, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 14:15:46'),
+(0, 12, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 14:17:58'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 15:20:01'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 15:20:50'),
+(0, 8, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 16:34:05'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 18:17:13'),
+(0, 12, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 18:18:46'),
+(0, 1, 0x00000000000000000000000000000001, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 OPR/122.0.0.0', '2025-10-06 18:19:16');
 
 -- --------------------------------------------------------
 
@@ -164,10 +190,11 @@ INSERT INTO `bookings` (`id`, `booking_type`, `created_by`, `client_id`, `driver
 (2, 'admin', 1, NULL, 2, 1, 1, 'Felicity Morelli', '09988233611', 'Angeles University Foundation', 'SM City Clark', NULL, NULL, NULL, NULL, '2025-09-25 13:44:00', NULL, 'completed', '', '2025-09-25 12:44:46', '2025-09-29 04:19:13'),
 (3, 'admin', 1, NULL, 2, 1, 1, 'Keihle Dianne', '09111111111', 'SM City Clark, Angeles, Central Luzon, Philippines', 'Angeles University Foundation Medical Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 07:14:00', NULL, 'completed', 'chello', '2025-09-29 04:18:15', '2025-09-29 23:34:23'),
 (4, 'admin', 1, NULL, 7, 2, 1, 'Samantha Ticsay', '09988233611', 'Cuatro de Julio Street, Salapungan, Ninoy Aquino, Pandan, Angeles, Central Luzon, 2009, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-09-30 13:30:00', NULL, 'completed', '', '2025-09-29 23:33:47', '2025-09-29 23:35:24'),
-(5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'cancelled', 'yay\nDriver cancel reason: wala na', '2025-09-30 00:34:32', '2025-10-04 20:01:52'),
+(5, 'admin', 1, NULL, 8, 8, 1, 'Jovita Tipon', '09998776543', 'Nouveau Residences, Cutud, Central Luzon, Philippines', 'SM City Baguio, Luneta Hill Drive, District 10, Cordillera Administrative Region, Philippines', NULL, NULL, NULL, NULL, '2025-10-03 03:33:00', NULL, 'completed', 'yay\nDriver cancel reason: wala na', '2025-09-30 00:34:32', '2025-10-06 16:36:43'),
 (6, 'admin', 1, NULL, 8, 8, 1, 'Lando Norris', '09998225432', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-08 11:02:00', NULL, 'completed', 'Driver reject reason: yoko nga', '2025-10-04 20:33:39', '2025-10-04 23:06:49'),
 (7, 'personal', 8, NULL, 8, 8, 1, 'Ayoko Na', '09991112345', 'Angeles University Foundation', 'SM Clark Skyline, SM City Clark, Angeles, Central Luzon, 2024, Philippines', 15.1449885, 120.5943169, 15.1688409, 120.5801715, '2025-10-06 07:40:00', NULL, 'completed', 'Created by driver', '2025-10-05 04:40:50', '2025-10-05 04:43:19'),
-(8, 'admin', 1, NULL, 8, 8, 1, 'Felicity Morelli', '09998776543', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-05 06:01:00', NULL, 'accepted', '', '2025-10-05 05:02:10', '2025-10-05 05:08:35');
+(8, 'admin', 1, NULL, 11, 10, 1, 'Felicity Morelli', '09998776543', 'Angeles University Foundation, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'SM City Clark, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-05 06:01:00', NULL, 'accepted', '', '2025-10-05 05:02:10', '2025-10-06 15:23:28'),
+(9, 'admin', 13, NULL, 12, 7, 1, 'Doriane Pin', '09111111111', 'Angeles University Foundation Sports and Culture Center, MacArthur Highway, Ninoy Aquino, Central Luzon, Philippines', 'Systems Plus College Foundation, Rizal Street, Angeles, Central Luzon, Philippines', NULL, NULL, NULL, NULL, '2025-10-23 18:17:00', NULL, 'accepted', '', '2025-10-06 18:18:25', '2025-10-06 18:18:49');
 
 -- --------------------------------------------------------
 
@@ -227,7 +254,11 @@ INSERT INTO `booking_events` (`id`, `booking_id`, `actor_id`, `actor_role`, `eve
 (37, 7, 8, 'driver', 'restore', '{\"from\":\"in_progress\",\"to\":\"accepted\"}', '2025-10-05 04:41:36'),
 (38, 7, 8, 'driver', 'cancel', '{\"reason\":\"\"}', '2025-10-05 04:41:39'),
 (39, 7, 8, 'driver', 'complete_trip', '[]', '2025-10-05 04:43:19'),
-(40, 8, 8, 'driver', 'accept', '[]', '2025-10-05 05:08:35');
+(40, 8, 8, 'driver', 'accept', '[]', '2025-10-05 05:08:35'),
+(41, 5, 8, 'driver', 'accept', '[]', '2025-10-06 16:34:42'),
+(42, 5, 8, 'driver', 'restore', '{\"from\":\"in_progress\",\"to\":\"accepted\"}', '2025-10-06 16:35:43'),
+(43, 5, 8, 'driver', 'complete_trip', '[]', '2025-10-06 16:36:43'),
+(44, 9, 12, 'driver', 'accept', '[]', '2025-10-06 18:18:49');
 
 -- --------------------------------------------------------
 
@@ -319,7 +350,8 @@ CREATE TABLE `booking_runs` (
 
 INSERT INTO `booking_runs` (`booking_id`, `vehicle_id`, `driver_id`, `pickup_button_at`, `dropoff_button_at`, `odo_start_km`, `odo_end_km`, `distance_km`, `fuel_used_liters`, `duration_seconds`) VALUES
 (6, 8, 8, '2025-10-04 23:03:00', '2025-10-04 23:06:49', NULL, NULL, NULL, NULL, 229),
-(7, 8, 8, '2025-10-05 04:43:10', '2025-10-05 04:43:19', NULL, NULL, NULL, NULL, 9);
+(7, 8, 8, '2025-10-05 04:43:10', '2025-10-05 04:43:19', NULL, NULL, NULL, NULL, 9),
+(5, 8, 8, '2025-10-06 16:35:49', '2025-10-06 16:36:43', NULL, NULL, NULL, NULL, 54);
 
 -- --------------------------------------------------------
 
@@ -1577,19 +1609,19 @@ ALTER TABLE `accounts`
 -- AUTO_INCREMENT for table `audit_logs`
 --
 ALTER TABLE `audit_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `booking_events`
 --
 ALTER TABLE `booking_events`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT for table `booking_offers`
