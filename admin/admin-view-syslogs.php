@@ -55,7 +55,6 @@
             <section class="kaya-card h-100">
               <div class="kaya-card__head">Trip History</div>
               <div class="kaya-card__body">
-                <!-- Use <dl> for label/value pairs; replace placeholders later -->
                 <dl class="kaya-dl">
                   <div class="kaya-dl__row">
                     <input type="date" id="get_trip_movements"/>
@@ -108,7 +107,7 @@
               <div class="kaya-card__body">
                 <dl class="kaya-dl">
                   <div class="kaya-dl__row">
-                    <dt>Fuel Level</dt><dd></dd>
+                    <dt>Fuel Level</dt><dd id="vehicleFuel"></dd>
                   </div>
                   <div class="kaya-dl__row">
                     <dt>Speed</dt><dd id="vehicleSpeed"></dd>
@@ -123,14 +122,28 @@
                     <dt>Throttle</dt><dd id="vehicleThrottle"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>OBD Status</dt><dd><span class="kaya-badge kaya-badge--warn">Needs Attention</span></dd>
+                    <dt>Engine Load</dt><dd id="vehicleLoad"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>Battery Voltage</dt><dd id="vehicleVoltage"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>Odometer</dt><dd id="vehicleOdometer"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>MAF (Air Flow)</dt><dd id="vehicleMAF"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>Oil Temperature</dt><dd id="vehicleOilTemp"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>Coolant Temperature</dt><dd id="vehicleCoolant"></dd>
+                  </div>
+                  <div class="kaya-dl__row">
+                    <dt>OBD Status</dt>
+                    <dd><span class="kaya-badge kaya-badge--warn" id="obdStatus">Needs Attention</span></dd>
                   </div>
                 </dl>
-
-                <!-- When the OBD link is ready, you can update values here every X seconds.
-                     Example approach:
-                     - build a small endpoint `/telemetry.php?vehicle_id=...` returning JSON
-                     - fetch() it periodically and update the DOM (dd elements). -->
               </div>
             </section>
           </div>
@@ -160,14 +173,12 @@
   <script src="vendor/js/maps.js"></script>
 
   <style>
-    /* Keep typography consistent with your other refreshed pages */
     html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
     .kaya-page-title{
       font-weight:800; font-size:2rem; line-height:1.1; color:#000047; margin:0 0 1rem;
     }
 
-    /* Card look & feel (same recipe we used elsewhere) */
     .kaya-card{
       background:#fff; border-radius:1rem; border:1px solid #e5e7eb;
       box-shadow:0 8px 24px rgba(0,0,0,.06);
@@ -177,11 +188,9 @@
     }
     .kaya-card__body{ padding:1rem 1.25rem; }
 
-    /* Responsive 16:9 iframe wrapper */
     .kaya-map{ position:relative; width:100%;border-radius:.75rem; overflow:hidden; }
     .kaya-map iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
 
-    /* Definition list as neat 2-column table */
     .kaya-dl{ margin:0; }
     .kaya-dl__row{
       display:flex; align-items:center; justify-content:space-between;

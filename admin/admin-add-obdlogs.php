@@ -7,33 +7,58 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 include('vendor/inc/config.php'); // your DB connection
-
 header('Content-Type: application/json');
 
-// Get JSON input if any
+// Get JSON input
 $json = file_get_contents("php://input");
 $inputData = json_decode($json, true);
 
-// Get plate_no from GET parameter
+// GET parameters for fetching data
 $params_plate_no = $_GET['plate_no'] ?? null;
 $params_date = $_GET['date'] ?? null;
 
-// Always use real plate_no + GPS if provided, but randomize OBD data
-$plate     = $inputData["basic_info"]["plate_no"] ?? "";
-$latitude  = $inputData["location"]["latitude"] ?? "";
-$longitude = $inputData["location"]["longitude"] ?? "";
+// Extract fields from incoming JSON
+$plate       = $inputData["basic_info"]["plate_no"] ?? "";
+$latitude    = $inputData["location"]["latitude"] ?? "";
+$longitude   = $inputData["location"]["longitude"] ?? "";
 
-$speed = $inputData["engine_performance"]["speed"] ?? "";
-$rpm =  $inputData["engine_performance"]["rpm"] ?? "";
-$throttle = $inputData["engine_performance"]["throttle"] ?? "";
+// Engine performance
+$rpm         = $inputData["engine_performance"]["rpm"] ?? "";
+$speed       = $inputData["engine_performance"]["speed"] ?? "";
+$load        = $inputData["engine_performance"]["load"] ?? "";
+$throttle    = $inputData["engine_performance"]["throttle"] ?? "";
+
+// Temperatures
 $coolant_temp = $inputData["temperatures"]["coolant_temp"] ?? "";
-$fuel_level = $inputData["air_fuel"]["fuel_level"] ?? "";
+$intake_air_temp = $inputData["temperatures"]["intake_air_temp"] ?? "";
+$ambient_temp = $inputData["temperatures"]["ambient_temp"] ?? "";
+$oil_temp     = $inputData["temperatures"]["oil_temp"] ?? "";
 
-// GETTING THE MOVEMENTS BASED ON DATE
+// Air/Fuel
+$map          = $inputData["air_fuel"]["map"] ?? "";
+$maf          = $inputData["air_fuel"]["maf"] ?? "";
+$fuel_level   = $inputData["air_fuel"]["fuel_level"] ?? "";
+$fuel_type    = $inputData["air_fuel"]["fuel_type"] ?? "Gasoline";
 
-// NEW: Vehicle Movements by date
+// Extra sensor data (added)
+$fuel_pressure     = $inputData["extra"]["fuel_pressure"] ?? "";
+$fuel_rate         = $inputData["extra"]["fuel_rate"] ?? "";
+$battery_voltage   = $inputData["extra"]["battery_voltage"] ?? "";
+$odometer          = $inputData["extra"]["odometer"] ?? "";
+$mil_status        = $inputData["extra"]["mil_status"] ?? "";
+$timing_advance    = $inputData["extra"]["timing_advance"] ?? "";
+$stft              = $inputData["extra"]["stft"] ?? "";
+$ltft              = $inputData["extra"]["ltft"] ?? "";
+$fuel_rail_pressure= $inputData["extra"]["fuel_rail_pressure"] ?? "";
+$atf_temp          = $inputData["extra"]["atf_temp"] ?? "";
+$distance_mil      = $inputData["extra"]["distance_mil"] ?? "";
+$distance_clear    = $inputData["extra"]["distance_clear"] ?? "";
+$run_time          = $inputData["extra"]["run_time"] ?? "";
+
+// ==========================
+// FETCH MOVEMENTS BY DATE
+// ==========================
 if (!empty($params_date)) {
-
     if ($params_plate_no && $params_date) {
         $stmt = $mysqli->prepare("
             SELECT * 
@@ -45,11 +70,8 @@ if (!empty($params_date)) {
         $stmt->bind_param("ss", $params_plate_no, $params_date);
         $stmt->execute();
         $result = $stmt->get_result();
-
         $logs = [];
-        while ($row = $result->fetch_assoc()) {
-            $logs[] = $row;
-        }
+        while ($row = $result->fetch_assoc()) $logs[] = $row;
         $stmt->close();
 
         echo json_encode([
@@ -58,106 +80,81 @@ if (!empty($params_date)) {
             "date" => $params_date,
             "logs" => $logs
         ]);
-        exit; // ✅ stop execution here
+        exit;
     } else {
-        echo json_encode([
-            "status" => "error",
-            "message" => "plate_no and date are required"
-        ]);
+        echo json_encode(["status" => "error", "message" => "plate_no and date are required"]);
         exit;
     }
 }
-//END
 
-
+// ==========================
+// BUILD DATA OBJECT
+// ==========================
 $data = [
     "basic_info" => [
         "plate_no" => $plate
     ],
     "engine_performance" => [
-        "speed"           => $speed,
-        "rpm"             => $rpm,
-        "load"            => '0',
-        "throttle"        => $throttle,
-        "intake_manifold" => '0',
-        "maf"             => '0'
+        "rpm"      => $rpm,
+        "speed"    => $speed,
+        "load"     => $load,
+        "throttle" => $throttle
     ],
     "temperatures" => [
         "coolant_temp"    => $coolant_temp,
-        "intake_air_temp" => '0',
-        "ambient_temp"    => '0',
-        "oil_temp"        => '0'
+        "intake_air_temp" => $intake_air_temp,
+        "ambient_temp"    => $ambient_temp,
+        "oil_temp"        => $oil_temp
     ],
     "air_fuel" => [
-        "fuel_level"      => $fuel_level,
-        "fuel_type"       => "Gasoline"
+        "map"         => $map,
+        "maf"         => $maf,
+        "fuel_level"  => $fuel_level,
+        "fuel_type"   => $fuel_type
     ],
     "location" => [
-        "latitude"  => $latitude,   // real GPS
-        "longitude" => $longitude   // real GPS
+        "latitude"  => $latitude,
+        "longitude" => $longitude
+    ],
+    "extra" => [
+        "fuel_pressure"      => $fuel_pressure,
+        "fuel_rate"          => $fuel_rate,
+        "battery_voltage"    => $battery_voltage,
+        "odometer"           => $odometer,
+        "mil_status"         => $mil_status,
+        "timing_advance"     => $timing_advance,
+        "stft"               => $stft,
+        "ltft"               => $ltft,
+        "fuel_rail_pressure" => $fuel_rail_pressure,
+        "atf_temp"           => $atf_temp,
+        "distance_mil"       => $distance_mil,
+        "distance_clear"     => $distance_clear,
+        "run_time"           => $run_time
     ]
 ];
 
-
-// $data = [
-//     "basic_info" => [
-//         "plate_no" => $plate
-//     ],
-//     "engine_performance" => [
-//         "speed"           => rand(0, 80),
-//         "rpm"             => rand(700, 5000),
-//         "load"            => rand(20, 100),
-//         "throttle"        => rand(0, 100),
-//         "intake_manifold" => rand(10, 100),
-//         "maf"             => rand(2, 50)
-//     ],
-//     "temperatures" => [
-//         "coolant_temp"    => rand(70, 110),
-//         "intake_air_temp" => rand(20, 60),
-//         "ambient_temp"    => rand(15, 40),
-//         "oil_temp"        => rand(60, 120)
-//     ],
-//     "air_fuel" => [
-//         "fuel_level"      => rand(10, 100),
-//         "fuel_type"       => "Gasoline"
-//     ],
-//     "location" => [
-//         "latitude"  => $latitude,   // real GPS
-//         "longitude" => $longitude   // real GPS
-//     ]
-// ];
-
-// Insert into DB if plate_no exists
+// ==========================
+// INSERT TO DATABASE
+// ==========================
 if (!empty($plate)) {
-    // $speed           = $data["engine_performance"]["speed"];
-    // $rpm             = $data["engine_performance"]["rpm"];
-    $engine_load     = $data["engine_performance"]["load"];
-    // $throttle        = $data["engine_performance"]["throttle"];
-    $intake_manifold = $data["engine_performance"]["intake_manifold"];
-    $maf             = $data["engine_performance"]["maf"];
-
-    // $coolant_temp    = $data["temperatures"]["coolant_temp"];
-    $intake_air_temp = $data["temperatures"]["intake_air_temp"];
-    $ambient_temp    = $data["temperatures"]["ambient_temp"];
-    $oil_temp        = $data["temperatures"]["oil_temp"];
-
-    // $fuel_level      = $data["air_fuel"]["fuel_level"];
-    $fuel_type       = $data["air_fuel"]["fuel_type"];
-
-    $logs_text       = json_encode($data, JSON_UNESCAPED_UNICODE);
+    $logs_text = json_encode($data, JSON_UNESCAPED_UNICODE);
 
     $query = "INSERT INTO obd_logs 
-        (speed, rpm, engine_load, throttle, intake_manifold, maf, coolant_temp, intake_air_temp, fuel_level, fuel_type, ambient_temp, oil_temp, plate_no, latitude, longitude, logs_text) 
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        (speed, rpm, engine_load, throttle, coolant_temp, intake_air_temp, ambient_temp, oil_temp, 
+         map, maf, fuel_level, fuel_type, plate_no, latitude, longitude, 
+         fuel_pressure, fuel_rate, battery_voltage, odometer, mil_status, timing_advance, stft, ltft, 
+         fuel_rail_pressure, atf_temp, distance_mil, distance_clear, run_time, logs_text) 
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $stmt = $mysqli->prepare($query);
     $stmt->bind_param(
-        "ssssssssssssssss", 
-        $speed, $rpm, $engine_load, $throttle, $intake_manifold, $maf,
-        $coolant_temp, $intake_air_temp, $fuel_level, $fuel_type, $ambient_temp, $oil_temp,
-        $plate, $latitude, $longitude, $logs_text
+        "sssssssssssssssssssssssssssss",
+        $speed, $rpm, $load, $throttle, $coolant_temp, $intake_air_temp, $ambient_temp, $oil_temp,
+        $map, $maf, $fuel_level, $fuel_type, $plate, $latitude, $longitude,
+        $fuel_pressure, $fuel_rate, $battery_voltage, $odometer, $mil_status, $timing_advance, $stft, $ltft,
+        $fuel_rail_pressure, $atf_temp, $distance_mil, $distance_clear, $run_time, $logs_text
     );
-    
+
     if ($stmt->execute()) {
         echo json_encode([
             "status" => "insert_success",
@@ -172,26 +169,21 @@ if (!empty($plate)) {
             "error"  => $stmt->error
         ]);
     }
-    
     $stmt->close();
 }
 
-// If plate_no is provided, return latest log
-// If plate_no is provided, return latest log
+// ==========================
+// FETCH LATEST LOG / TRIPS
+// ==========================
 if ($params_plate_no) {
-    // 1. Get the latest OBD log
     $sel = $mysqli->prepare("SELECT * FROM obd_logs WHERE plate_no = ? ORDER BY id DESC LIMIT 1");
     $sel->bind_param("s", $params_plate_no);
     $sel->execute();
     $result = $sel->get_result();
-
     $logs = [];
-    while ($row = $result->fetch_assoc()) {
-        $logs[] = $row;
-    }
+    while ($row = $result->fetch_assoc()) $logs[] = $row;
     $sel->close();
 
-    // 2. Get the latest 2 trips for this plate_no
     $tripSel = $mysqli->prepare("
         SELECT 
             vehicles.v_reg_no AS plate_no,
@@ -212,25 +204,19 @@ if ($params_plate_no) {
     $tripSel->bind_param("s", $params_plate_no);
     $tripSel->execute();
     $tripResult = $tripSel->get_result();
-
     $trips_data = [];
-    while ($row = $tripResult->fetch_assoc()) {
-        $trips_data[] = $row;
-    }
+    while ($row = $tripResult->fetch_assoc()) $trips_data[] = $row;
     $tripSel->close();
 
-    // 3. Build the response
     echo json_encode([
         "status"     => "success",
         "plate_no"   => $params_plate_no,
         "logs"       => $logs,
         "trips_data" => $trips_data
     ]);
-} else { 
-    // No plate provided -> return all cars (latest per car)
+} else {
     $sql = "
-        SELECT t.*
-        FROM obd_logs t
+        SELECT t.* FROM obd_logs t
         INNER JOIN (
             SELECT plate_no, MAX(id) AS max_id
             FROM obd_logs
@@ -239,52 +225,9 @@ if ($params_plate_no) {
         ORDER BY t.plate_no ASC
     ";
     $result = $mysqli->query($sql);
-
     $logs = [];
-    while ($row = $result->fetch_assoc()) {
-        $logs[] = $row;
-    }
+    while ($row = $result->fetch_assoc()) $logs[] = $row;
 
-    // 2. For each car, also get the latest 2 trips
-    $trips_data = [];
-    foreach ($logs as $log) {
-        $plate_no = $log['plate_no'];
-
-        $tripSel = $mysqli->prepare("
-            SELECT 
-                vehicles.v_reg_no AS plate_no,
-                CONCAT(bookings.pickup_point, ' - ', bookings.dropoff_point) AS start_end_location,
-                CONCAT(driver.u_fname, ' ', driver.u_lname) AS driver_name,
-                bookings.scheduled_start_at,
-                bookings.pickup_point AS start_location,
-                bookings.dropoff_point AS destination
-            FROM bookings 
-            LEFT JOIN tms_vehicle AS vehicles 
-                ON bookings.vehicle_id = vehicles.v_id
-            LEFT JOIN tms_user_add_driver AS driver 
-                ON vehicles.default_driver_id = driver.d_u_id
-            WHERE vehicles.v_reg_no = ?
-            ORDER BY bookings.scheduled_start_at DESC
-            LIMIT 2
-        ");
-        $tripSel->bind_param("s", $plate_no);
-        $tripSel->execute();
-        $tripResult = $tripSel->get_result();
-
-        $plateTrips = [];
-        while ($row = $tripResult->fetch_assoc()) {
-            $plateTrips[] = $row;
-        }
-        $tripSel->close();
-
-        $trips_data[$plate_no] = $plateTrips;
-    }
-
-    echo json_encode([
-        "status"     => "success",
-        "logs"       => $logs,
-        "trips_data" => $trips_data
-    ]);
+    echo json_encode(["status" => "success", "logs" => $logs]);
 }
-$mysqli->close();
 ?>
