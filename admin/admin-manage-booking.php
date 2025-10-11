@@ -22,7 +22,7 @@ function badge_for($s){
   if ($s==='rejected')  return ['badge badge-warning','Rejected'];
   return ['badge badge-danger','Cancelled'];
 }
-define('ACTION_ENDPOINT','booking_actions.php');
+define('ACTION_ENDPOINT','admin/booking_actions.php');
 
 /* data */
 $rows = [];
@@ -37,19 +37,6 @@ if (table_exists($mysqli,'v_booking_grid')) {
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
 } elseif (table_exists($mysqli,'bookings')) {
-<<<<<<< HEAD
-  $sql = "SELECT b.id AS booking_id,
-                 COALESCE(b.scheduled_start_at, b.created_at) AS scheduled_at,
-                 b.created_at,
-                 COALESCE(c.name,'') AS client_name,
-                 b.pax,
-                 b.pickup_point  AS pickup,
-                 b.dropoff_point AS dropoff,
-                 v_reg_no      AS vehicle_reg_no,
-                 b.booking_type,
-                 d.name          AS driver_name,
-                 b.status
-=======
   // Fallback: align with schema (bookings.vehicle_id -> tms_vehicle.v_id ; plate -> v_reg_no)
   $sql = "SELECT 
               b.id AS booking_id,
@@ -63,7 +50,6 @@ if (table_exists($mysqli,'v_booking_grid')) {
               b.booking_type,
               d.name          AS driver_name,
               b.status
->>>>>>> 6fe53416fe58332cad9a1fc6e40b9f02e79dde0b
           FROM bookings b
           LEFT JOIN accounts c ON c.id = b.client_id
           LEFT JOIN accounts d ON d.id = b.driver_id
