@@ -98,7 +98,6 @@ if (table_exists($mysqli,'v_booking_grid')) {
     border-color:#000047 !important; color:#000047 !important; background:#fff !important;
     box-shadow: inset 0 -2px 0 #000047;
   }
-  =
   .btn-group .btn.kaya-tab:not(.active){ border-color:#d9deee !important; background:#fff !important; }
   .btn-group .btn.kaya-tab:not(.active):hover{ border-color:#b9c2dd !important; background:#f6f8ff !important; }
 </style>
