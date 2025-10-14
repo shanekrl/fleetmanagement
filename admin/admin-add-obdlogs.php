@@ -18,42 +18,54 @@ $params_plate_no = $_GET['plate_no'] ?? null;
 $params_date = $_GET['date'] ?? null;
 
 // Extract fields from incoming JSON
-$plate       = $inputData["basic_info"]["plate_no"] ?? "";
+$plate       = $inputData["vehicle_info"]["plate_no"] ?? "";
 $latitude    = $inputData["location"]["latitude"] ?? "";
 $longitude   = $inputData["location"]["longitude"] ?? "";
 
-// Engine performance
+// ==========================
+// ENGINE PERFORMANCE
+// ==========================
 $rpm         = $inputData["engine_performance"]["rpm"] ?? "";
 $speed       = $inputData["engine_performance"]["speed"] ?? "";
-$load        = $inputData["engine_performance"]["load"] ?? "";
-$throttle    = $inputData["engine_performance"]["throttle"] ?? "";
+$load        = $inputData["engine_performance"]["engine_load"] ?? ""; // from ESP32: engine_load
+$throttle    = $inputData["engine_performance"]["throttle_position"] ?? ""; // from ESP32: throttle_position
 
-// Temperatures
+// ==========================
+// TEMPERATURES
+// ==========================
 $coolant_temp     = $inputData["temperatures"]["coolant_temp"] ?? "";
 $intake_air_temp  = $inputData["temperatures"]["intake_air_temp"] ?? "";
 $ambient_temp     = $inputData["temperatures"]["ambient_temp"] ?? "";
 $oil_temp         = $inputData["temperatures"]["oil_temp"] ?? "";
+$atf_temp         = $inputData["temperatures"]["atf_temp"] ?? "";
 
-// Air/Fuel
-$map          = $inputData["air_fuel"]["map"] ?? "";
-$maf          = $inputData["air_fuel"]["maf"] ?? "";
-$fuel_level   = $inputData["air_fuel"]["fuel_level"] ?? "";
-$fuel_type    = $inputData["air_fuel"]["fuel_type"] ?? "Gasoline";
+// ==========================
+// AIR / FUEL
+// ==========================
+$map          = $inputData["air_fuel_sensors"]["map"] ?? "";
+$maf          = $inputData["air_fuel_sensors"]["maf"] ?? "";
+$fuel_level   = $inputData["air_fuel_sensors"]["fuel_level"] ?? "";
+$fuel_type    = $inputData["air_fuel_sensors"]["fuel_type"] ?? "Gasoline";
+$fuel_pressure      = $inputData["air_fuel_sensors"]["fuel_pressure"] ?? "";
+$fuel_rail_pressure = $inputData["air_fuel_sensors"]["fuel_rail_pressure"] ?? "";
 
-// Extra sensor data
-$fuel_pressure      = $inputData["extra"]["fuel_pressure"] ?? "";
-$fuel_rate          = $inputData["extra"]["fuel_rate"] ?? "";
-$battery_voltage    = $inputData["extra"]["battery_voltage"] ?? "";
-$odometer           = $inputData["extra"]["odometer"] ?? "";
-$mil_status         = $inputData["extra"]["mil_status"] ?? "";
-$timing_advance     = $inputData["extra"]["timing_advance"] ?? "";
-$stft               = $inputData["extra"]["stft"] ?? "";
-$ltft               = $inputData["extra"]["ltft"] ?? "";
-$fuel_rail_pressure = $inputData["extra"]["fuel_rail_pressure"] ?? "";
-$atf_temp           = $inputData["extra"]["atf_temp"] ?? "";
-$distance_mil       = $inputData["extra"]["distance_mil"] ?? "";
-$distance_clear     = $inputData["extra"]["distance_clear"] ?? "";
-$run_time           = $inputData["extra"]["run_time"] ?? "";
+// ==========================
+// EXTRA / VEHICLE STATUS
+// ==========================
+$battery_voltage    = $inputData["vehicle_status"]["battery_voltage"] ?? "";
+$odometer           = $inputData["vehicle_status"]["odometer"] ?? "";
+$mil_status         = $inputData["vehicle_status"]["mil_status"] ?? "";
+$distance_mil       = $inputData["vehicle_status"]["distance_mil"] ?? "";
+$distance_clear     = $inputData["vehicle_status"]["distance_clear"] ?? "";
+$run_time           = $inputData["vehicle_status"]["run_time"] ?? "";
+
+// ==========================
+// ADDITIONAL ENGINE DATA
+// ==========================
+$fuel_rate      = $inputData["engine_performance"]["fuel_rate"] ?? "";
+$timing_advance = $inputData["engine_performance"]["timing_advance"] ?? "";
+$stft           = $inputData["engine_performance"]["stft"] ?? "";
+$ltft           = $inputData["engine_performance"]["ltft"] ?? "";
 
 // ==========================
 // FETCH MOVEMENTS BY DATE
@@ -94,42 +106,42 @@ $data = [
     "basic_info" => [
         "plate_no" => $plate
     ],
+    "location" => [
+        "latitude"  => $latitude,
+        "longitude" => $longitude
+    ],
     "engine_performance" => [
-        "rpm"      => $rpm,
-        "speed"    => $speed,
-        "load"     => $load,
-        "throttle" => $throttle
+        "rpm"              => $rpm,
+        "speed"            => $speed,
+        "engine_load"      => $load,
+        "throttle_position" => $throttle,
+        "fuel_rate"        => $fuel_rate,
+        "timing_advance"   => $timing_advance,
+        "stft"             => $stft,
+        "ltft"             => $ltft
     ],
     "temperatures" => [
         "coolant_temp"    => $coolant_temp,
         "intake_air_temp" => $intake_air_temp,
         "ambient_temp"    => $ambient_temp,
-        "oil_temp"        => $oil_temp
+        "oil_temp"        => $oil_temp,
+        "atf_temp"        => $atf_temp
     ],
-    "air_fuel" => [
-        "map"         => $map,
-        "maf"         => $maf,
-        "fuel_level"  => $fuel_level,
-        "fuel_type"   => $fuel_type
-    ],
-    "location" => [
-        "latitude"  => $latitude,
-        "longitude" => $longitude
-    ],
-    "extra" => [
+    "air_fuel_sensors" => [
+        "map"                => $map,
+        "maf"                => $maf,
+        "fuel_level"         => $fuel_level,
+        "fuel_type"          => $fuel_type,
         "fuel_pressure"      => $fuel_pressure,
-        "fuel_rate"          => $fuel_rate,
-        "battery_voltage"    => $battery_voltage,
-        "odometer"           => $odometer,
-        "mil_status"         => $mil_status,
-        "timing_advance"     => $timing_advance,
-        "stft"               => $stft,
-        "ltft"               => $ltft,
-        "fuel_rail_pressure" => $fuel_rail_pressure,
-        "atf_temp"           => $atf_temp,
-        "distance_mil"       => $distance_mil,
-        "distance_clear"     => $distance_clear,
-        "run_time"           => $run_time
+        "fuel_rail_pressure" => $fuel_rail_pressure
+    ],
+    "vehicle_status" => [
+        "battery_voltage" => $battery_voltage,
+        "odometer"        => $odometer,
+        "mil_status"      => $mil_status,
+        "distance_mil"    => $distance_mil,
+        "distance_clear"  => $distance_clear,
+        "run_time"        => $run_time
     ]
 ];
 
