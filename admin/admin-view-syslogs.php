@@ -134,10 +134,7 @@
                     <dt>MAF (Air Flow)</dt><dd id="vehicleMAF"></dd>
                   </div>
                   <div class="kaya-dl__row">
-                    <dt>Oil Temperature</dt><dd id="vehicleOilTemp"></dd>
-                  </div>
-                  <div class="kaya-dl__row">
-                    <dt>Coolant Temperature</dt><dd id="vehicleCoolant"></dd>
+                    <dt>Ambient Temperature</dt><dd id="vehicleAmbient"></dd>
                   </div>
                   <div class="kaya-dl__row">
                     <dt>OBD Status</dt>

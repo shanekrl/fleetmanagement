@@ -49,6 +49,13 @@ $(document).ready(function () {
             $("#vehicleRPM").text(v.rpm);
             $("#vehicleTemperature").text(v.coolant_temp);
             $("#vehicleThrottle").text(v.throttle);
+
+            $("#vehicleLoad").text(v.engine_load);
+            $("#vehicleVoltage").text(v.battery_voltage);
+            $("#vehicleOdometer").text(v.odometer);
+            $("#vehicleMAF").text(v.maf);
+            $("#vehicleAmbient").text(v.ambient_temp);
+
             $("#vehicleTime").text(v.created_at || "N/A");
 
             if (trips?.trips_data && trips.trips_data[v.plate_no]?.length > 0) {
@@ -75,6 +82,7 @@ $(document).ready(function () {
                         keepAtCenter: false
                     });
                     markers[id].setPopupContent(popupHtml);
+                    map.panTo([lat, lng]);
                 }
             } else {
                 // Create marker once
@@ -88,6 +96,13 @@ $(document).ready(function () {
                 $("#vehicleRPM").text(v.rpm);
                 $("#vehicleTemperature").text(v.coolant_temp);
                 $("#vehicleThrottle").text(v.throttle);
+                $("#vehicleLoad").text(v.engine_load);
+                $("#vehicleVoltage").text(v.battery_voltage);
+                $("#vehicleOdometer").text(v.odometer);
+                $("#vehicleMAF").text(v.maf);
+                $("#vehicleAmbient").text(v.ambient_temp);
+
+
                 // $("#vehicleFuel").text(v.fuel_level + "%");
                 $("#vehicleTime").text(v.created_at || "N/A");
 
@@ -236,6 +251,13 @@ $(document).ready(function () {
             $("#vehicleRPM").text(logs[i].rpm);
             $("#vehicleTemperature").text(logs[i].coolant_temp);
             $("#vehicleThrottle").text(logs[i].throttle);
+
+            $("#vehicleLoad").text(logs[i].engine_load);
+            $("#vehicleVoltage").text(logs[i].battery_voltage);
+            $("#vehicleOdometer").text(logs[i].odometer);
+            $("#vehicleMAF").text(logs[i].maf);
+            $("#vehicleAmbient").text(logs[i].ambient_temp);
+
             $("#vehicleTime").text(logs[i].created_at || "N/A");
 
             i++;
