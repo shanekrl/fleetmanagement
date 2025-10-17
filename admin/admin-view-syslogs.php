@@ -56,8 +56,10 @@
               <div class="kaya-card__head">Trip History</div>
               <div class="kaya-card__body">
                 <dl class="kaya-dl">
-                  <div class="kaya-dl__row">
-                    <input type="date" id="get_trip_movements"/>
+                <div class="kaya-dl__row">
+                    <dt>Trip Movements:</dt><input type="date" id="get_trip_movements"/>
+                </div>
+                <div class="kaya-dl__row">
                     <dt>Date / Time</dt><dd id="th_date_time"></dd>
                   </div>
                   <div class="kaya-dl__row">
@@ -78,7 +80,7 @@
           </div>
 
           <!-- Current Route -->
-          <div class="col-lg-4 mb-4">
+          <div class="col-lg-7 mb-4">
             <section class="kaya-card h-100">
               <div class="kaya-card__head">Current Route</div>
               <div class="kaya-card__body">
@@ -101,7 +103,7 @@
           </div>
 
           <!-- Diagnostics (OBD) -->
-          <div class="col-lg-4 mb-4">
+          <div class="col-lg-7 mb-4">
             <section class="kaya-card h-100">
               <div class="kaya-card__head">Diagnostics</div>
               <div class="kaya-card__body">
@@ -138,7 +140,7 @@
                   </div>
                   <div class="kaya-dl__row">
                     <dt>OBD Status</dt>
-                    <dd><span class="kaya-badge kaya-badge--warn" id="obdStatus">Needs Attention</span></dd>
+                    <dd><span class="kaya-badge kaya-badge--success" data-toggle="modal" data-target="#showDiagnosticsModal" id="obdStatus">Normal</span></dd>
                   </div>
                 </dl>
               </div>
@@ -155,6 +157,42 @@
         </div>
       </div>
 
+      <!-- Diagnostics Modal -->
+      <div class="modal fade" id="showDiagnosticsModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+          <form>
+            <div class="modal-content" style="background:#f8fafc;color:#0f172a">
+              <div class="modal-header">
+                <h5 class="modal-title">Vehicle Diagnostics</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+              </div>
+              <div class="modal-body">
+                <table id="diagnosticsTable" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>RPM</th>
+                      <th>Speed</th>
+                      <th>Coolant</th>
+                      <th>Throttle</th>
+                      <th>Load</th>
+                      <th>Voltage</th>
+                      <th>Overall</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+
       <?php include('vendor/inc/footer.php'); ?>
     </div>
   </div>
@@ -165,9 +203,12 @@
   <script src="https://unpkg.com/leaflet.smoothmarkerbouncing"></script>
   <script src="https://unpkg.com/leaflet.marker.slideto"></script>
   <script src="vendor/jquery/jquery.min.js"></script>
+  <script src="vendor/datatables/jquery.dataTables.js"></script>
+  <script src="vendor/datatables/dataTables.bootstrap4.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
   <script src="vendor/js/maps.js"></script>
+  <script src="vendor/js/diagnostics.js"></script>
 
   <style>
     html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -204,7 +245,20 @@
       display:inline-block; padding:.125rem .5rem; border-radius:.375rem;
       font-size:.825rem; line-height:1.25; border:1px solid transparent;
     }
-    .kaya-badge--warn{ background:#fff7ed; color:#9a3412; border-color:#fdba74; }
+    .kaya-badge--warn{ background:#ed1c24; color:#fafafa; border-color:#fdba74; }
+
+    .kaya-badge--success{ background:#28a745; color:#fafafa; border-color:#fdba74; }
+
+    .row{
+      gap: 10px;
+      justify-content: center;
+      overflow: auto;
+      max-height: 500px;
+    }
+
+    #obdStatus{
+      cursor: pointer;
+    }
   </style>
 </body>
 </html>

@@ -21,7 +21,7 @@ $params_date = $_GET['date'] ?? null;
 $plate       = $inputData["vehicle_info"]["plate_no"] ?? "";
 $latitude    = $inputData["location"]["latitude"] ?? "";
 $longitude   = $inputData["location"]["longitude"] ?? "";
-
+// Save the latest received plate number for global access
 // ==========================
 // ENGINE PERFORMANCE
 // ==========================
@@ -144,11 +144,11 @@ $data = [
         "run_time"        => $run_time
     ]
 ];
-
 // ==========================
 // INSERT TO DATABASE
 // ==========================
 if (!empty($plate)) {
+    file_put_contents("latest_plate.json", json_encode(["plate" => $plate]));
     $logs_text = json_encode($data, JSON_UNESCAPED_UNICODE);
 
     $query = "INSERT INTO obd_logs 
@@ -188,6 +188,13 @@ if (!empty($plate)) {
 // FETCH LATEST LOG / TRIPS
 // ==========================
 if ($params_plate_no) {
+    $latestData = json_decode(file_get_contents("latest_plate.json"), true);
+    $api_latest_plate = $latestData['plate'] ?? '';
+
+    // Output for testing
+    // header('Content-Type: text/plain');
+    // echo "Latest plate: " . $api_latest_plate;
+    // exit; // stop here so only the value shows
     $sel = $mysqli->prepare("SELECT * FROM obd_logs WHERE plate_no = ? ORDER BY id DESC LIMIT 1");
     $sel->bind_param("s", $params_plate_no);
     $sel->execute();
@@ -219,12 +226,12 @@ if ($params_plate_no) {
     $trips_data = [];
     while ($row = $tripResult->fetch_assoc()) $trips_data[] = $row;
     $tripSel->close();
-
     echo json_encode([
         "status"     => "success",
         "plate_no"   => $params_plate_no,
         "logs"       => $logs,
-        "trips_data" => $trips_data
+        "trips_data" => $trips_data,
+        'api_plate_no' =>$api_latest_plate
     ]);
 } else {
     $sql = "

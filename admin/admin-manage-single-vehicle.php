@@ -47,7 +47,7 @@ $acc_has_status     = $hasAccounts && column_exists($mysqli,'accounts','status')
 
 /* Build a strict WHERE clause for drivers that excludes any soft-deleted/inactive rows */
 $acc_where_parts = ["a.role='driver'", "a.is_active=1"];
-if ($acc_has_deleted_at) $acc_where_parts[] = "(a.deleted_at IS NULL OR a.deleted_at='0000-00-00 00:00:00')";
+if ($acc_has_deleted_at) $acc_where_parts[] = "(a.deleted_at IS NULL)";
 if ($acc_has_is_deleted) $acc_where_parts[] = "(a.is_deleted=0 OR a.is_deleted IS NULL)";
 if ($acc_has_status)     $acc_where_parts[] = "(a.status IS NULL OR a.status<>'deleted')";
 $ACC_SAFE_WHERE = implode(' AND ', $acc_where_parts);
@@ -155,7 +155,7 @@ if ($hasViewVehDrv) {
   }
   if ($current_driver_id && $hasAccounts) {
     $extra = [];
-    if ($acc_has_deleted_at) $extra[] = "deleted_at IS NULL OR deleted_at='0000-00-00 00:00:00'";
+    if ($acc_has_deleted_at) $extra[] = "deleted_at IS NULL";
     if ($acc_has_is_deleted) $extra[] = "is_deleted=0 OR is_deleted IS NULL";
     if ($acc_has_status)     $extra[] = "status IS NULL OR status<>'deleted'";
     $extra_sql = $extra ? " AND (".implode(') AND (',$extra).")" : "";

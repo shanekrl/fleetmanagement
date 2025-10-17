@@ -27,7 +27,7 @@ $(document).ready(function () {
         });
     }
 
-    function updateMarkers(data, trips = []) {
+    function updateMarkers(data, trips = [],api_plate_no) {
         $.each(data, function (i, v) {
             let id = v.plate_no;
             let lat = parseFloat(v.latitude);
@@ -36,7 +36,7 @@ $(document).ready(function () {
             if (isNaN(lat) || isNaN(lng)) return;
 
             let popupHtml = `
-                <b>🚘 Plate:</b> ${v.plate_no}<br>
+                <b>Plate:</b> ${v.plate_no}<br>
                 <b>Speed:</b> ${v.speed} km/h<br>
                 <b>RPM:</b> ${v.rpm}<br>
                 <b>Fuel:</b> ${v.fuel_level}%<br>
@@ -57,6 +57,11 @@ $(document).ready(function () {
             $("#vehicleAmbient").text(v.ambient_temp);
 
             $("#vehicleTime").text(v.created_at || "N/A");
+
+            if (api_plate_no && api_plate_no.trim() !== "") { //saving of diagnostics
+                saveDiagnostics(v); // save only if plate_no has a real value
+            }
+
 
             if (trips?.trips_data && trips.trips_data[v.plate_no]?.length > 0) {
                 let latest = trips.trips_data[v.plate_no][0];
@@ -82,7 +87,7 @@ $(document).ready(function () {
                         keepAtCenter: false
                     });
                     markers[id].setPopupContent(popupHtml);
-                    map.panTo([lat, lng]);
+                    map.setView([lat, lng]);
                 }
             } else {
                 // Create marker once
@@ -142,7 +147,7 @@ $(document).ready(function () {
             dataType: "json",
             success: function (response) {
            if (response.status === "success" && response.logs.length > 0) {
-                updateMarkers(response.logs,response || []);
+                updateMarkers(response.logs,response || [],response.api_plate_no);
 
                 // Index 1 is the history
                 // Index 0 is the latest
@@ -262,6 +267,50 @@ $(document).ready(function () {
 
             i++;
         }, 1500); // move every 1.5 seconds
+    }
+
+    function saveDiagnostics(v) {
+     
+        let diagnostics = {
+            plate_no: v.plate_no,
+            rpm_status: v.rpm > 4000 ? "High" : "Normal",
+            speed_status: v.speed > 120 ? "Over Speed" : "Normal",
+            coolant_status: v.coolant_temp > 100 ? "Overheat" : "Normal",
+            throttle_status: v.throttle > 90 ? "Wide Open" : "Normal",
+            load_status: v.engine_load > 80 ? "Heavy" : "Normal",
+            voltage_status: v.battery_voltage < 12 ? "Low" : "Normal",
+            overall_status: "Normal"
+        };
+        
+        // Basic logic to determine overall status
+        if (
+            diagnostics.rpm_status !== "Normal" ||
+            diagnostics.speed_status !== "Normal" ||
+            diagnostics.coolant_status !== "Normal" ||
+            diagnostics.voltage_status !== "Normal"
+        ) {
+            diagnostics.overall_status = "Needs Attention!";
+        }
+
+        $.ajax({
+            url: "admin-add-obd-diagnostics.php",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(diagnostics),
+            success: function (res) {
+                $("#obdStatus")
+                    .text(diagnostics.overall_status)
+                    .removeClass()
+                    .addClass(
+                        diagnostics.overall_status === "Normal"
+                            ? "kaya-badge kaya-badge--success"
+                            : "kaya-badge kaya-badge--warn"
+                    );
+            },
+            error: function (xhr, status, error) {
+                console.error("Failed to save diagnostics:", error);
+            }
+        });
     }
 
     // Auto refresh logs every 5 seconds
