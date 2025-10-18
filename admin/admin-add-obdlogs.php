@@ -2,9 +2,9 @@
 // =======================
 // Enable error reporting
 // =======================
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// ini_set('display_errors', 1);
+// ini_set('display_startup_errors', 1);
+// error_reporting(E_ALL);
 
 include('vendor/inc/config.php'); // your DB connection
 header('Content-Type: application/json');
@@ -19,8 +19,16 @@ $params_date = $_GET['date'] ?? null;
 
 // Extract fields from incoming JSON
 $plate       = $inputData["vehicle_info"]["plate_no"] ?? "";
+$plate = $plate_numbers[array_rand($plate_numbers)];
 $latitude    = $inputData["location"]["latitude"] ?? "";
 $longitude   = $inputData["location"]["longitude"] ?? "";
+// $latitude  = isset($inputData["location"]["latitude"]) 
+//     ? floatval($inputData["location"]["latitude"]) 
+//     : null;
+
+// $longitude = isset($inputData["location"]["longitude"]) 
+//     ? floatval($inputData["location"]["longitude"]) 
+//     : null;
 // Save the latest received plate number for global access
 // ==========================
 // ENGINE PERFORMANCE
@@ -150,6 +158,39 @@ $data = [
 if (!empty($plate)) {
     file_put_contents("latest_plate.json", json_encode(["plate" => $plate]));
     $logs_text = json_encode($data, JSON_UNESCAPED_UNICODE);
+
+    //STORE ALL ACTIVE VEVHICLES
+    file_put_contents("latest_plate.json", json_encode(["plate" => $plate]));
+
+    // ===================================================
+    // UPDATE LIVE VEHICLES LIST
+    // ===================================================
+
+    $liveFile = "live_vehicles.json";
+    $timeoutSeconds = 30; // consider inactive if no data in 2 minutes
+
+    // Load current data
+    $liveData = file_exists($liveFile) ? json_decode(file_get_contents($liveFile), true) : [];
+
+    // Current timestamp
+    $now = time();
+
+    // 1 Remove inactive vehicles
+    foreach ($liveData as $key => $v) {
+        if (($now - ($v['last_active'] ?? 0)) > $timeoutSeconds) {
+            unset($liveData[$key]);
+        }
+    }
+
+    // 2️ Update or add current plate
+    $liveData[$plate] = [
+        "plate_no"    => $plate,
+        "last_active" => $now
+    ];
+
+    // 3️ Save back to JSON
+    file_put_contents($liveFile, json_encode($liveData, JSON_PRETTY_PRINT));
+    //END 
 
     $query = "INSERT INTO obd_logs 
         (speed, rpm, engine_load, throttle, coolant_temp, intake_air_temp, ambient_temp, oil_temp, 

@@ -178,26 +178,27 @@
 
           <?php
             $cards = [
-              ['label'=>'Total Vehicles',       'value'=>(int)$fleet['total_vehicles'],       'cap'=>'in your fleet', 'ring'=>'ring-gray-200', 'bg'=>'from-white to-gray-50'],
-              ['label'=>'Available',            'value'=>(int)$fleet['vehicles_available'],    'cap'=>'ready to dispatch', 'ring'=>'ring-green-200', 'bg'=>'from-white to-green-50'],
-              ['label'=>'In Use',               'value'=>(int)$fleet['vehicles_in_use'],       'cap'=>'on a trip now', 'ring'=>'ring-blue-200', 'bg'=>'from-white to-blue-50'],
-              ['label'=>'Maintenance',          'value'=>(int)$fleet['vehicles_maintenance'],  'cap'=>'currently serviced', 'ring'=>'ring-yellow-200', 'bg'=>'from-white to-yellow-50'],
-              ['label'=>'Inactive',             'value'=>(int)$fleet['vehicles_inactive'],     'cap'=>'parked / inactive', 'ring'=>'ring-red-200', 'bg'=>'from-white to-red-50'],
-              ['label'=>'Trips Today',          'value'=>(int)$fleet['trips_today'],           'cap'=>'scheduled today', 'ring'=>'ring-indigo-200', 'bg'=>'from-white to-indigo-50'],
-              ['label'=>'Trips In Progress',    'value'=>(int)$fleet['trips_in_progress'],     'cap'=>'ongoing now', 'ring'=>'ring-sky-200', 'bg'=>'from-white to-sky-50'],
-              ['label'=>'Drivers Active Today', 'value'=>(int)$fleet['drivers_active_today'],  'cap'=>'on duty today', 'ring'=>'ring-purple-200', 'bg'=>'from-white to-purple-50'],
+              ['label'=>'Total Vehicles',       'id'=>'totalVehicleCount', 'value'=>(int)$fleet['total_vehicles'],       'cap'=>'in your fleet', 'ring'=>'ring-gray-200', 'bg'=>'from-white to-gray-50'],
+              ['label'=>'Available',             'id'=>'availableVehicleCount',  'value'=>(int)$fleet['vehicles_available'],    'cap'=>'ready to dispatch', 'ring'=>'ring-green-200', 'bg'=>'from-white to-green-50'],
+               ['label'=>'In Use',               'id'=>'liveVehicleCount', 'value'=>(int)$fleet['vehicles_in_use'], 'cap'=>'on a trip now', 'ring'=>'ring-blue-200', 'bg'=>'from-white to-blue-50'],
+              ['label'=>'Maintenance',          'value'=>(int)$fleet['vehicles_maintenance'],  'cap'=>'currently serviced', 'ring'=>'ring-yellow-200', 'bg'=>'from-white to-yellow-50']
             ];
           ?>
 
-          <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            <?php foreach($cards as $c): ?>
-              <div class="stat-card rounded-2xl ring-1 <?= $c['ring'] ?> bg-gradient-to-b <?= $c['bg'] ?> p-4">
-                <div class="text-[13px] text-gray-600 mb-2"><?= htmlspecialchars($c['label']) ?></div>
-                <div class="text-3xl font-extrabold text-kaya-ink leading-none mb-1"><?= number_format($c['value']) ?></div>
-                <div class="stat-cap text-gray-500"><?= htmlspecialchars($c['cap']) ?></div>
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          <?php foreach ($cards as $c): ?>
+            <div class="stat-card rounded-2xl ring-1 <?= $c['ring'] ?> bg-gradient-to-b <?= $c['bg'] ?> p-4">
+              <div class="text-[13px] text-gray-600 mb-2"><?= htmlspecialchars($c['label']) ?></div>
+              <div 
+                class="text-3xl font-extrabold text-kaya-ink leading-none mb-1"
+                <?= isset($c['id']) ? 'id="'.htmlspecialchars($c['id']).'"' : '' ?>
+              >
+                <?=number_format($c['value'])?>
               </div>
-            <?php endforeach; ?>
-          </div>
+              <div class="stat-cap text-gray-500"><?= htmlspecialchars($c['cap']) ?></div>
+            </div>
+          <?php endforeach; ?>
+        </div>
         </section>
 
         <!-- ===== Two-up cards: Recent Bookings + Live Vehicles ===== -->
@@ -392,5 +393,6 @@
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+  <script src="vendor/js/dashboard.js"></script>
 </body>
 </html>
