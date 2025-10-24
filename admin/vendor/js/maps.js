@@ -270,7 +270,6 @@ $(document).ready(function () {
     }
 
     function saveDiagnostics(v) {
-     
         let diagnostics = {
             plate_no: v.plate_no,
             rpm_status: v.rpm > 4000 ? "High" : "Normal",
@@ -279,6 +278,7 @@ $(document).ready(function () {
             throttle_status: v.throttle > 90 ? "Wide Open" : "Normal",
             load_status: v.engine_load > 80 ? "Heavy" : "Normal",
             voltage_status: v.battery_voltage < 12 ? "Low" : "Normal",
+            mil_status: v.mil_status != 0 ? "Check Engine" : "Normal",
             overall_status: "Normal"
         };
         
@@ -287,7 +287,8 @@ $(document).ready(function () {
             diagnostics.rpm_status !== "Normal" ||
             diagnostics.speed_status !== "Normal" ||
             diagnostics.coolant_status !== "Normal" ||
-            diagnostics.voltage_status !== "Normal"
+            diagnostics.voltage_status !== "Normal" || 
+            diagnostics.mil_status !== "Normal"
         ) {
             diagnostics.overall_status = "Needs Attention!";
         }

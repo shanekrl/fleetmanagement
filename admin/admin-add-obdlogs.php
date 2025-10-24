@@ -19,7 +19,8 @@ $params_date = $_GET['date'] ?? null;
 
 // Extract fields from incoming JSON
 $plate       = $inputData["vehicle_info"]["plate_no"] ?? "";
-$plate = $plate_numbers[array_rand($plate_numbers)];
+// $plate_numbers = ["CAI3904", "CCB5565", "CCD2879", "DBF9903", "CBT4971","NHI3023"];
+// $plate = $plate_numbers[array_rand($plate_numbers)];
 $latitude    = $inputData["location"]["latitude"] ?? "";
 $longitude   = $inputData["location"]["longitude"] ?? "";
 // $latitude  = isset($inputData["location"]["latitude"]) 

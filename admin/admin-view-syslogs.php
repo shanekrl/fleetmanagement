@@ -177,6 +177,7 @@
                       <th>Throttle</th>
                       <th>Load</th>
                       <th>Voltage</th>
+                      <th>Check Engine Status</th>
                       <th>Overall</th>
                       <th>Created</th>
                     </tr>

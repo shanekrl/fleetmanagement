@@ -1,7 +1,7 @@
 <?php
 // diagnostics.php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+// ini_set('display_errors', 1);
+// error_reporting(E_ALL);
 
 include('vendor/inc/config.php');
 header('Content-Type: application/json');
@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $sql = "SELECT id, plate_no, rpm_status, speed_status, coolant_status, 
-                   throttle_status, load_status, voltage_status, overall_status, created_at 
+                   throttle_status, load_status, voltage_status, overall_status,mil_status, created_at 
             FROM vehicle_diagnostics
             WHERE plate_no = ?
             ORDER BY id DESC";
@@ -52,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $load_status     = $data['load_status'] ?? '';
     $voltage_status  = $data['voltage_status'] ?? '';
     $overall_status  = $data['overall_status'] ?? '';
+    $mil_status  = $data['mil_status'] ?? '';
 
     // Make sure plate_no is not empty
     if (empty($plate_no)) {
@@ -60,13 +61,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $sql = "INSERT INTO vehicle_diagnostics 
-            (plate_no, rpm_status, speed_status, coolant_status, throttle_status, load_status, voltage_status, overall_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            (plate_no, rpm_status, speed_status, coolant_status, throttle_status, load_status, voltage_status, mil_status, overall_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $stmt = $mysqli->prepare($sql);
-    $stmt->bind_param("ssssssss", 
+    $stmt->bind_param("sssssssss", 
         $plate_no, $rpm_status, $speed_status, $coolant_status, 
-        $throttle_status, $load_status, $voltage_status, $overall_status
+        $throttle_status, $load_status, $voltage_status,$mil_status, $overall_status
     );
 
     if ($stmt->execute()) {
@@ -74,6 +75,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (file_exists($jsonFile)) {
             file_put_contents($jsonFile, json_encode(["plate" => ""]));
         }
+
+        // Send email only if status is "Needs Attention!"
+        if ($overall_status === 'Needs Attention!') {
+            date_default_timezone_set('Asia/Manila');
+            $timestamp = date('Y-m-d h:i:s A');
+
+            $to = "reinmallari10@gmail.com";
+            $subject = "⚠ Vehicle Alert: {$plate_no}";
+            $message = "
+                        Vehicle Diagnostic Alert
+
+                        Date & Time: {$timestamp}
+
+                        Vehicle Plate: {$plate_no}
+                        ----------------------------------
+                        RPM Status: {$rpm_status}
+                        Speed Status: {$speed_status}
+                        Coolant Status: {$coolant_status}
+                        Voltage Status: {$voltage_status}
+                        Check Engine Status: {$mil_status}
+                        ----------------------------------
+                        Overall Status: {$overall_status}
+
+                        Please check the vehicle immediately.";
+
+            $headers = "From: Fleet Monitor <no-reply@yourdomain.com>\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+            mail($to, $subject, $message, $headers);
+        }
+
         echo json_encode(["success" => true, "message" => "Diagnostic saved successfully"]);
     } else {
         echo json_encode(["success" => false, "message" => $stmt->error]);

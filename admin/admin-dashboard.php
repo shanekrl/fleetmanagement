@@ -207,7 +207,7 @@
           <!-- Recent Bookings -->
           <section class="bg-white rounded-2xl shadow p-6">
             <h3 class="text-base font-semibold text-kaya-ink mb-4">Recent Bookings</h3>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto" style="max-height:500px">
               <table class="min-w-full text-left text-sm">
                 <thead>
                   <tr class="text-gray-500">
@@ -289,7 +289,7 @@
           </section>
 
           <!-- Live Vehicles -->
-          <section class="bg-white rounded-2xl shadow p-6">
+          <section class="bg-white rounded-2xl shadow p-6" id="live_vehicles">
             <h3 class="text-base font-semibold text-kaya-ink mb-4">Live Vehicles</h3>
             <div class="overflow-x-auto">
               <table class="min-w-full text-left text-sm">
