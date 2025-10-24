@@ -73,7 +73,10 @@ function badge_color($s){
     .sidebar, .sticky-footer { display:none !important; }
     #content-wrapper { padding:0 !important; }
     html, body { height:100%; }
+    #map { height: 370px; width: 100%; border-radius: 20px; }
   </style>
+    <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
   <?php include __DIR__ . '/vendor/inc/nav.php'; ?>
@@ -84,7 +87,13 @@ function badge_color($s){
       <div class="flex items-center justify-between">
         <div class="min-w-0">
           <div class="font-semibold whitespace-normal">
-            <?= htmlspecialchars(($booking['pickup_point'] ?? '—').' → '.($booking['dropoff_point'] ?? '—')) ?>
+            <p id="pickup_point" class="inline">
+              <?= htmlspecialchars($booking['pickup_point'] ?? '—') ?>
+            </p>
+            →
+            <p id="dropoff_point" class="inline">
+              <?= htmlspecialchars($booking['dropoff_point'] ?? '—') ?>
+            </p>
           </div>
           <div class="text-[12px] opacity-80"><?= fmt_compact($booking['scheduled_start_at']) ?></div>
         </div>
@@ -95,7 +104,11 @@ function badge_color($s){
 
   <!-- Map + controls -->
   <div class="max-w-[900px] mx-auto w-full h-[calc(100vh-120px)] px-4 py-3">
-    <div class="w-full h-[65%] bg-slate-200 rounded-xl mb-3"></div>
+    <div class="w-full h-[65%] bg-slate-200 rounded-xl mb-3">
+      <div class="kaya-map">
+        <div id="map"></div>
+      </div>
+    </div>
 
     <div class="mb-3 flex gap-2 items-center">
       <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white <?= badge_color($booking['status']) ?>">
@@ -167,8 +180,13 @@ function badge_color($s){
     });
   </script>
 
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.smooth_marker_bouncing"></script>
+  <script src="https://unpkg.com/leaflet.smoothmarkerbouncing"></script>
+  <script src="https://unpkg.com/leaflet.marker.slideto"></script>
   <script src="vendor/jquery/jquery.min.js"></script>
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+  <script src="vendor/js/driver_maps.js"></script>
 </body>
 </html>
