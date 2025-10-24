@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             date_default_timezone_set('Asia/Manila');
             $timestamp = date('Y-m-d h:i:s A');
 
-            $to = "reinmallari10@gmail.com";
+            $to = "lopez.shanellekate@student.auf.edu.ph";
             $subject = "⚠ Vehicle Alert: {$plate_no}";
             $message = "
                         Vehicle Diagnostic Alert
