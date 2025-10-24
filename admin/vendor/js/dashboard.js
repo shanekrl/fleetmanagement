@@ -11,16 +11,19 @@ $(document).ready(function() {
                 let availableUnits = parseInt($("#totalVehicleCount").text().trim()) - parseInt(response.live_vehicle_count);
                 $("#liveVehicleCount").text(response.live_vehicle_count);
                 $("#availableVehicleCount").text(availableUnits);
-
-
-
-
             },
             error: function(xhr, status, error) {
                 console.error("Error:", error);
             }
         });
     }
+
+    function reloadLiveVehicles() {
+     $("#live_vehicles").load(" #live_vehicles > *");
+    }
+
+    // Refresh every 2 seconds (2000 ms)
+    setInterval(reloadLiveVehicles, 2000);
 
     loadLiveVehicleCount();
 
