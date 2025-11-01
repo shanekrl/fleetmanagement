@@ -74,6 +74,7 @@ function audit_wrap($mysqli, $actorId, $action, $entityId, $beforeArr, $afterArr
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_admin'])) {
   $name   = trim($_POST['name'] ?? '');
   $email  = trim($_POST['email'] ?? '');
+  $role  = trim($_POST['roles'] ?? '');
   $pwd    = (string)($_POST['password'] ?? '');
   $active = isset($_POST['is_active']) ? 1 : 0;
 
@@ -97,10 +98,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_admin'])) {
   if (!$errors) {
     $hash = password_hash($pwd, PASSWORD_DEFAULT);
     if ($ins = $mysqli->prepare("
-      INSERT INTO accounts (role,name,email,password_hash,is_active,created_at,updated_at)
-      VALUES ('admin',?,?,?,?,NOW(),NOW())
+      INSERT INTO accounts (role, name, email, password_hash, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NOW(), NOW())
     ")) {
-      $ins->bind_param('sssi', $name, $email, $hash, $active);
+      $ins->bind_param('ssssi', $role, $name, $email, $hash, $active);
       $execOk = $ins->execute();
       $newId  = (int)$ins->insert_id;
       $ins->close();
@@ -205,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['toggle_active'], $_POST
 
 // Fetch admins
 $admins = [];
-if ($rs = $mysqli->query("SELECT id,name,email,is_active,created_at FROM accounts WHERE role='admin' ORDER BY name")) {
+if ($rs = $mysqli->query("SELECT id,role,name,email,is_active,created_at FROM accounts ORDER BY name")) {
   while ($r=$rs->fetch_assoc()) $admins[]=$r;
 }
 ?>
@@ -254,6 +255,15 @@ if ($rs = $mysqli->query("SELECT id,name,email,is_active,created_at FROM account
                 <label class="form-check-label" for="is_active">Active</label>
               </div>
             </div>
+            <div class="form-group col-md-3">
+
+                <label>Role:</label>
+                <select name="roles" class="form-control">
+                  <option value="superadmin">Super Admin</option>
+                  <option value="admin">Admin</option>
+                  <option value="driver">Driver</option>
+                </select>
+            </div>
           </div>
           <button class="btn btn-kaya-primary"><i class="fas fa-user-plus mr-1"></i>Create</button>
         </form>
@@ -265,12 +275,13 @@ if ($rs = $mysqli->query("SELECT id,name,email,is_active,created_at FROM account
       <div class="card-body table-responsive">
         <table class="table table-hover">
           <thead><tr>
-            <th>#</th><th>Name</th><th>Email</th><th>Active</th><th>Created</th><th>Actions</th>
+            <th>#</th><th>Role</th><th>Name</th><th>Email</th><th>Active</th><th>Created</th><th>Actions</th>
           </tr></thead>
           <tbody>
           <?php foreach ($admins as $i=>$a): ?>
             <tr>
               <td><?= $i+1 ?></td>
+              <td><?= htmlspecialchars($a['role']) ?></td>
               <td><?= htmlspecialchars($a['name']) ?></td>
               <td><?= htmlspecialchars($a['email']) ?></td>
               <td>

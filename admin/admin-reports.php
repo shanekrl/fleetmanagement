@@ -339,11 +339,11 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
             <div class="d-flex align-items-center kaya-toolbar mb-3">
               <h5 class="m-0">Vehicle Report</h5>
               <div class="ml-auto no-print">
-                <form class="form-inline" method="get">
+                <form class="form-inline" id="report_form">
                   <input type="hidden" name="tab" value="vehicle">
                   <div class="form-group mx-sm-2">
                     <label class="mr-2 muted">Vehicle</label>
-                    <select name="vr_vehicle_id" class="form-control" required>
+                    <select name="vr_vehicle_id" id="trips_plate_no" class="form-control" required>
                       <option value="">— select —</option>
                       <?php foreach($vehicles as $v): ?>
                         <option value="<?= (int)$v['v_id'] ?>" <?= $vr_vehicle_id===(int)$v['v_id']?'selected':'' ?>>
@@ -354,13 +354,13 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                   </div>
                   <div class="form-group mx-sm-2">
                     <label class="mr-2 muted">From</label>
-                    <input type="date" class="form-control" name="vr_from" value="<?= h($vr_from) ?>" required>
+                    <input type="date" class="form-control" id="trips_from_date" name="vr_from" value="<?= h($vr_from) ?>" required>
                   </div>
                   <div class="form-group mx-sm-2">
                     <label class="mr-2 muted">To</label>
-                    <input type="date" class="form-control" name="vr_to" value="<?= h($vr_to) ?>" required>
+                    <input type="date" class="form-control" id="trips_to_date" name="vr_to" value="<?= h($vr_to) ?>" required>
                   </div>
-                  <button class="btn btn-kaya-primary ml-2">Run</button>
+                  <button type="submit" class="btn btn-kaya-primary ml-2">Run</button>
                   <button class="btn btn-outline-secondary ml-2" type="button" onclick="printSection('#vehicle')"><i class="fas fa-print mr-1"></i> Print</button>
                 </form>
               </div>
@@ -384,13 +384,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                 }
               ?>
               <div class="metrics mb-3">
-                <div class="metric"><span class="label">Trips</span><span class="value"><?= (int)$sumTrips ?></span></div>
-                <div class="metric"><span class="label">Distance (km)</span><span class="value"><?= number_format($sumKm,2) ?></span></div>
-                <div class="metric"><span class="label">Fuel (L)</span><span class="value"><?= number_format($sumFuel,2) ?></span></div>
-                <div class="metric"><span class="label">Odometer</span><span class="value">
-                  <?= is_null($odoStart)||is_null($odoEnd)?'—':(number_format($odoStart,1).' → '.number_format($odoEnd,1)) ?>
-                </span></div>
-                <div class="metric"><span class="label">Engine/Trip Time (h)</span><span class="value"><?= number_format($sumDur/3600,2) ?></span></div>
+                <div class="metric"><span class="label">Trips</span><span class="value" id="total_trips"></span></div>
               </div>
 
               <div class="table-responsive">
@@ -399,30 +393,16 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                     <tr>
                       <th>#</th>
                       <th>Date</th>
-                      <th>Trips</th>
-                      <th>Distance (km)</th>
-                      <th>Fuel (L)</th>
-                      <th>Odo Start</th>
-                      <th>Odo End</th>
-                      <th>Duration (h)</th>
+                      <th>Plate #</th>
+                      <th>RPM</th>
+                      <th>Speed</th>
+                      <th>Throttle</th>
+                      <th>Coolant Temp</th>
+                      <th>Fuel Type</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <?php $i=1; foreach($vehicle_daily as $m): ?>
-                      <tr>
-                        <td><?= $i++ ?></td>
-                        <td><?= h($m['service_date']) ?></td>
-                        <td><?= (int)$m['trips'] ?></td>
-                        <td><?= number_format((float)$m['distance_km'],2) ?></td>
-                        <td><?= number_format((float)$m['fuel_used_liters'],2) ?></td>
-                        <td><?= is_null($m['odo_start_km'])?'—':number_format((float)$m['odo_start_km'],1) ?></td>
-                        <td><?= is_null($m['odo_end_km'])?'—':number_format((float)$m['odo_end_km'],1) ?></td>
-                        <td><?= number_format(((int)($m['duration_seconds'] ?? 0))/3600,2) ?></td>
-                      </tr>
-                    <?php endforeach; ?>
-                    <?php if (!$vehicle_daily): ?>
-                      <tr><td colspan="8" class="text-center muted">No data for the selected period.</td></tr>
-                    <?php endif; ?>
+           
                   </tbody>
                 </table>
               </div>
@@ -447,6 +427,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
 <script src="vendor/datatables/jquery.dataTables.js"></script>
 <script src="vendor/datatables/dataTables.bootstrap4.js"></script>
 <script src="js/sb-admin.min.js"></script>
+ <script src="vendor/js/report.js"></script>
 
 <script>
   (function(){
