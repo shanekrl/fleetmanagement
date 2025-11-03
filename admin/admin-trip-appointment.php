@@ -400,7 +400,7 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                 $canDriverStart   = !$isAdmin && $isMine && strtolower($r['status'])==='accepted';
                 $canDriverDrop    = !$isAdmin && $isMine && strtolower($r['status'])==='in_progress';
               ?>
-              <tr data-date="<?= htmlspecialchars($dt ? date('Y-m-d', strtotime($dt)) : '') ?>">
+              <tr data-booking-id="<?= (int)$r['booking_id'] ?>" data-date="<?= htmlspecialchars($dt ? date('Y-m-d', strtotime($dt)) : '') ?>">
                 <td><?= $n++ ?></td>
                 <td><?= htmlspecialchars($date) ?></td>
                 <td><?= htmlspecialchars($time) ?></td>
@@ -741,6 +741,35 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
       columnDefs: [{ targets: -1, orderable:false, searchable:false }]
     });
   });
+
+  $(function(){
+  const table = $('#dataTable').DataTable({
+    pageLength: 10,
+    order: [[0,'asc']],
+    searching: true,
+    columnDefs: [{ targets: -1, orderable:false, searchable:false }]
+  });
+
+  //highlight ?highlight=<id>
+  (function(){
+    const id = new URLSearchParams(location.search).get('highlight');
+    if (!id) return;
+
+    table.search(id).draw();
+
+    setTimeout(function(){
+      const row = document.querySelector('#dataTable tbody tr[data-booking-id="'+id+'"]');
+      if (row) {
+        row.classList.add('row-flash');
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function(){ table.search('').draw(); }, 1200);
+        setTimeout(function(){ row.classList.remove('row-flash'); }, 1800);
+      }
+    }, 120);
+  })();
+});
+
+  
 
   let calendar;
   (function initCalendar(){
