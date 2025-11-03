@@ -59,7 +59,17 @@ if ($HAS_BOOKINGS) {
             b.driver_id,
             b.vehicle_id,
             (SELECT name FROM accounts a WHERE a.id=b.driver_id) AS driver_name,
-            (SELECT CONCAT(v_name,' (',v_reg_no,')') FROM tms_vehicle v WHERE v.v_id=b.vehicle_id) AS vehicle_label
+            (SELECT CONCAT(v_name,' (',v_reg_no,')') FROM tms_vehicle v WHERE v.v_id=b.vehicle_id) AS vehicle_label,
+
+            --  Get OBD odometer readings
+            (SELECT MIN(odometer) 
+             FROM obd_logs o 
+             WHERE o.booking_id = b.id) AS start_odometer,
+
+            (SELECT MAX(odometer) 
+             FROM obd_logs o 
+             WHERE o.booking_id = b.id) AS end_odometer
+
           FROM bookings b
           WHERE 1=1";
   $params=[]; $types='';
@@ -310,6 +320,8 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                     <th>Dropoff</th>
                     <th>Driver</th>
                     <th>Vehicle</th>
+                    <th>Start Odometer</th>
+                    <th>End Odometer</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -324,6 +336,8 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                     <td><?= h($r['dropoff_point'] ?: '—') ?></td>
                     <td><?= h($r['driver_name'] ?: ($r['driver_id'] ?: '—')) ?></td>
                     <td><?= h($r['vehicle_label'] ?: ($r['vehicle_id'] ?: '—')) ?></td>
+                    <td><?= h($r['start_odometer'] ?? '—') ?></td>
+                    <td><?= h($r['end_odometer'] ?? '—') ?></td>
                     <td><?= h(ucwords(str_replace('_',' ',$r['status']))) ?></td>
                   </tr>
                   <?php endforeach; ?>
