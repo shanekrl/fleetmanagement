@@ -84,6 +84,30 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_direct'])) 
         $scheduled
       );
       $ok = $st->execute(); $id = $st->insert_id; $st->close();
+
+      /* push a notification to admins */
+      if ($ok && $id) {
+        // Notify all admins. Link to the admin trips page with a highlight param.
+        if ($n = $mysqli->prepare("
+              INSERT INTO notifications(audience, audience_id, type, title, url, payload)
+              VALUES ('admin', NULL, 'booking_created', ?, ?, ?)
+            ")) {
+          $title   = "New driver booking: " . ($pickup ?: '—') . " → " . ($dropoff ?: '—');
+          $url     = "/admin/admin-trip-appointment.php?highlight=" . (int)$id;
+          $payload = json_encode([
+            'booking_id' => (int)$id,
+            'created_by' => (int)$driverAccountId,
+            'pickup'     => $pickup,
+            'dropoff'    => $dropoff,
+            'pax'        => (int)$pax
+          ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+          $n->bind_param('sss', $title, $url, $payload);
+          $n->execute();
+          $n->close();
+        }
+      }
+      /* END ADD */
+
       echo json_encode(['ok'=>$ok?1:0,'id'=>$id]); exit;
     } else {
       echo json_encode(['ok'=>0,'error'=>'Prepare failed']); exit;

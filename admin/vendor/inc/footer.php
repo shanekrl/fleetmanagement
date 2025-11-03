@@ -110,6 +110,70 @@
 })();
 </script>
 
+<!-- notifs -->
+<script>
+(function() {
+  // avoid double init
+  if (window.__kayaNotifInit) return; window.__kayaNotifInit = true;
+
+  const list  = document.getElementById('notifList');
+  const badge = document.getElementById('notifCount');
+  if (!list || !badge) return;
+
+  function setCount(n){
+    if (n > 0) { badge.textContent = n; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
+
+  let unseen = 0;
+
+  function addItem(n) {
+    const a = document.createElement('a');
+    a.className = 'dropdown-item d-flex align-items-start';
+    a.href = n.url || '#';
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      // mark as seen locally and navigate
+      unseen = Math.max(0, unseen - 1);
+      setCount(unseen);
+      window.location.href = n.url;
+    });
+
+    const icon = document.createElement('div');
+    icon.className = 'mr-3';
+    icon.innerHTML = '<div class="icon-circle bg-primary" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;"><i class="fas fa-car text-white"></i></div>';
+
+    const txt = document.createElement('div');
+    txt.innerHTML = '<div class="small text-gray-500">' + (n.created_at || '') + '</div><span class="font-weight-bold">' + (n.title || 'New notification') + '</span>';
+
+    a.appendChild(icon); a.appendChild(txt);
+    list.prepend(a);
+    unseen++; setCount(unseen);
+  }
+
+  // EventSource to /admin/notifications-stream.php
+  let es;
+  try {
+    es = new EventSource('notifications-stream.php');
+  } catch (e) { return; }
+
+  es.onmessage = function(ev){
+    // generic handler
+    try { const n = JSON.parse(ev.data); addItem(n); } catch (_) {}
+  };
+
+  // named event (e.g., 'booking_created')
+  es.addEventListener('booking_created', function(ev){
+    try { const n = JSON.parse(ev.data); addItem(n); } catch (_) {}
+  });
+
+  es.onerror = function() {
+    // allow browser to auto-reconnect; nothing else needed
+  };
+})();
+</script>
+
+
 
  </footer>
  
