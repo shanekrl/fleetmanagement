@@ -22,8 +22,6 @@ $('#report_form').on('submit', function (e) {
             plate_no_text: plateNoText
         },
         success: function (response) {
-            console.log(response);
-
             // Display total trips
             $('#total_trips').text(response.total_trips);
 

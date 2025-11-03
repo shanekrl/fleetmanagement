@@ -366,23 +366,6 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
               </div>
             </div>
 
-            <?php if ($vr_vehicle_id && $vehicle_header): ?>
-              <div class="mb-3">
-                <strong><?= h($vehicle_header['name']) ?></strong>
-                <span class="muted">• <?= h($vehicle_header['plate_no']) ?> • <?= h($vehicle_header['status']) ?></span>
-              </div>
-
-              <?php
-                $sumTrips=$sumKm=0.0; $sumFuel=0.0; $sumDur=0; $odoStart=null; $odoEnd=null;
-                foreach($vehicle_daily as $m){
-                  $sumTrips += (int)$m['trips'];
-                  $sumKm    += (float)$m['distance_km'];
-                  $sumFuel  += (float)$m['fuel_used_liters'];
-                  $sumDur   += (int)($m['duration_seconds'] ?? 0);
-                  if (!is_null($m['odo_start_km'])) $odoStart = is_null($odoStart)? $m['odo_start_km'] : min($odoStart,$m['odo_start_km']);
-                  if (!is_null($m['odo_end_km']))   $odoEnd   = is_null($odoEnd)?   $m['odo_end_km']   : max($odoEnd,$m['odo_end_km']);
-                }
-              ?>
               <div class="metrics mb-3">
                 <div class="metric"><span class="label">Trips</span><span class="value" id="total_trips"></span></div>
               </div>
@@ -406,9 +389,8 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                   </tbody>
                 </table>
               </div>
-            <?php else: ?>
               <div class="muted">Pick a vehicle and date range, then click <em>Run</em>.</div>
-            <?php endif; ?>
+
           </div>
         </section>
 
@@ -445,10 +427,9 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     order: [[1,'desc']]
   });
   $('#vehicleDailyTable').DataTable({
-    searching:false,
-    paging:false,
-    info:false,
-    order:[[1,'desc']]
+    pageLength: 10,
+    lengthMenu: [10,25,50,100],
+    order: [[1,'desc']]
   });
 
   function printSection(sel){

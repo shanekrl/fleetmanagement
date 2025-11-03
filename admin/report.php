@@ -49,7 +49,7 @@ $obdQuery = "
 ";
 
 if ($stmt2 = $mysqli->prepare($obdQuery)) {
-    $stmt2->bind_param("iss", $plate_no_text, $from_date, $to_date);
+    $stmt2->bind_param("sss", $plate_no_text, $from_date, $to_date);
     $stmt2->execute();
     $res = $stmt2->get_result();
     while ($row = $res->fetch_assoc()) {
