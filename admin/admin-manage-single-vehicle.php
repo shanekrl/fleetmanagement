@@ -283,7 +283,7 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
                 <div class="mt-3">
                   <input type="hidden" name="__current_dpic" value="<?= h($vehicle['v_dpic'] ?? '') ?>">
                   <button type="submit" name="update_veh" class="btn btn-kaya-primary"><i class="fas fa-save mr-1"></i> Update Vehicle</button>
-                  <a href="admin-manage-vehicle.php" class="btn btn-outline-secondary ml-2">Cancel</a>
+                  <a href="admin-view-vehicle.php?v_id=<?= (int)$vehicle['v_id'] ?>" class="btn btn-outline-secondary ml-2">Cancel</a>
                 </div>
               </div>
 
