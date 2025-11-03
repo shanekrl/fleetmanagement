@@ -174,10 +174,9 @@ $assignedVehicleLabel = $assignedVehicle ? $assignedVehicle['label'] : '—';
 
       <div class="kaya-toolbar d-flex align-items-center mb-3">
         <div class="ml-auto kaya-actions">
-          <a href="admin-view-driver.php?src=add&d_u_id=<?= (int)$drv['d_u_id'] ?>" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left mr-1"></i> Back
+          <a href="admin-manage-driver.php" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Drivers
           </a>
-          <a href="admin-manage-driver.php" class="btn btn-kaya-danger-outline">Drivers</a>
         </div>
       </div>
 
