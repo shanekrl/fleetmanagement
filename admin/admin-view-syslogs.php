@@ -108,9 +108,9 @@
               <div class="kaya-card__head">Diagnostics</div>
               <div class="kaya-card__body">
                 <dl class="kaya-dl">
-                  <div class="kaya-dl__row">
+                  <!--<div class="kaya-dl__row">
                     <dt>Fuel Level</dt><dd id="vehicleFuel"></dd>
-                  </div>
+                  </div> -->
                   <div class="kaya-dl__row">
                     <dt>Speed</dt><dd id="vehicleSpeed"></dd>
                   </div>
