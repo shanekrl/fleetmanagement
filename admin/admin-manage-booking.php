@@ -22,7 +22,7 @@ function badge_for($s){
   if ($s==='rejected')  return ['badge badge-warning','Rejected'];
   return ['badge badge-danger','Cancelled'];
 }
-define('ACTION_ENDPOINT','admin/booking_actions.php');
+define('ACTION_ENDPOINT','/admin/booking_actions.php');
 
 /* data */
 $rows = [];
