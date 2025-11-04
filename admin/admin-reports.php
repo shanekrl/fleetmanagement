@@ -260,6 +260,106 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     }
     .btn-kaya-primary{background:#0A0F2C;border:1px solid #0A0F2C;color:#fff}
     .btn-kaya-primary:hover{background:#0c1438;color:#fff}
+
+    @media print {
+      /* Hide UI chrome & DataTables controls */
+      nav.navbar,
+      #accordionSidebar,
+      .sidebar,
+      .kaya-toolbar,
+      .no-print,
+      .dataTables_length,
+      .dataTables_filter,
+      .dataTables_info,
+      .dataTables_paginate { display: none !important; }
+
+      /* Remove layout padding from body/containers */
+      body { padding-top: 0 !important; }
+      #content-wrapper, .container-fluid, .kaya-card { margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; }
+
+      /* Make the table print like a normal table */
+      .table-responsive { overflow: visible !important; }
+      table { width: 100% !important; border-collapse: collapse !important; }
+      thead { display: table-header-group; }  /* repeat header on each page */
+      tfoot { display: table-footer-group; }
+
+      /* Avoid ugly row splits & surprise breaks */
+      tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+      .print-area { break-inside: avoid; page-break-inside: avoid; }
+
+      /* Keep only the active tab’s content in flow */
+      .tab-content > .tab-pane { display: none !important; }
+      .tab-content > .tab-pane.active.show { display: block !important; }
+
+      /* Optional: smaller margins = fewer blank tails */
+      @page { margin: 12mm; }
+    }
+
+    @media print {
+      /* Hide all non-report chrome, including the page title + tabs */
+      nav.navbar,
+      #accordionSidebar,
+      .sidebar,
+      .kaya-toolbar,
+      .no-print,
+      .kaya-page-title,
+      .nav-kaya,
+      .dataTables_length,
+      .dataTables_filter,
+      .dataTables_info,
+      .dataTables_paginate { display:none !important; }
+
+      /* Remove container padding/margins so the table can start at page 1 */
+      html, body { padding:0 !important; margin:0 !important; }
+      #content-wrapper, .container-fluid, .kaya-card {
+        margin:0 !important; padding:0 !important; box-shadow:none !important; border:0 !important;
+      }
+
+      /* Make table printable + keep header on each page */
+      .table-responsive { overflow:visible !important; }
+      table { width:100% !important; border-collapse:collapse !important; }
+      thead { display:table-header-group; }
+      tfoot { display:table-footer-group; }
+
+      /* Force wrapping to avoid pushing the last column off-page */
+      .kaya-table { table-layout: fixed !important; }
+      .kaya-table th, .kaya-table td {
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        max-width: 0;                 /* allows flex-like shrink */
+        padding: 4px 6px !important;  /* tighter padding for print width */
+        font-size: 12px !important;
+      }
+
+      /* Reserve narrow, predictable widths for compact columns */
+      #tripHistoryTable th:nth-child(1), #tripHistoryTable td:nth-child(1) { width: 36px; }   /* # */
+      #tripHistoryTable th:nth-child(2), #tripHistoryTable td:nth-child(2) { width: 110px; }  /* When */
+      #tripHistoryTable th:nth-child(3), #tripHistoryTable td:nth-child(3) { width: 70px; }   /* Type */
+      #tripHistoryTable th:nth-child(4), #tripHistoryTable td:nth-child(4) { width: 40px; }   /* Pax */
+      #tripHistoryTable th:nth-child(7), #tripHistoryTable td:nth-child(7) { width: 110px; }  /* Driver */
+      #tripHistoryTable th:nth-child(8), #tripHistoryTable td:nth-child(8) { width: 110px; }  /* Vehicle */
+      #tripHistoryTable th:nth-child(9), #tripHistoryTable td:nth-child(9) { width: 90px; }   /* Start Odo */
+      #tripHistoryTable th:nth-child(10),#tripHistoryTable td:nth-child(10){ width: 90px; }   /* End Odo */
+      #tripHistoryTable th:nth-child(11),#tripHistoryTable td:nth-child(11){ width: 90px; }   /* Status */
+
+      /* Let the big text columns take the rest and wrap */
+      #tripHistoryTable th:nth-child(5), #tripHistoryTable td:nth-child(5),  /* Pickup  */
+      #tripHistoryTable th:nth-child(6), #tripHistoryTable td:nth-child(6) { /* Dropoff */
+        width:auto;
+      }
+
+      /* Avoid awkward row splits; also only show the active tab */
+      tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+      .print-area { break-inside: avoid; page-break-inside: avoid; }
+      .tab-content > .tab-pane { display:none !important; }
+      .tab-content > .tab-pane.active.show { display:block !important; }
+
+      /* Slightly smaller page margin reduces trailing blank pages */
+      @page { margin: 12mm; }
+    }
+
+
   </style>
 
   <div id="content-wrapper">
@@ -403,7 +503,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                   </tbody>
                 </table>
               </div>
-              <div class="muted">Pick a vehicle and date range, then click <em>Run</em>.</div>
+              <div class="muted no-print">Pick a vehicle and date range, then click <em>Run</em>.</div>
 
           </div>
         </section>
@@ -446,12 +546,30 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     order: [[1,'desc']]
   });
 
-  function printSection(sel){
+   function printSection(sel){
     var a = document.querySelector('[href="'+sel+'"]');
     if (a) $(a).tab('show');
-    setTimeout(function(){ window.print(); }, 100);
+
+    var $tableEl = $(sel + ' table.dataTable');
+    var dt = $tableEl.length ? $tableEl.DataTable() : null;
+    var originalLen = dt ? dt.page.len() : null;
+
+    if (dt) {
+      dt.page.len(-1).draw(false);      // show all rows
+      dt.columns.adjust();              // recalc widths before print
+    }
+
+    setTimeout(function(){
+      window.print();
+      if (dt && originalLen !== null) {
+        dt.page.len(originalLen).draw(false);
+        dt.columns.adjust();
+      }
+    }, 150);
   }
+
 </script>
+
 
 </body>
 </html>
