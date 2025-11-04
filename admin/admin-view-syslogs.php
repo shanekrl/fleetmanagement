@@ -211,6 +211,31 @@
   <script src="vendor/js/maps.js"></script>
   <script src="vendor/js/diagnostics.js"></script>
 
+  <script>
+  (function () {
+    // Get vehicle_id from query string: admin-view-syslogs.php?vehicle_id=123
+    const params = new URLSearchParams(location.search);
+    const vehicleId = parseInt(params.get('vehicle_id') || '0', 10);
+    if (!vehicleId) return;
+
+    fetch(`api/vehicle_snapshot.php?vehicle_id=${vehicleId}`)
+      .then(r => r.json())
+      .then(data => {
+        const thDriver = document.getElementById('th_assigned_driver');
+        const crDriver = document.getElementById('cr_assigned_driver');
+        const startLoc = document.getElementById('cr_start_location');
+        const destLoc  = document.getElementById('cr_destination');
+
+        if (thDriver) thDriver.textContent = data.assigned_driver || '—';
+        if (crDriver) crDriver.textContent = data.assigned_driver || '—';
+        if (startLoc) startLoc.textContent = data.start_location || '—';
+        if (destLoc)  destLoc.textContent  = data.destination || '—';
+      })
+      .catch(console.error);
+  })();
+  </script>
+
+
   <style>
     html,body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
