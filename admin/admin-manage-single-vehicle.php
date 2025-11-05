@@ -101,6 +101,7 @@ if (isset($_POST['update_veh'])) {
   $make_id    = ctype_digit((string)($_POST['make_id'] ?? '')) ? (int)$_POST['make_id'] : null;
   $model_id   = ctype_digit((string)($_POST['model_id'] ?? '')) ? (int)$_POST['model_id'] : null;
   $v_dpic     = $_POST['__current_dpic'] ?? '';
+  $last_maintenance     = $_POST['last_maintenance'] ?? '';
 
   // assignment from the main form (numeric id or "0" for none)
   $assign_driver_id = isset($_POST['assign_driver_id']) && ctype_digit((string)$_POST['assign_driver_id'])
@@ -119,8 +120,8 @@ if (isset($_POST['update_veh'])) {
 
   $mysqli->begin_transaction();
   try {
-    if ($s=$mysqli->prepare("UPDATE tms_vehicle SET v_reg_no=?, v_category=?, color=?, make_id=?, model_id=?, v_dpic=? WHERE v_id=?")) {
-      $s->bind_param('sssissi',$v_reg_no,$v_category,$color,$make_id,$model_id,$v_dpic,$vehId);
+    if ($s=$mysqli->prepare("UPDATE tms_vehicle SET v_reg_no=?, v_category=?, color=?, make_id=?, model_id=?, v_dpic=?, last_maintenance=? WHERE v_id=?")) {
+      $s->bind_param('sssisssi',$v_reg_no,$v_category,$color,$make_id,$model_id,$v_dpic,$last_maintenance,$vehId);
       $s->execute(); $s->close();
     }
 
@@ -277,6 +278,10 @@ $img = vehicle_image_url($vehicle['v_dpic'] ?? '');
                       <?php $curModel=(int)($vehicle['model_id'] ?? 0); ?>
                       <?php foreach($models_for_make as $mo){ $sel = ($curModel===(int)$mo['id'])?'selected':''; echo '<option value="'.(int)$mo['id'].'" '.$sel.'>'.h($mo['name']).'</option>'; } ?>
                     </select>
+                  </div>
+                <div class="form-group col-md-6">
+                    <label class="font-weight-semibold">Last Maintenance</label>
+                    <input type="date" name="last_maintenance" class="form-control" value="<?= h($vehicle['last_maintenance'] ?? '') ?>">
                   </div>
                 </div>
 

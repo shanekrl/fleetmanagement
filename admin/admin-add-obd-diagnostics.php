@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 // --- If called via POST Save new diagnostic
+// --- If called via POST Save new diagnostic
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
 
@@ -52,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $load_status     = $data['load_status'] ?? '';
     $voltage_status  = $data['voltage_status'] ?? '';
     $overall_status  = $data['overall_status'] ?? '';
-    $mil_status  = $data['mil_status'] ?? '';
+    $mil_status      = $data['mil_status'] ?? '';
 
     // Make sure plate_no is not empty
     if (empty($plate_no)) {
@@ -60,6 +61,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // 🔹 CHECK LAST MAINTENANCE
+    $maintSql = "SELECT last_maintenance FROM tms_vehicle WHERE v_reg_no = ?";
+    $stmtCheck = $mysqli->prepare($maintSql);
+    $stmtCheck->bind_param("s", $plate_no);
+    $stmtCheck->execute();
+    $result = $stmtCheck->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+        $last_maintenance = $row['last_maintenance'];
+        if (!empty($last_maintenance)) {
+            $lastMaintenanceDate = new DateTime($last_maintenance);
+            $currentDate = new DateTime();
+        
+            $interval = $currentDate->diff($lastMaintenanceDate);
+            $daysDifference = $interval->days; // total days between dates
+        
+            if ($daysDifference >= 90) { // roughly 3 months
+                $overall_status = 'For Maintenance!';
+            }
+        }
+    }
+    $stmtCheck->close();
+
+    // --- INSERT INTO DIAGNOSTICS
     $sql = "INSERT INTO vehicle_diagnostics 
             (plate_no, rpm_status, speed_status, coolant_status, throttle_status, load_status, voltage_status, mil_status, overall_status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -67,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $mysqli->prepare($sql);
     $stmt->bind_param("sssssssss", 
         $plate_no, $rpm_status, $speed_status, $coolant_status, 
-        $throttle_status, $load_status, $voltage_status,$mil_status, $overall_status
+        $throttle_status, $load_status, $voltage_status, $mil_status, $overall_status
     );
 
     if ($stmt->execute()) {
@@ -76,8 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             file_put_contents($jsonFile, json_encode(["plate" => ""]));
         }
 
-        // Send email only if status is "Needs Attention!"
-        if ($overall_status === 'Needs Attention!') {
+        // 🔹 Send email only if status is "Needs Attention!"
+        if ($overall_status === 'Needs Attention!' || $overall_status === 'For Maintenance!') {
             date_default_timezone_set('Asia/Manila');
             $timestamp = date('Y-m-d h:i:s A');
 
@@ -111,4 +136,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(["success" => false, "message" => $stmt->error]);
     }
 }
+
 ?>
