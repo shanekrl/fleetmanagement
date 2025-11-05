@@ -165,6 +165,42 @@ try {
                            END
                      WHERE booking_id={$bookingId}");
 
+    // 1️ Get the vehicle_id using the booking_id
+    $stmt = $mysqli->prepare("SELECT vehicle_id FROM bookings WHERE id = ?");
+    $stmt->bind_param('i', $bookingId);
+    $stmt->execute();
+    $stmt->bind_result($vehicleId);
+    $stmt->fetch();
+    $stmt->close();
+
+    // 2️ Get the vehicle's plate number using the vehicle_id
+    if (!empty($vehicleId)) {
+        $sql = "
+            SELECT v_reg_no
+            FROM tms_vehicle
+            WHERE v_id = ?
+            LIMIT 1
+        ";
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param('i', $vehicleId);
+        $stmt->execute();
+        $stmt->bind_result($plate_no);
+        $stmt->fetch();
+        $stmt->close();
+
+        // 3️ Update OBD logs to link this trip
+        if (!empty($plate_no)) {
+            $updateObd = $mysqli->prepare("
+                UPDATE obd_logs
+                SET booking_id = ?
+                WHERE plate_no = ? AND booking_id IS NULL
+            ");
+            $updateObd->bind_param('is', $bookingId, $plate_no);
+            $updateObd->execute();
+            $updateObd->close();
+        }
+    }
+
     add_event($mysqli, $bookingId, $driverAccountId, 'driver', 'complete_trip', []);
     $newStatus = 'completed';
   }
