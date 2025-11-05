@@ -46,13 +46,13 @@ if (isset($_POST['add_driver'])) {
   $lname   = trim($_POST['u_lname'] ?? '');
   $phone   = trim($_POST['u_phone'] ?? '');
   $addr    = trim($_POST['u_addr'] ?? '');
-  $ctype   = ''; // <- stop using Vehicle/Type
+  $ctype   = ''; // vehicle/type not used anymore
   $lic     = trim($_POST['u_car_regno'] ?? '');
   $status  = trim($_POST['u_car_book_status'] ?? 'Available');
   $email   = trim($_POST['u_email'] ?? '');
   $pwd     = (string)($_POST['login_password'] ?? '');
   $cat     = 'Driver';
-  $upwd    = ''; // legacy column (NOT NULL) — keep empty, logins use `accounts`
+  $upwd    = ''; // legacy (NOT NULL), keep empty; logins use accounts
 
   if (!$email || !$pwd) {
     $err = "Email and password are required to create the driver account.";
@@ -64,12 +64,12 @@ if (isset($_POST['add_driver'])) {
 
       // accounts
       $accId = null;
-      if ($s = $mysqli->prepare("INSERT INTO accounts (role,name,email,password_hash,phone,is_active) VALUES ('driver',?,?,?, ?,1)")) {
+      if ($s = $mysqli->prepare("INSERT INTO accounts (role,name,email,password_hash,phone,is_active) VALUES ('driver',?,?,?,?,1)")) {
         $name = trim($fname.' '.$lname);
         $hash = password_hash($pwd, PASSWORD_BCRYPT);
         $s->bind_param('ssss',$name,$email,$hash,$phone);
         $s->execute();
-        $accId = $s->insert_id;
+        $accId = (int)$s->insert_id;
         $s->close();
       } else { throw new Exception('Failed to prepare accounts insert'); }
 
@@ -80,11 +80,14 @@ if (isset($_POST['add_driver'])) {
         $s->close();
       } else { throw new Exception('Failed to prepare driver_profile insert'); }
 
-      // legacy insert (u_car_type now empty)
+      // legacy insert (IMPORTANT: include u_id = $accId; fix bind types count)
       if ($s = $mysqli->prepare("INSERT INTO tms_user_add_driver
-          (u_fname,u_lname,u_phone,u_addr,u_car_type,u_car_regno,u_car_book_status,u_category,u_email,u_pwd)
-          VALUES (?,?,?,?,?,?,?,?,?,?)")) {
-        $s->bind_param('ssssssssss',$fname,$lname,$phone,$addr,$ctype,$lic,$status,$cat,$email,$upwd);
+          (u_id,u_fname,u_lname,u_phone,u_addr,u_car_type,u_car_regno,u_car_book_status,u_category,u_email,u_pwd)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?)")) {
+        $s->bind_param(
+          'issssssssss',
+          $accId, $fname, $lname, $phone, $addr, $ctype, $lic, $status, $cat, $email, $upwd
+        );
         $s->execute();
         $s->close();
       } else { throw new Exception('Failed to prepare legacy driver insert'); }
@@ -102,16 +105,27 @@ if (isset($_POST['add_driver'])) {
   }
 }
 
+
 /* ----------------- DELETE / RESTORE / PURGE ----------------- */
 if (isset($_POST['delete_driver'])) {
   $id = (int)($_POST['delete_driver_id'] ?? 0);
   if ($id > 0) {
     if ($has_soft_delete) {
+      // move to trash
       if ($s=$mysqli->prepare("UPDATE tms_user_add_driver SET deleted_at=NOW(), deleted_by=? WHERE d_u_id=?")) {
         $s->bind_param('ii',$aid,$id); $s->execute(); $s->close();
       }
-      $succ = "Driver moved to Trash.";
+      // also DEACTIVATE the linked driver account
+      $mysqli->query("
+        UPDATE accounts a
+        JOIN tms_user_add_driver d ON d.u_id = a.id
+        SET a.is_active = 0
+        WHERE d.d_u_id = {$id} AND a.role='driver'
+      ");
+      $succ = "Driver moved to Trash and account deactivated.";
     } else {
+      // hard delete (legacy)
+      // optionally deactivate or delete the account/profile here as policy
       if ($s=$mysqli->prepare("DELETE FROM tms_user_add_driver WHERE d_u_id=?")) {
         $s->bind_param('i',$id); $s->execute(); $s->close();
       }
@@ -119,20 +133,45 @@ if (isset($_POST['delete_driver'])) {
     }
   }
 }
+
 if ($has_soft_delete && isset($_POST['restore_driver'])) {
   $id = (int)($_POST['restore_driver_id'] ?? 0);
-  if ($id>0 && ($s=$mysqli->prepare("UPDATE tms_user_add_driver SET deleted_at=NULL, deleted_by=NULL WHERE d_u_id=?"))) {
-    $s->bind_param('i',$id); $s->execute(); $s->close();
-    $succ = "Driver restored.";
+  if ($id>0) {
+    if ($s=$mysqli->prepare("UPDATE tms_user_add_driver SET deleted_at=NULL, deleted_by=NULL WHERE d_u_id=?")) {
+      $s->bind_param('i',$id); $s->execute(); $s->close();
+    }
+    // also ACTIVATE the linked driver account
+    $mysqli->query("
+      UPDATE accounts a
+      JOIN tms_user_add_driver d ON d.u_id = a.id
+      SET a.is_active = 1
+      WHERE d.d_u_id = {$id} AND a.role='driver'
+    ");
+    $succ = "Driver restored and account activated.";
   }
 }
+
 if ($has_soft_delete && isset($_POST['purge_driver'])) {
   $id = (int)($_POST['purge_driver_id'] ?? 0);
-  if ($id>0 && ($s=$mysqli->prepare("DELETE FROM tms_user_add_driver WHERE d_u_id=?"))) {
-    $s->bind_param('i',$id); $s->execute(); $s->close();
-    $succ = "Driver permanently deleted.";
+  if ($id>0) {
+    // pick policy: keep account but deactivate (safer)
+    $accId = null;
+    if ($s=$mysqli->prepare("SELECT u_id FROM tms_user_add_driver WHERE d_u_id=?")) {
+      $s->bind_param('i',$id); $s->execute(); $s->bind_result($accId); $s->fetch(); $s->close();
+    }
+    if ($s=$mysqli->prepare("DELETE FROM tms_user_add_driver WHERE d_u_id=?")) {
+      $s->bind_param('i',$id); $s->execute(); $s->close();
+    }
+    if ($accId) {
+      if ($p=$mysqli->prepare("DELETE FROM driver_profile WHERE account_id=?")) {
+        $p->bind_param('i',$accId); $p->execute(); $p->close();
+      }
+      $mysqli->query("UPDATE accounts SET is_active=0 WHERE id={$accId} AND role='driver'");
+    }
+    $succ = "Driver permanently deleted (account deactivated).";
   }
 }
+
 
 /* ----------------- FETCH LISTS ----------------- */
 $drivers_add = [];

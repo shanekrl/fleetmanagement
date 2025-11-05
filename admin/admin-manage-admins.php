@@ -142,14 +142,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['create_admin'])) {
   }
 }
 
-// Toggle active (optional)
+// Toggle active (admins/drivers)
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['toggle_active'], $_POST['id'])) {
   $id = (int)$_POST['id'];
   $to = (int)$_POST['toggle_active'] ? 1 : 0;
 
-  // Get BEFORE row for audit
+  // fetch BEFORE (any role)
   $beforeRow = null;
-  if ($g = $mysqli->prepare("SELECT id, role, name, email, is_active FROM accounts WHERE id=? AND role='admin' LIMIT 1")) {
+  if ($g = $mysqli->prepare("SELECT id, role, name, email, is_active FROM accounts WHERE id=? LIMIT 1")) {
     $g->bind_param('i',$id);
     $g->execute();
     $res = $g->get_result();
@@ -158,51 +158,58 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['toggle_active'], $_POST
   }
 
   if (!$beforeRow) {
-    $ok = null; // silent in UI
-    audit_wrap(
-      $mysqli, $actorId, 'admin_toggle_active', $id,
-      ['to'=>$to],
-      ['error'=>'Target not found or not admin'],
-      'failure', 'Target not found or not admin', 'account'
-    );
+    $ok = null;
+    audit_wrap($mysqli,$actorId,'account_toggle_active',$id,['to'=>$to],['error'=>'account not found'],'failure','Target not found','account');
   } else {
-    if ($u = $mysqli->prepare("UPDATE accounts SET is_active=?, updated_at=NOW() WHERE id=? AND role='admin'")) {
-      $u->bind_param('ii',$to,$id);
-      $execOk  = $u->execute();
-      $changed = ($execOk && $u->affected_rows > 0);
-      $u->close();
-
-      $ok = $changed ? 'Status updated.' : 'No changes applied.';
-
-      // Fetch AFTER row
-      $afterRow = null;
-      if ($h = $mysqli->prepare("SELECT id, role, name, email, is_active FROM accounts WHERE id=? LIMIT 1")) {
-        $h->bind_param('i',$id);
-        $h->execute();
-        $res2 = $h->get_result();
-        $afterRow = $res2->fetch_assoc() ?: null;
-        $h->close();
-      }
-
-      audit_wrap(
-        $mysqli, $actorId, 'admin_toggle_active', $id,
-        ['from'=>$beforeRow['is_active'], 'to'=>$to],
-        ['before'=>['is_active'=>$beforeRow['is_active']], 'after'=>$afterRow ? ['is_active'=>$afterRow['is_active']] : null],
-        $execOk ? ($changed ? 'success' : 'info') : 'failure',
-        $execOk ? ($changed ? 'Toggled active state' : 'Update executed, no change') : 'Update execute failed',
-        'account'
-      );
+    // optional safety
+    if ($beforeRow['role']==='superadmin' && $to===0) {
+      $ok = 'Cannot deactivate superadmin.';
     } else {
-      $ok = 'Failed to update status.';
-      audit_wrap(
-        $mysqli, $actorId, 'admin_toggle_active', $id,
-        ['from'=>$beforeRow['is_active'], 'to'=>$to],
-        ['error'=>'Update prepare failed', 'before'=>['is_active'=>$beforeRow['is_active']]],
-        'failure', 'Update prepare failed', 'account'
-      );
+      if ($u = $mysqli->prepare("UPDATE accounts SET is_active=?, updated_at=NOW() WHERE id=?")) {
+        $u->bind_param('ii',$to,$id);
+        $execOk  = $u->execute();
+        $changed = ($execOk && $u->affected_rows > 0);
+        $u->close();
+
+        // mirror to driver table if this account is a DRIVER
+        if ($beforeRow['role']==='driver') {
+          if ($to===0) {
+            // deactivate => move to trash
+            $mysqli->query("UPDATE tms_user_add_driver SET deleted_at=IFNULL(deleted_at, NOW()), deleted_by={$actorId} WHERE u_id={$id}");
+          } else {
+            // activate => restore
+            $mysqli->query("UPDATE tms_user_add_driver SET deleted_at=NULL, deleted_by=NULL WHERE u_id={$id}");
+          }
+        }
+
+        $ok = $changed ? 'Status updated.' : 'No changes applied.';
+
+        // AFTER for audit
+        $afterRow = null;
+        if ($h = $mysqli->prepare("SELECT id, role, name, email, is_active FROM accounts WHERE id=? LIMIT 1")) {
+          $h->bind_param('i',$id);
+          $h->execute();
+          $res2 = $h->get_result();
+          $afterRow = $res2->fetch_assoc() ?: null;
+          $h->close();
+        }
+
+        audit_wrap(
+          $mysqli, $actorId, 'account_toggle_active', $id,
+          ['from'=>$beforeRow['is_active'],'to'=>$to],
+          ['before'=>['is_active'=>$beforeRow['is_active']], 'after'=>$afterRow ? ['is_active'=>$afterRow['is_active']] : null],
+          $execOk ? ($changed ? 'success' : 'info') : 'failure',
+          $execOk ? ($changed ? 'Toggled active state' : 'Update executed, no change') : 'Update execute failed',
+          'account'
+        );
+      } else {
+        $ok = 'Failed to update status.';
+        audit_wrap($mysqli,$actorId,'account_toggle_active',$id,['to'=>$to],['error'=>'prepare failed'],'failure','Update prepare failed','account');
+      }
     }
   }
 }
+
 
 // Fetch admins
 $admins = [];
