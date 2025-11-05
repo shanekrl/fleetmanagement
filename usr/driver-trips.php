@@ -168,6 +168,53 @@ if ($driverAccountId) {
     .geocode-item:last-child{ border-bottom:0; } .geocode-item:hover{ background:#f6f8ff; }
     /* keep jQuery UI menu above Bootstrap modals */
     .ui-autocomplete { z-index: 2000 !important; }
+
+    /* Viewport-sized modal; body scrolls, parent clips */
+    .modal.kaya-fixed .modal-dialog{
+      display:flex;
+      flex-direction:column;
+      margin:12px;
+      max-width:100%;
+      height:calc(100vh - 24px);
+    }
+    @supports (height: 100dvh){
+      .modal.kaya-fixed .modal-dialog{ height:calc(100dvh - 24px); }
+    }
+
+    .modal.kaya-fixed .modal-content{
+      display:flex;
+      flex-direction:column;
+      height:100%;
+      max-height:100%;
+      min-height:0;
+      border-radius:12px;
+      overflow:hidden;                 /* <-- CLIP children so they don’t spill */
+    }
+
+    .modal.kaya-fixed .modal-header,
+    .modal.kaya-fixed .modal-footer{
+      flex:0 0 auto;
+    }
+
+    .modal.kaya-fixed .modal-body{
+      flex:1 1 auto;
+      min-height:0;                    /* <-- required for flex scrolling */
+      overflow-y:auto !important;      /* <-- the only scroller */
+      -webkit-overflow-scrolling:touch;
+      padding-bottom: calc(env(safe-area-inset-bottom, 0) + 8px);
+    }
+
+    /* Prevent double scroll shift on some mobiles */
+    .modal.kaya-fixed{ padding-right:0 !important; }
+    @media (max-width:576px){
+      .modal.kaya-fixed .modal-dialog{
+        margin: env(safe-area-inset-top,12px) 12px env(safe-area-inset-bottom,12px) 12px;
+      }
+    }
+
+    .modal.kaya-fixed .modal-body{ touch-action: pan-y; } /* ensure touch scroll is allowed */
+
+
   </style>
 </head>
 <body id="page-top">
@@ -243,8 +290,8 @@ if ($driverAccountId) {
 </div>
 
 <!-- New Direct Booking Modal -->
- <div class="modal fade" id="newTripModal" tabindex="-1" role="dialog" aria-labelledby="newTripLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+ <div class="modal fade kaya-fixed" id="newTripModal" tabindex="-1" role="dialog" aria-labelledby="newTripLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <form id="newTripForm">
         <div class="modal-header">
@@ -297,8 +344,8 @@ if ($driverAccountId) {
 </div>
 
 <!-- Shared Map Picker Modal -->
-<div class="modal fade" id="mapModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+<div class="modal fade kaya-fixed" id="mapModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="fas fa-map-marked-alt mr-1"></i> Choose Location</h5>
@@ -611,6 +658,51 @@ function reverseNice(lat, lon){
     if(b) b.addEventListener('click',function(e){e.preventDefault();document.body.classList.toggle('sidebar-toggled');
       var rail=document.getElementById('kayaSidebar'); if(rail) rail.classList.toggle('kaya-rail--collapsed');});
   })();
+
+
+  // Make a modal's body scrollable by sizing it to the visible viewport
+  function sizeScrollableModal(modalEl){
+    var $m = $(modalEl);
+    var $dlg = $m.find('.modal-dialog');
+    var $content = $m.find('.modal-content');
+    var $header = $m.find('.modal-header');
+    var $footer = $m.find('.modal-footer');
+    var $body   = $m.find('.modal-body');
+
+    // Use visualViewport on iOS so 100vh/100dvh bugs don't break height when the URL bar/keyboard moves
+    var vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight || document.documentElement.clientHeight;
+
+    // dialog margins: we used 12px around, so 24px total
+    var margins = 24;
+
+    // Ensure dialog itself fits the viewport
+    $dlg.css('height', (vh - margins) + 'px');
+
+    // Compute available height for body = dialog height - header - footer
+    // Use outerHeight(true) to include padding/borders
+    var headerH = $header.outerHeight(true) || 0;
+    var footerH = $footer.outerHeight(true) || 0;
+
+    var bodyMax = (vh - margins) - headerH - footerH;
+    if (bodyMax < 160) bodyMax = 160; // minimum usable area
+
+    $content.css({height:'100%', maxHeight:'100%', minHeight:0, overflow:'hidden'});
+    $body.css({
+      maxHeight: bodyMax + 'px',
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      minHeight: 0,
+      flex: '1 1 auto'
+    });
+  }
+
+  // Recompute when the modal opens and when the viewport changes (URL bar/keyboard)
+  $('#newTripModal, #mapModal').on('shown.bs.modal', function(){ sizeScrollableModal(this); });
+  // Also when device viewport changes (rotate, keyboard show/hide)
+  window.addEventListener('resize', function(){
+    var m = document.querySelector('.modal.show.kaya-fixed');
+    if (m) sizeScrollableModal(m);
+  });
 </script>
 
 <style>
