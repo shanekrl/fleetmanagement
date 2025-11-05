@@ -48,30 +48,33 @@ $HAS_DRIVER_REPORT = table_exists($mysqli, 'tms_driver_report');
 /* ---------- Trip History (prefer NEW bookings) ---------- */
 $trip_rows = [];
 if ($HAS_BOOKINGS) {
-  $sql = "SELECT 
-            b.id AS booking_id,
-            b.booking_type,
-            b.pax AS seats_reserved,
-            b.pickup_point,
-            b.dropoff_point,
-            b.scheduled_start_at,
-            b.status,
-            b.driver_id,
-            b.vehicle_id,
-            (SELECT name FROM accounts a WHERE a.id=b.driver_id) AS driver_name,
-            (SELECT CONCAT(v_name,' (',v_reg_no,')') FROM tms_vehicle v WHERE v.v_id=b.vehicle_id) AS vehicle_label,
+$sql = "SELECT 
+    b.id AS booking_id,
+    b.booking_type,
+    b.pax AS seats_reserved,
+    b.pickup_point,
+    b.dropoff_point,
+    b.scheduled_start_at,
+    b.status,
+    b.driver_id,
+    b.vehicle_id,
+    (SELECT name FROM accounts a WHERE a.id = b.driver_id) AS driver_name,
+    (SELECT CONCAT(v_name, ' (', v_reg_no, ')') FROM tms_vehicle v WHERE v.v_id = b.vehicle_id) AS vehicle_label,
+    o.start_odometer,
+    o.end_odometer
 
-            --  Get OBD odometer readings
-            (SELECT MIN(odometer) 
-             FROM obd_logs o 
-             WHERE o.booking_id = b.id) AS start_odometer,
+FROM bookings b
+LEFT JOIN (
+    SELECT 
+        booking_id,
+        MIN(odometer) AS start_odometer,
+        MAX(odometer) AS end_odometer
+    FROM obd_logs
+    WHERE odometer > 0
+    GROUP BY booking_id
+) o ON o.booking_id = b.id
 
-            (SELECT MAX(odometer) 
-             FROM obd_logs o 
-             WHERE o.booking_id = b.id) AS end_odometer
-
-          FROM bookings b
-          WHERE 1=1";
+WHERE 1=1";
   $params=[]; $types='';
   if ($th_from) { $sql .= " AND b.scheduled_start_at >= ?";                          $params[]=$th_from.' 00:00:00'; $types.='s'; }
   if ($th_to)   { $sql .= " AND b.scheduled_start_at < DATE_ADD(?, INTERVAL 1 DAY)"; $params[]=$th_to.' 00:00:00';   $types.='s'; }
