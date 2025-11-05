@@ -73,7 +73,7 @@ $tripsActive = isAny($tripPages);
     <?php if (is_superadmin_like()): ?>
       <li>
         <a class="kaya-rail__link <?= isActive('admin-manage-admins.php') ?>" href="admin-manage-admins.php">
-          <i class="fas fa-user-shield"></i><span>Admin Users</span>
+          <i class="fas fa-user-shield"></i><span>Users</span>
         </a>
       </li>
     <?php endif; ?>

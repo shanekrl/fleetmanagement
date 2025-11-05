@@ -226,7 +226,7 @@ if ($rs = $mysqli->query("SELECT id,role,name,email,is_active,created_at FROM ac
   <?php include('vendor/inc/sidebar.php'); ?>
   <div id="content-wrapper"><div class="container-fluid">
 
-    <h1 class="kaya-page-title">Admin Users</h1>
+    <h1 class="kaya-page-title">Users</h1>
 
     <?php if ($ok): ?>
       <div class="alert alert-<?= stripos($ok,'fail')!==false ? 'danger':'success' ?>"><?= htmlspecialchars($ok) ?></div>
