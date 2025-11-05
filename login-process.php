@@ -3,6 +3,9 @@ session_start();
 require_once __DIR__.'/admin/vendor/inc/audit.php';
 include('admin/vendor/inc/config.php');
 
+if (function_exists('ini_set')) { ini_set('display_errors', '0'); }
+
+
 // Settings
 const LOCKOUT_THRESHOLD = 5;   // number of bad tries before lockout
 const LOCKOUT_MINUTES   = 15;  // lockout window (minutes)
@@ -18,9 +21,18 @@ function verify_any($plain, $stored){
 
 function bounce($msg, $to='index.php'){
   $_SESSION['error'] = $msg;
-  header("Location: {$to}");
+
+  if (!headers_sent()) {
+    header("Location: {$to}");
+    exit;
+  }
+
+  // Fallback if headers already sent (prevents "imploding" blank pages)
+  echo '<script>location.href='.json_encode($to).';</script>';
+  echo '<noscript><meta http-equiv="refresh" content="0;url=', htmlspecialchars($to, ENT_QUOTES, 'UTF-8'), '"></noscript>';
   exit;
 }
+
 
 
 if ($_SERVER['REQUEST_METHOD']!=='POST') {
@@ -75,7 +87,12 @@ if ($acc) {
 
   // Lockout window
   $now = new DateTimeImmutable('now');
-  $lockedUntil = !empty($acc['locked_until']) ? new DateTimeImmutable($acc['locked_until']) : null;
+  function safe_parse_dt(?string $s): ?DateTimeImmutable {
+    if (!$s || $s === '0000-00-00 00:00:00') return null;
+    try { return new DateTimeImmutable($s); } catch (Throwable $e) { return null; }
+  }
+  $lockedUntil = safe_parse_dt($acc['locked_until'] ?? null);
+
   if ($lockedUntil && $now < $lockedUntil) {
     audit_log($mysqli, null, 'login_blocked_lockout', $id, [
       'email'        => $email,
@@ -111,14 +128,34 @@ if ($acc) {
     $_SESSION['name']       = $acc['name'];
     session_regenerate_id(true);
 
-    // Log to auth_logins
+
+    // Log to auth_logins (IPv4/IPv6 tolerant)
     $ip = $_SERVER['REMOTE_ADDR'] ?? null;
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    if ($i = $mysqli->prepare("INSERT INTO auth_logins (account_id, ip_addr, user_agent) VALUES (?, INET6_ATON(?), ?)")) {
-      $i->bind_param('iss', $id, $ip, $ua);
-      $i->execute();
-      $i->close();
+
+    // Probe INET6_ATON support once
+    static $INET6_OK = null;
+    if ($INET6_OK === null) {
+      $probe = @$mysqli->query("SELECT INET6_ATON('::1') AS x");
+      $INET6_OK = (bool)$probe;
+      if ($probe) { $probe->free(); }
     }
+
+    if ($INET6_OK) {
+      $sql = "INSERT INTO auth_logins (account_id, ip_addr, user_agent) VALUES (?, INET6_ATON(?), ?)";
+      if ($i = $mysqli->prepare($sql)) {
+        $i->bind_param('iss', $id, $ip, $ua);
+        $i->execute(); $i->close();
+      }
+    } else {
+      // Fallback to plain text storage; ensure auth_logins.ip_addr is VARCHAR(45)
+      $sql = "INSERT INTO auth_logins (account_id, ip_addr, user_agent) VALUES (?, ?, ?)";
+      if ($i = $mysqli->prepare($sql)) {
+        $i->bind_param('iss', $id, $ip, $ua);
+        $i->execute(); $i->close();
+      }
+    }
+
 
     // Audit success
     audit_log($mysqli, $id, 'login_success', $id, [
@@ -154,11 +191,17 @@ if ($acc) {
     $threshold = LOCKOUT_THRESHOLD;
 
     // Lock when failed >= threshold
-    if ($u = $mysqli->prepare("UPDATE accounts SET failed_attempts=?, locked_until=CASE WHEN ? >= ? THEN DATE_ADD(NOW(), INTERVAL ? MINUTE) ELSE NULL END WHERE id=?")) {
-      $u->bind_param('iiiii', $failed, $failed, $threshold, LOCKOUT_MINUTES, $id);
+    $minutes = (int)LOCKOUT_MINUTES; // inline, not bound
+    $sql = "UPDATE accounts
+            SET failed_attempts=?,
+                locked_until = CASE WHEN ? >= ? THEN DATE_ADD(NOW(), INTERVAL $minutes MINUTE) ELSE NULL END
+            WHERE id=?";
+    if ($u = $mysqli->prepare($sql)) {
+      $u->bind_param('iiii', $failed, $failed, $threshold, $id);
       $u->execute();
       $u->close();
     }
+
 
     audit_log($mysqli, $id, 'login_failed', $id, [
       'email'           => $email,
