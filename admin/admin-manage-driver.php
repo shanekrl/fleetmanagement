@@ -366,9 +366,12 @@ foreach ($drivers_user as $d) {
                     <!--<a class="btn btn-outline-secondary"  title="Monitor"
                        href="admin-view-syslogs.php?PlateNo=<?= $v_reg_no ?>"><i class="fas fa-eye"></i></a> -->
                     <?php if ($src==='add'): ?>
-                      <button class="btn btn-outline-danger" title="Delete"
-                              data-toggle="modal" data-target="#deleteDriverModal"
-                              data-driver-id="<?= $id ?>">
+                      <button class="btn btn-outline-danger"
+                              title="Delete"
+                              data-toggle="modal"
+                              data-target="#deleteDriverModal"
+                              data-driver-id="<?= $id ?>"
+                              data-driver-name="<?= h(trim($name . ($d['u_car_regno'] ? ' — ' . $d['u_car_regno'] : ''))) ?>">
                         <i class="fas fa-trash"></i>
                       </button>
                     <?php endif; ?>
@@ -459,11 +462,15 @@ foreach ($drivers_user as $d) {
               </div>
               <div class="modal-body">
                 <p class="mb-2"><?= $has_soft_delete ? 'This will move the driver to Trash.' : 'This will permanently delete the driver.' ?></p>
-                <select class="form-control" name="delete_driver_id" id="delete_driver_id">
-                  <?php foreach($drivers as $d): if ($d['_src']!=='add') continue; ?>
-                    <option value="<?= (int)$d['d_u_id'] ?>"><?= h(($d['u_fname'].' '.$d['u_lname']).($d['u_car_regno']?' — '.$d['u_car_regno']:'')) ?></option>
-                  <?php endforeach; ?>
-                </select>
+
+                <!-- Hidden field to send the ID -->
+                <input type="hidden" name="delete_driver_id" id="delete_driver_id">
+
+                <!-- Read-only driver name shown in modal -->
+                <div class="form-group mb-0">
+                  <label class="mb-1 text-muted small">Driver</label>
+                  <div class="form-control-plaintext font-weight-semibold" id="delete_driver_label">—</div>
+                </div>
               </div>
               <div class="modal-footer">
                 <button type="submit" name="delete_driver" class="btn btn-kaya-danger-outline">Delete</button>
@@ -488,8 +495,12 @@ foreach ($drivers_user as $d) {
 <script>
   $('#driversTable').DataTable({ pageLength:10, order:[[0,'asc']], columnDefs:[{orderable:false,targets:[5]}] });
   $('#deleteDriverModal').on('show.bs.modal', function (e) {
-    var id = $(e.relatedTarget).data('driver-id');
-    if (id) $('#delete_driver_id').val(id);
+    var btn   = $(e.relatedTarget);
+    var id    = btn.data('driver-id');
+    var label = btn.data('driver-name') || 'Selected driver';
+
+    $('#delete_driver_id').val(id);
+    $('#delete_driver_label').text(label);
   });
 </script>
 <style>
