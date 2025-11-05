@@ -17,3 +17,12 @@ Password : autogg
 
 Email    : r.cabral@gmail.com
 Password : cabral123
+
+Email    : a.lagman@gmail.com
+Password : lagman123
+
+Email    : m.valencia@gmail.com
+Password : valencia123
+
+Email    : r.sibal@gmail.com
+Password : sibal123 
