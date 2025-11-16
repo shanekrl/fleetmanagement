@@ -55,24 +55,30 @@ if ($is_new_model) {
     $st = trim($_POST['sched_time'] ?? '');
     $scheduled = ($sd && $st) ? ($sd . ' ' . $st . ':00') : null;
 
+    // ETA time (same date as scheduled date)
+    $eta_t = trim($_POST['eta_time'] ?? '');
+    $eta   = ($sd && $eta_t) ? ($sd . ' ' . $eta_t . ':00') : null;
+
     $status = $_POST['status'] ?? 'pending';
     $allowed = ['pending','awaiting_driver','assigned','accepted','in_progress','cancelled','completed'];
     if (!in_array($status,$allowed,true)) $status = 'pending';
 
     $notes  = trim($_POST['notes'] ?? '');
 
+
     $sql = "UPDATE bookings
             SET booking_type=?, pax=?, contact_name=?, contact_phone=?,
                 pickup_point=?, dropoff_point=?, vehicle_id=?, driver_id=?,
-                scheduled_start_at=?, status=?, notes=?, updated_at=NOW()
+                scheduled_start_at=?, scheduled_end_at=?, status=?, notes=?, updated_at=NOW()
             WHERE id=?";
     if ($s = $mysqli->prepare($sql)) {
       $s->bind_param(
-        'sisssssisssi',
+        'sisssssisssssi',
         $booking_type, $pax, $contact_name, $contact_phone,
         $pickup_point, $dropoff_point, $vehicle_id, $driver_id,
-        $scheduled, $status, $notes, $booking_id
+        $scheduled, $eta, $status, $notes, $booking_id
       );
+
       $s->execute(); $s->close();
     }
 
@@ -169,6 +175,10 @@ if (table_exists($mysqli,'accounts')) {
   $sd = $row['scheduled_start_at'] ? substr($row['scheduled_start_at'],0,10) : '';
   $st = $row['scheduled_start_at'] ? substr($row['scheduled_start_at'],11,5) : '';
 
+  // split ETA (scheduled_end_at) for inputs
+  $eta_t = $row['scheduled_end_at'] ? substr($row['scheduled_end_at'],11,5) : '';
+
+
   ?>
   <!DOCTYPE html>
   <html lang="en">
@@ -207,7 +217,7 @@ if (table_exists($mysqli,'accounts')) {
                   <option value="personal" <?= $row['booking_type']==='personal'?'selected':''; ?>>Personal</option>
                 </select>
               </div>
-              <div class="form-group col-md-3">
+              <div class="form-group col-md-2">
                 <label>Pax</label>
                 <input type="number" class="form-control" name="pax" min="1" value="<?= (int)$row['pax'] ?>">
               </div>
@@ -215,11 +225,16 @@ if (table_exists($mysqli,'accounts')) {
                 <label>Scheduled Date</label>
                 <input type="date" class="form-control" name="sched_date" value="<?= htmlspecialchars($sd) ?>">
               </div>
-              <div class="form-group col-md-3">
+              <div class="form-group col-md-2">
                 <label>Scheduled Time</label>
                 <input type="time" class="form-control" name="sched_time" value="<?= htmlspecialchars($st) ?>">
               </div>
+              <div class="form-group col-md-2">
+                <label>ETA Time</label>
+                <input type="time" class="form-control" name="eta_time" value="<?= htmlspecialchars($eta_t) ?>">
+              </div>
             </div>
+
 
             <div class="form-row">
               <div class="form-group col-md-6">
