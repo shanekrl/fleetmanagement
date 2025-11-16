@@ -82,12 +82,24 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking']))
   }
 
   // inputs
-  $sched_date  = trim($_POST['sched_date'] ?? '');
+    $sched_date  = trim($_POST['sched_date'] ?? '');
   $sched_time  = trim($_POST['sched_time'] ?? '');
   if ($sched_time && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $sched_time)) {
     echo json_encode(['ok'=>0,'error'=>'Invalid time format']); exit;
   }
-  $scheduled   = ($sched_date && $sched_time) ? ($sched_date.' '.$sched_time.(strlen($sched_time)>5?'':':00')) : null;
+  $scheduled   = ($sched_date && $sched_time)
+    ? ($sched_date.' '.$sched_time.(strlen($sched_time)>5?'':':00'))
+    : null;
+
+  // ✅ ETA time (same date as scheduled date)
+  $eta_time = trim($_POST['eta_time'] ?? '');
+  if ($eta_time && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $eta_time)) {
+    echo json_encode(['ok'=>0,'error'=>'Invalid ETA time format']); exit;
+  }
+  $eta = ($sched_date && $eta_time)
+    ? ($sched_date.' '.$eta_time.(strlen($eta_time)>5?'':':00'))
+    : null;
+
 
   $customer    = trim($_POST['customer'] ?? '');
   $phone       = trim($_POST['phone'] ?? '');
@@ -135,9 +147,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['ajax_create_booking']))
       $add('pickup_point',       's', $pickup);
       $add('dropoff_point',      's', $dropoff);
       $add('scheduled_start_at', 's', $scheduled);
+      // store ETA if column exists
+      $add('scheduled_end_at',   's', $eta);
       $add('status',             's', $status);
       $add('payment_status',     's', $payment); // safely skipped if missing
       $add('notes',              's', $notes);
+
 
       if (!$cols) { echo json_encode(['ok'=>0,'error'=>'No matching columns in bookings table']); exit; }
 
@@ -517,15 +532,20 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                 <input type="hidden" name="ajax_create_booking" value="1">
 
                 <div class="form-row">
-                  <div class="form-group col-md-6">
-                    <label>Date</label>
-                    <input type="date" required class="form-control" name="sched_date">
-                  </div>
-                  <div class="form-group col-md-6">
-                    <label>Time</label>
-                    <input type="time" required class="form-control" name="sched_time">
-                  </div>
+                <div class="form-group col-md-4">
+                  <label>Date</label>
+                  <input type="date" required class="form-control" name="sched_date">
                 </div>
+                <div class="form-group col-md-4">
+                  <label>Time</label>
+                  <input type="time" required class="form-control" name="sched_time">
+                </div>
+                <div class="form-group col-md-4">
+                  <label>ETA Time <small class="text-muted">(optional)</small></label>
+                  <input type="time" class="form-control" name="eta_time">
+                </div>
+              </div>
+
 
                 <div class="form-row">
                   <div class="form-group col-md-6">
