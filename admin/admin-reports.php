@@ -30,9 +30,20 @@ function column_exists(mysqli $db, string $table, string $col): bool {
 }
 
 /* ---------- inputs (Trip History filters) ---------- */
-$th_from   = dt($_GET['th_from']  ?? date('Y-m-d', strtotime('-30 days')));
-$th_to     = dt($_GET['th_to']    ?? date('Y-m-d'));
+$th_from_raw = $_GET['th_from'] ?? '';
+$th_to_raw   = $_GET['th_to']   ?? '';
+
+if ($th_from_raw === '' && $th_to_raw === '') {
+  // "All dates" mode: no date filter
+  $th_from = null;
+  $th_to   = null;
+} else {
+  $th_from = dt($th_from_raw);
+  $th_to   = dt($th_to_raw);
+}
+
 $th_status = trim($_GET['th_status'] ?? '');
+
 
 /* ---------- inputs (Vehicle Report filters) ---------- */
 $vr_vehicle_id = (int)($_GET['vr_vehicle_id'] ?? 0);
@@ -383,7 +394,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
             <div class="d-flex align-items-center kaya-toolbar mb-3">
               <h5 class="m-0">Trip History</h5>
               <div class="ml-auto no-print">
-                <form class="form-inline" method="get">
+                <form class="form-inline" method="get" id="tripHistoryForm">
                   <input type="hidden" name="tab" value="history">
                   <div class="form-group mx-sm-2">
                     <label class="mr-2 muted">From</label>
@@ -406,6 +417,7 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
                     </select>
                   </div>
                   <button class="btn btn-kaya-primary ml-2">Apply</button>
+                  <button class="btn btn-outline-secondary ml-2" type="button" onclick="clearTripFilters()">All dates</button>
                   <button class="btn btn-outline-secondary ml-2" type="button" onclick="printSection('#history')"><i class="fas fa-print mr-1"></i> Print</button>
                 </form>
               </div>
@@ -548,6 +560,18 @@ if ($vr_vehicle_id > 0 && $HAS_TMS_VEHICLE) {
     lengthMenu: [10,25,50,100],
     order: [[1,'desc']]
   });
+
+    function clearTripFilters(){
+    var form = document.getElementById('tripHistoryForm');
+    if (!form) return;
+
+    var from = form.querySelector('[name="th_from"]');
+    var to   = form.querySelector('[name="th_to"]');
+    if (from) from.value = '';
+    if (to)   to.value   = '';
+
+    form.submit();
+  }
 
    function printSection(sel){
     var a = document.querySelector('[href="'+sel+'"]');
