@@ -243,9 +243,10 @@ if (table_exists($mysqli,'v_booking_grid')) {
   if ($res = $mysqli->query($sql)) while($r=$res->fetch_assoc()) $rows[]=$r;
 
 } elseif (table_exists($mysqli,'bookings')) {
-  $sql = "SELECT b.id AS booking_id,
+    $sql = "SELECT b.id AS booking_id,
                  COALESCE(b.scheduled_start_at, b.created_at) AS scheduled_at,
                  b.created_at,
+                 b.scheduled_end_at,  -- ETA
                  COALESCE(c.name,'') AS client_name,
                  b.pax,
                  b.pickup_point  AS pickup,
@@ -385,6 +386,7 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                 <th>#</th>
                 <th>Date</th>
                 <th>Time</th>
+                <th>ETA</th>
                 <th>Customer</th>
                 <th>Pax</th>
                 <th>Pick Up</th>
@@ -401,7 +403,27 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                 $dt   = $r['scheduled_at'] ?: $r['created_at'];
                 $date = $dt ? date('M j, Y', strtotime($dt)) : '';
                 $time = $dt ? date('h:i A', strtotime($dt)) : '';
-                [$chipClass,$chipText] = badge_for($r['status']);
+
+                // ✅ ETA (if we have scheduled_end_at from bookings or eta_at from view)
+                $etaRaw  = $r['scheduled_end_at'] ?? ($r['eta_at'] ?? null);
+                $etaText = $etaRaw ? date('h:i A', strtotime($etaRaw)) : '';
+
+                // ✅ Computed "Delayed" display (Option A)
+                $rawStatus = strtolower((string)($r['status'] ?? ''));
+                $isDelayed = false;
+                if ($etaRaw && in_array($rawStatus, ['accepted','in_progress'], true)) {
+                  if (strtotime($etaRaw) < time()) {
+                    $isDelayed = true;
+                  }
+                }
+
+                if ($isDelayed) {
+                  $chipClass = 'badge badge-danger';
+                  $chipText  = 'Delayed';
+                } else {
+                  [$chipClass,$chipText] = badge_for($r['status']);
+                }
+
 
                 $isMine = (!$isAdmin && $r['driver_id']!==null && (int)$r['driver_id']===(int)$currentDriverId);
 
@@ -419,6 +441,7 @@ define('ACTION_ENDPOINT', 'booking_actions.php');
                 <td><?= $n++ ?></td>
                 <td><?= htmlspecialchars($date) ?></td>
                 <td><?= htmlspecialchars($time) ?></td>
+                <td><?= htmlspecialchars($etaText) ?></td>
                 <td><?= htmlspecialchars($r['client_name'] ?? '') ?></td>
                 <td><?= (int)($r['pax'] ?? 1) ?></td>
                 <td><?= htmlspecialchars($r['pickup'] ?? '') ?></td>
