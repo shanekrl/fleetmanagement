@@ -132,6 +132,112 @@
   $hasTmsDriver     = table_exists($mysqli,'tms_user_add_driver');
   $hasAudit         = table_exists($mysqli,'tms_audit_log');
 
+  // Ranking sources
+  $hasTmsBookings  = table_exists($mysqli,'tms_bookings');
+
+  // ---------- Trip rankings: Top Vehicles & Top Drivers (last 30 days) ----------
+  $topVehicles = [];
+  $topDrivers  = [];
+
+  if ($hasBookingsTbl) {
+    // Top vehicles from NEW bookings
+    $sql = "
+      SELECT 
+        b.vehicle_id,
+        COUNT(*) AS trip_count,
+        COALESCE(
+          v.name,
+          CONCAT(tv.v_name,' (',tv.v_reg_no,')'),
+          CONCAT('Vehicle #', b.vehicle_id)
+        ) AS label
+      FROM bookings b
+      LEFT JOIN vehicles    v  ON v.id   = b.vehicle_id
+      LEFT JOIN tms_vehicle tv ON tv.v_id = b.vehicle_id
+      WHERE b.vehicle_id IS NOT NULL
+        AND COALESCE(b.scheduled_start_at, b.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        AND b.status IN ('accepted','in_progress','completed','cancelled','rejected')
+      GROUP BY b.vehicle_id
+      ORDER BY trip_count DESC
+      LIMIT 5
+    ";
+    if ($res = $mysqli->query($sql)) {
+      while ($row = $res->fetch_assoc()) $topVehicles[] = $row;
+      $res->close();
+    }
+
+    // Top drivers from NEW bookings
+    $sql = "
+      SELECT 
+        b.driver_id,
+        COUNT(*) AS trip_count,
+        COALESCE(
+          a.name,
+          CONCAT(d.u_fname,' ',d.u_lname),
+          CONCAT('Driver #', b.driver_id)
+        ) AS label
+      FROM bookings b
+      LEFT JOIN accounts            a ON a.id     = b.driver_id
+      LEFT JOIN tms_user_add_driver d ON d.d_u_id = b.driver_id
+      WHERE b.driver_id IS NOT NULL
+        AND COALESCE(b.scheduled_start_at, b.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        AND b.status IN ('accepted','in_progress','completed','cancelled','rejected')
+      GROUP BY b.driver_id
+      ORDER BY trip_count DESC
+      LIMIT 5
+    ";
+    if ($res = $mysqli->query($sql)) {
+      while ($row = $res->fetch_assoc()) $topDrivers[] = $row;
+      $res->close();
+    }
+
+  } elseif ($hasTmsBookings) {
+    // Fallback: legacy tms_bookings
+    // Top vehicles
+    $sql = "
+      SELECT 
+        b.vehicle_id,
+        COUNT(*) AS trip_count,
+        COALESCE(
+          CONCAT(tv.v_name,' (',tv.v_reg_no,')'),
+          CONCAT('Vehicle #', b.vehicle_id)
+        ) AS label
+      FROM tms_bookings b
+      LEFT JOIN tms_vehicle tv ON tv.v_id = b.vehicle_id
+      WHERE b.vehicle_id IS NOT NULL
+        AND b.scheduled_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      GROUP BY b.vehicle_id
+      ORDER BY trip_count DESC
+      LIMIT 5
+    ";
+    if ($res = $mysqli->query($sql)) {
+      while ($row = $res->fetch_assoc()) $topVehicles[] = $row;
+      $res->close();
+    }
+
+    // Top drivers
+    $sql = "
+      SELECT 
+        b.driver_id,
+        COUNT(*) AS trip_count,
+        COALESCE(
+          CONCAT(d.u_fname,' ',d.u_lname),
+          CONCAT('Driver #', b.driver_id)
+        ) AS label
+      FROM tms_bookings b
+      LEFT JOIN tms_user_add_driver d ON d.d_u_id = b.driver_id
+      WHERE b.driver_id IS NOT NULL
+        AND b.scheduled_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      GROUP BY b.driver_id
+      ORDER BY trip_count DESC
+      LIMIT 5
+    ";
+    if ($res = $mysqli->query($sql)) {
+      while ($row = $res->fetch_assoc()) $topDrivers[] = $row;
+      $res->close();
+    }
+  }
+
+
   // ---------- Fleet summary (for dashboard cards) ----------
   $fleet = get_fleet_summary($mysqli);
 ?>
@@ -200,6 +306,88 @@
           <?php endforeach; ?>
         </div>
         </section>
+
+        <!-- ===== Trip Rankings (Last 30 Days) ===== -->
+        <section class="bg-white rounded-2xl shadow p-6 mb-8">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <div>
+              <h3 class="text-base font-semibold text-kaya-ink">Trip Rankings (Last 30 Days)</h3>
+              <p class="text-xs text-gray-500">
+                Based on the number of trips per vehicle/driver.
+              </p>
+            </div>
+            <div class="inline-flex rounded-full bg-gray-100 p-1 text-xs font-medium">
+              <button type="button"
+                      class="rank-toggle px-3 py-1 rounded-full bg-white shadow text-gray-900"
+                      data-target="rank-vehicles">
+                Top Vehicles
+              </button>
+              <button type="button"
+                      class="rank-toggle px-3 py-1 rounded-full text-gray-600"
+                      data-target="rank-drivers">
+                Top Drivers
+              </button>
+            </div>
+          </div>
+
+          <!-- Top Vehicles pane -->
+          <div id="rank-vehicles" class="rank-pane">
+            <?php if (!empty($topVehicles)): ?>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-left text-sm">
+                <thead>
+                  <tr class="text-gray-500">
+                    <th class="py-2 pr-4 font-medium w-10">#</th>
+                    <th class="py-2 pr-4 font-medium">Vehicle</th>
+                    <th class="py-2 pr-4 font-medium text-right">Trips</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  <?php $i=1; foreach ($topVehicles as $v): ?>
+                  <tr>
+                    <td class="py-2 pr-4"><?= $i++ ?></td>
+                    <td class="py-2 pr-4"><?= h($v['label'] ?? '—') ?></td>
+                    <td class="py-2 pr-4 text-right font-semibold"><?= (int)$v['trip_count'] ?></td>
+                  </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+            <?php else: ?>
+              <p class="text-sm text-gray-500">No vehicle ranking data available yet.</p>
+            <?php endif; ?>
+          </div>
+
+          <!-- Top Drivers pane -->
+          <div id="rank-drivers" class="rank-pane hidden">
+            <?php if (!empty($topDrivers)): ?>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-left text-sm">
+                <thead>
+                  <tr class="text-gray-500">
+                    <th class="py-2 pr-4 font-medium w-10">#</th>
+                    <th class="py-2 pr-4 font-medium">Driver</th>
+                    <th class="py-2 pr-4 font-medium text-right">Trips</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  <?php $i=1; foreach ($topDrivers as $d): ?>
+                  <tr>
+                    <td class="py-2 pr-4"><?= $i++ ?></td>
+                    <td class="py-2 pr-4"><?= h($d['label'] ?? '—') ?></td>
+                    <td class="py-2 pr-4 text-right font-semibold"><?= (int)$d['trip_count'] ?></td>
+                  </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+            <?php else: ?>
+              <p class="text-sm text-gray-500">No driver ranking data available yet.</p>
+            <?php endif; ?>
+          </div>
+        </section>
+
+
 
         <!-- ===== Two-up cards: Recent Bookings + Live Vehicles ===== -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -394,5 +582,35 @@
   <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
   <script src="vendor/js/dashboard.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const toggles = document.querySelectorAll('.rank-toggle');
+      const panes   = document.querySelectorAll('.rank-pane');
+
+      function activate(targetId) {
+        panes.forEach(p => {
+          if (p.id === targetId) p.classList.remove('hidden');
+          else p.classList.add('hidden');
+        });
+
+        toggles.forEach(btn => {
+          const isActive = btn.dataset.target === targetId;
+          btn.classList.toggle('bg-white', isActive);
+          btn.classList.toggle('shadow', isActive);
+          btn.classList.toggle('text-gray-900', isActive);
+          btn.classList.toggle('text-gray-600', !isActive);
+        });
+      }
+
+      toggles.forEach(btn => {
+        btn.addEventListener('click', () => {
+          activate(btn.dataset.target);
+        });
+      });
+
+      // Default: Top Vehicles
+      activate('rank-vehicles');
+    });
+  </script>
 </body>
 </html>
