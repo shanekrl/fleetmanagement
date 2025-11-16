@@ -5,6 +5,10 @@
   check_login();
 
   // ---------- Helpers ----------
+
+  function h($v){
+      return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+  }
   function count_q(mysqli $db, string $sql){
     if(!$stmt = $db->prepare($sql)) return 0;
     $stmt->execute();
@@ -25,36 +29,24 @@
     return $row ?: null;
   }
 
-  /**
+    /**
    * Fleet summary (excludes soft-deleted vehicles).
-   * Priority: vehicles -> tms_vehicle -> v_fleet_summary (last resort).
+   * For your DB we only use legacy `tms_vehicle` (no `vehicles` table).
    */
   function get_fleet_summary(mysqli $db){
     $out = [
-      'total_vehicles'=>0,'vehicles_available'=>0,'vehicles_in_use'=>0,
-      'vehicles_maintenance'=>0,'vehicles_inactive'=>0,
-      'trips_today'=>0,'trips_in_progress'=>0,'drivers_active_today'=>0,
+      'total_vehicles'      => 0,
+      'vehicles_available'  => 0,
+      'vehicles_in_use'     => 0,
+      'vehicles_maintenance'=> 0,
+      'vehicles_inactive'   => 0,
+      'trips_today'         => 0,
+      'trips_in_progress'   => 0,
+      'drivers_active_today'=> 0,
     ];
 
-    // ---- Prefer new `vehicles` table if present
-    if (table_exists($db,'vehicles')) {
-      $sql = "SELECT
-                COUNT(*)                                                                  AS total_vehicles,
-                SUM(LOWER(COALESCE(status,'')) LIKE 'avail%')                             AS vehicles_available,
-                SUM(LOWER(COALESCE(status,'')) REGEXP 'book|service|in[ _]?use|on[ _]?trip|in_progress|accepted') AS vehicles_in_use,
-                SUM(LOWER(COALESCE(status,'')) REGEXP 'maint')                             AS vehicles_maintenance,
-                SUM(LOWER(COALESCE(status,'')) LIKE 'inactive%')                           AS vehicles_inactive
-              FROM vehicles
-              WHERE (deleted_at IS NULL)
-                AND LOWER(COALESCE(status,'')) <> 'deleted'";
-      if ($q = $db->query($sql)) {
-        $row = $q->fetch_assoc() ?: [];
-        foreach($row as $k=>$v) $out[$k] = (int)$v;
-        $q->close();
-      }
-    }
-    // ---- Otherwise use legacy `tms_vehicle`
-    elseif (table_exists($db,'tms_vehicle')) {
+    // ---- Use legacy `tms_vehicle`
+    if (table_exists($db,'tms_vehicle')) {
       $sql = "SELECT 
                 COUNT(*) AS total_vehicles,
                 SUM(LOWER(v_status) LIKE 'avail%') AS vehicles_available,
@@ -66,46 +58,50 @@
                 AND LOWER(COALESCE(v_status,'')) <> 'deleted'";
       if ($q = $db->query($sql)) {
         $row = $q->fetch_assoc() ?: [];
-        foreach($row as $k=>$v) $out[$k]=(int)$v;
+        foreach($row as $k=>$v) if (isset($out[$k])) $out[$k] = (int)$v;
         $q->close();
       }
     }
     // ---- Last resort: view (cannot enforce deletion filter if view doesn't)
     elseif (table_exists($db,'v_fleet_summary')) {
       if ($r = $db->query("SELECT * FROM v_fleet_summary")) {
-        $row = $r->fetch_assoc(); $r->close();
+        $row = $r->fetch_assoc(); 
+        $r->close();
         if ($row) foreach($row as $k=>$v) if (isset($out[$k])) $out[$k]=(int)$v;
       }
     }
 
-    // ---- Trips / drivers (unchanged)
+    // ---- Trips / drivers (same as before)
     if (table_exists($db,'bookings')) {
       $sql = "SELECT 
                 SUM(DATE(scheduled_start_at)=CURDATE()) AS trips_today,
                 COUNT(DISTINCT CASE 
-                  WHEN DATE(scheduled_start_at)=CURDATE() AND status IN ('accepted','in_progress','completed') 
+                  WHEN DATE(scheduled_start_at)=CURDATE() 
+                       AND status IN ('accepted','in_progress','completed') 
                 THEN driver_id END) AS drivers_active_today
               FROM bookings";
       if ($q = $db->query($sql)) {
         $r=$q->fetch_assoc() ?: [];
-        $out['trips_today']=(int)($r['trips_today']??0);
-        $out['drivers_active_today']=(int)($r['drivers_active_today']??0);
+        $out['trips_today']        = (int)($r['trips_today']??0);
+        $out['drivers_active_today']= (int)($r['drivers_active_today']??0);
         $q->close();
       }
     } elseif (table_exists($db,'tms_bookings')) {
       $sql = "SELECT 
                 SUM(DATE(scheduled_at)=CURDATE()) AS trips_today,
                 COUNT(DISTINCT CASE 
-                  WHEN DATE(scheduled_at)=CURDATE() AND status IN ('accepted','completed','in_progress') 
+                  WHEN DATE(scheduled_at)=CURDATE() 
+                       AND status IN ('accepted','completed','in_progress') 
                 THEN driver_id END) AS drivers_active_today
               FROM tms_bookings";
       if ($q = $db->query($sql)) {
         $r=$q->fetch_assoc() ?: [];
-        $out['trips_today']=(int)($r['trips_today']??0);
-        $out['drivers_active_today']=(int)($r['drivers_active_today']??0);
+        $out['trips_today']        = (int)($r['trips_today']??0);
+        $out['drivers_active_today']= (int)($r['drivers_active_today']??0);
         $q->close();
       }
     }
+
     if (table_exists($db,'booking_runs')) {
       $sql = "SELECT COUNT(*) AS c
               FROM booking_runs
@@ -119,6 +115,7 @@
     }
     return $out;
   }
+
 
   // ---------- What exists? ----------
   $hasVehiclesTbl   = table_exists($mysqli,'vehicles');
@@ -139,19 +136,17 @@
   $topVehicles = [];
   $topDrivers  = [];
 
-  if ($hasBookingsTbl) {
-    // Top vehicles from NEW bookings
+    if ($hasBookingsTbl) {
+    // Top vehicles from NEW bookings (use legacy `tms_vehicle` only)
     $sql = "
       SELECT 
         b.vehicle_id,
         COUNT(*) AS trip_count,
         COALESCE(
-          v.name,
           CONCAT(tv.v_name,' (',tv.v_reg_no,')'),
           CONCAT('Vehicle #', b.vehicle_id)
         ) AS label
       FROM bookings b
-      LEFT JOIN vehicles    v  ON v.id   = b.vehicle_id
       LEFT JOIN tms_vehicle tv ON tv.v_id = b.vehicle_id
       WHERE b.vehicle_id IS NOT NULL
         AND COALESCE(b.scheduled_start_at, b.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
@@ -165,7 +160,7 @@
       $res->close();
     }
 
-    // Top drivers from NEW bookings
+    // Top drivers from NEW bookings (this part is fine)
     $sql = "
       SELECT 
         b.driver_id,
@@ -185,6 +180,7 @@
       ORDER BY trip_count DESC
       LIMIT 5
     ";
+
     if ($res = $mysqli->query($sql)) {
       while ($row = $res->fetch_assoc()) $topDrivers[] = $row;
       $res->close();
