@@ -6,6 +6,42 @@ $(document).ready(function () {
     initMap();
     getVehicleLogs();
 
+     $("#newTripForm").on("submit", function (e) {
+        e.preventDefault(); // stop normal form submit
+
+        let form = $(this);
+        let submitBtn = form.find("button[type='submit']");
+        let formData = form.serialize(); // all inputs
+
+        // Disable button + loading text
+        submitBtn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+        $.ajax({
+            url: "admin_telemetry_new_trip.php",
+            type: "POST",
+            data: formData,
+            dataType: "json",
+
+            success: function (res) {
+
+                if (res.success) {
+                    // Close modal
+                    $("#newTripModal").modal("hide");
+                    // Reset form
+                    form.trigger("reset");
+                } 
+            },
+
+            error: function (xhr) {
+                console.log(xhr)
+            },
+
+            complete: function () {
+                submitBtn.prop("disabled", false).html('<i class="fas fa-save mr-1"></i> Create Booking');
+            }
+        });
+
+    });
 
     function initMap() {
         // Initialize the map (remove "let" here!)
@@ -127,6 +163,48 @@ $(document).ready(function () {
                     $("#cr_destination").text(latest?.destination || "N/A");
                     $("#cr_assigned_driver").text(latest?.driver_name || "N/A");
                 }
+
+                $("#newTripModal").modal("show");
+
+                $.ajax({
+                    url: "admin_color_coding.php",
+                    type: "GET",
+                    data: { plate_no: v.plate_no },
+                    dataType: "json",
+                    success: function(response) {
+                           if (response.success) {
+                            // Update modal text
+                            $("#vehicle_status_trip").text(response.v_status);
+
+                            // Determine color based on status
+                            let color = "#6C757D"; // default gray
+                            switch (response.v_status.toLowerCase()) {
+                                case "maintenance":
+                                    color = "#ED1C24"; // red
+                                    break;
+                                case "available":
+                                    color = "#007BFF"; // blue
+                                    break;
+                                case "idle":
+                                    color = "#28A745"; // green
+                                    break;
+                                case "in_progress":
+                                case "in progress":
+                                    color = "#FFC107"; // yellow
+                                    break;
+                            }
+
+                            // Apply color to modal header
+                            $("#vehicle_status_trip").css("color", color);
+                        } else {
+                            $("#vehicle_status_trip").text("Unknown").css("color", "#6C757D");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(xhr);
+                    }
+                });
+
             });
 
                 markers[id] = marker;

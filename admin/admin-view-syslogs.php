@@ -193,6 +193,146 @@
         </div>
       </div>
 
+      <!-- TRIP MODAL -->
+      <div class="modal fade" id="newTripModal" tabindex="-1" role="dialog" aria-labelledby="newTripLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+          <div class="modal-content">
+            <form id="newTripForm">
+              <div class="modal-header">
+                <h5 class="modal-title" id="newTripLabel">Create Trip</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" name="ajax_create_booking" value="1">
+                <hr>
+                <h1 id="vehicle_status_trip" style="font-size: 1.5em";>For Mainteance</h1>
+                <hr>
+                <br><br>
+                <div class="form-row">
+                <div class="form-group col-md-4">
+                  <label>Date</label>
+                  <input type="date" required class="form-control" name="sched_date">
+                </div>
+                <div class="form-group col-md-4">
+                  <label>Time</label>
+                  <input type="time" required class="form-control" name="sched_time">
+                </div>
+                <div class="form-group col-md-4">
+                  <label>ETA Time <small class="text-muted">(optional)</small></label>
+                  <input type="time" class="form-control" name="eta_time">
+                </div>
+              </div>
+
+
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>Customer</label>
+                    <input type="text" required class="form-control" name="customer">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>Phone</label>
+                    <input type="text" class="form-control" name="phone" placeholder="+63…">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-3">
+                    <label>Pax</label>
+                    <input type="number" class="form-control" name="pax" min="1" value="1">
+                  </div>
+
+                  <!-- NEW: vehicle type (category) filter -->
+                  <div class="form-group col-md-3">
+                    <label>Vehicle Type</label>
+                    <select class="form-control" id="modalVehicleType">
+                      <option value="">— Any type —</option>
+                      <option value="Bus">Bus</option>
+                      <option value="Coaster">Coaster</option>
+                      <option value="Sedan">Sedan</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Van">Van</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group col-md-3">
+                    <label>Vehicle</label>
+                    <select class="form-control" name="vehicle_id" id="modalVehicleSelect">
+                      <option value="">— None —</option>
+                      <option value="8">Suzuki Ertiga · CBT4971</option>
+                      <option value="7">Toyota Avanza · NHI3023</option>
+                      <option value="9">Toyota Hiace GL Grandia · DBF9903</option>
+                      <option value="23">Toyota Innova · NCJ4651</option>
+                      <option value="10">Toyota Vios · CCD2879</option>
+                    </select>
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>Driver</label>
+                    <select class="form-control" name="driver_id" id="modalDriverSelect">
+                      <option value="">— None —</option>
+                      <option value="9">Arnold Lagman</option>
+                      <option value="12">Manuel Valencia</option>
+                      <option value="8">Rey Cabral</option>
+                      <option value="11">Richie Sibal</option>
+                    </select>
+
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>Pickup</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="pickup" name="pickup" placeholder="Type or use map">
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="pickup">
+                          <i class="fas fa-map-marker-alt"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="pickup_lat" name="pickup_lat">
+                    <input type="hidden" id="pickup_lng" name="pickup_lng">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>Destination</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="dropoff" name="dropoff" placeholder="Type or use map">
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-primary" type="button" data-toggle="modal" data-target="#mapModal" data-for="dropoff">
+                          <i class="fas fa-map-pin"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="dropoff_lat" name="dropoff_lat">
+                    <input type="hidden" id="dropoff_lng" name="dropoff_lng">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-4">
+                    <label>Booking Type</label>
+                    <select name="booking_type" class="form-control">
+                      <option value="admin">Admin</option>
+                      <option value="personal">Personal</option>
+                    </select>
+                  </div>
+                  <div class="form-group col-md-8">
+                    <label>Notes</label>
+                    <input type="text" class="form-control" name="notes" placeholder="Optional notes">
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-kaya-primary">
+                  <i class="fas fa-save mr-1"></i> Create Booking
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
 
       <?php include('vendor/inc/footer.php'); ?>
     </div>
