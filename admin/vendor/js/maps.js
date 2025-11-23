@@ -63,154 +63,169 @@ $(document).ready(function () {
         });
     }
 
-    function updateMarkers(data, trips = [],api_plate_no) {
-        $.each(data, function (i, v) {
-            let id = v.plate_no;
-            let lat = parseFloat(v.latitude);
-            let lng = parseFloat(v.longitude);
+function updateMarkers(data, trips = [], api_plate_no) {
+    $.each(data, function (i, v) {
+        let id = v.plate_no;
+        let lat = parseFloat(v.latitude);
+        let lng = parseFloat(v.longitude);
 
-            if (isNaN(lat) || isNaN(lng)) return;
+        if (isNaN(lat) || isNaN(lng)) return;
 
-            let popupHtml = `
-                <b>Plate:</b> ${v.plate_no}<br>
-                <b>Speed:</b> ${v.speed} km/h<br>
-                <b>RPM:</b> ${v.rpm}<br>
-                <b>Fuel:</b> ${v.fuel_level}%<br>
-                <b>Time:</b> ${v.created_at || "N/A"}
-            `;
+        // --- Default status color ---
+        let statusColor = "#6C757D"; // gray by default
 
-            // --- Always update vehicle cards here ---
-            $("#vehiclePlate").text(v.plate_no);
-            $("#vehicleSpeed").text(v.speed + " km/h");
-            $("#vehicleRPM").text(v.rpm);
-            $("#vehicleTemperature").text(v.coolant_temp);
-            $("#vehicleThrottle").text(v.throttle);
-
-            $("#vehicleLoad").text(v.engine_load);
-            $("#vehicleVoltage").text(v.battery_voltage);
-            $("#vehicleOdometer").text(v.odometer);
-            $("#vehicleMAF").text(v.maf);
-            $("#vehicleAmbient").text(v.ambient_temp);
-
-            $("#vehicleTime").text(v.created_at || "N/A");
-
-            if (api_plate_no && api_plate_no.trim() !== "") { //saving of diagnostics
-                saveDiagnostics(v); // save only if plate_no has a real value
-            }
-
-
-            if (trips?.trips_data && trips.trips_data[v.plate_no]?.length > 0) {
-                let latest = trips.trips_data[v.plate_no][0];
-                let history = trips.trips_data[v.plate_no][1];
-                // Trip History
-                $("#th_date_time").text(history?.scheduled_start_at || "N/A");
-                $("#th_start_end_location").text(history?.start_end_location || "N/A");
-                $("#th_assigned_driver").text(history?.driver_name || "N/A");
-
-                // Current Route
-                $("#cr_start_location").text(latest?.start_location || "N/A");
-                $("#cr_destination").text(latest?.destination || "N/A");
-                $("#cr_assigned_driver").text(latest?.driver_name || "N/A");
-            }
-
-            // --- Marker already exists? animate move ---
-            if (markers[id]) {
-                let prevLatLng = markers[id].getLatLng();
-                let distance = map.distance(prevLatLng, L.latLng(lat, lng));
-                if (distance > 5) {
-                    markers[id].slideTo([lat, lng], {
-                        duration: 2000,
-                        keepAtCenter: false
-                    });
-                    markers[id].setPopupContent(popupHtml);
-                    map.setView([lat, lng]);
-                }
-            } else {
-                // Create marker once
-                let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
-                marker.bindPopup(popupHtml);
-
-            // On marker click → update cards
-            marker.on("click", function () {
-                $("#vehiclePlate").text(v.plate_no);
-                $("#vehicleSpeed").text(v.speed + " km/h");
-                $("#vehicleRPM").text(v.rpm);
-                $("#vehicleTemperature").text(v.coolant_temp);
-                $("#vehicleThrottle").text(v.throttle);
-                $("#vehicleLoad").text(v.engine_load);
-                $("#vehicleVoltage").text(v.battery_voltage);
-                $("#vehicleOdometer").text(v.odometer);
-                $("#vehicleMAF").text(v.maf);
-                $("#vehicleAmbient").text(v.ambient_temp);
-
-
-                // $("#vehicleFuel").text(v.fuel_level + "%");
-                $("#vehicleTime").text(v.created_at || "N/A");
-
-      
-                // Handle trips_data (if passed in)
-
-                if (trips?.trips_data && trips.trips_data[v.plate_no]?.length > 0) {
-                    let latest = trips.trips_data[v.plate_no][0];
-                    let history = trips.trips_data[v.plate_no][1];
-                    // Trip History
-                    $("#th_date_time").text(history?.scheduled_start_at || "N/A");
-                    $("#th_start_end_location").text(history?.start_end_location || "N/A");
-                    $("#th_assigned_driver").text(history?.driver_name || "N/A");
-
-                    // Current Route
-                    $("#cr_start_location").text(latest?.start_location || "N/A");
-                    $("#cr_destination").text(latest?.destination || "N/A");
-                    $("#cr_assigned_driver").text(latest?.driver_name || "N/A");
-                }
-
-                $("#newTripModal").modal("show");
-
-                $.ajax({
-                    url: "admin_color_coding.php",
-                    type: "GET",
-                    data: { plate_no: v.plate_no },
-                    dataType: "json",
-                    success: function(response) {
-                           if (response.success) {
-                            // Update modal text
-                            $("#vehicle_status_trip").text(response.v_status);
-
-                            // Determine color based on status
-                            let color = "#6C757D"; // default gray
-                            switch (response.v_status.toLowerCase()) {
-                                case "maintenance":
-                                    color = "#ED1C24"; // red
-                                    break;
-                                case "available":
-                                    color = "#007BFF"; // blue
-                                    break;
-                                case "idle":
-                                    color = "#28A745"; // green
-                                    break;
-                                case "in_progress":
-                                case "in progress":
-                                    color = "#FFC107"; // yellow
-                                    break;
-                            }
-
-                            // Apply color to modal header
-                            $("#vehicle_status_trip").css("color", color);
-                        } else {
-                            $("#vehicle_status_trip").text("Unknown").css("color", "#6C757D");
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error(xhr);
+        // --- Fetch status immediately via AJAX ---
+        $.ajax({
+            url: "admin_color_coding.php",
+            type: "GET",
+            data: { plate_no: v.plate_no },
+            dataType: "json",
+            success: function(response) {
+                if (response.success) {
+                    switch(response.v_status.toLowerCase()) {
+                        case "maintenance": statusColor = "#ED1C24"; break;
+                        case "available":   statusColor = "#007BFF"; break;
+                        case "idle":        statusColor = "#28A745"; break;
+                        case "in_progress":
+                        case "in progress": statusColor = "#FFC107"; break;
+                        default: statusColor = "#6C757D";
                     }
-                });
+                } else {
+                    statusColor = "#6C757D";
+                }
 
-            });
+                // --- Popup HTML with status circle + Create Trip button ---
+                let popupHtml = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span class="status-circle" style="
+                            display: inline-block;
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 50%;
+                            background-color: ${statusColor};
+                        "></span>
+                        <b>Plate:</b> ${v.plate_no}
+                    </div>
+                    <b>Speed:</b> ${v.speed} km/h<br>
+                    <b>RPM:</b> ${v.rpm}<br>
+                    <b>Fuel:</b> ${v.fuel_level}%<br>
+                    <b>Time:</b> ${v.created_at || "N/A"}<br><br>
+                    <button class="btn btn-primary btn-sm createTripBtn" data-plate="${v.plate_no}">Create Trip</button>
+                `;
 
-                markers[id] = marker;
-            }
+                // --- Marker exists? Animate move ---
+                if (markers[id]) {
+                    let prevLatLng = markers[id].getLatLng();
+                    let distance = map.distance(prevLatLng, L.latLng(lat, lng));
+                    if (distance > 5) {
+                        markers[id].slideTo([lat, lng], { duration: 2000, keepAtCenter: false });
+                        markers[id].setPopupContent(popupHtml);
+                        map.setView([lat, lng]);
+                    } else {
+                        markers[id].setPopupContent(popupHtml); // update color
+                    }
+                } else {
+                    // --- Create marker ---
+                    let marker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
+                    marker.bindPopup(popupHtml);
+
+                    // --- Handle popup open for Create Trip button ---
+                    marker.on("popupopen", function(e) {
+                        let popupNode = e.popup.getElement();
+                        $(popupNode).find(".createTripBtn").on("click", function() {
+                            let plateNo = $(this).data("plate");
+                            $("#newTripModal").modal("show");
+                            $("#newTripModal #vehiclePlateInput").val(plateNo);
+
+                            // Fetch status again for modal
+                            $.ajax({
+                                url: "admin_color_coding.php",
+                                type: "GET",
+                                data: { plate_no: plateNo },
+                                dataType: "json",
+                                success: function(response) {
+                                    let color = "#6C757D";
+                                    if (response.success) {
+                                        switch(response.v_status.toLowerCase()) {
+                                            case "maintenance": color = "#ED1C24"; break;
+                                            case "available":   color = "#007BFF"; break;
+                                            case "idle":        color = "#28A745"; break;
+                                            case "in_progress":
+                                            case "in progress": color = "#FFC107"; break;
+                                        }
+                                        $("#vehicle_status_trip").text(response.v_status).css("color", color);
+                                    } else {
+                                        $("#vehicle_status_trip").text("Unknown").css("color", "#6C757D");
+                                    }
+                                },
+                                error: function(xhr) { console.error(xhr); }
+                            });
+                        });
+                    });
+
+                    // --- On marker click → update vehicle cards ---
+                    marker.on("click", function () {
+                        $("#vehiclePlate").text(v.plate_no);
+                        $("#vehicleSpeed").text(v.speed + " km/h");
+                        $("#vehicleRPM").text(v.rpm);
+                        $("#vehicleTemperature").text(v.coolant_temp);
+                        $("#vehicleThrottle").text(v.throttle);
+                        $("#vehicleLoad").text(v.engine_load);
+                        $("#vehicleVoltage").text(v.battery_voltage);
+                        $("#vehicleOdometer").text(v.odometer);
+                        $("#vehicleMAF").text(v.maf);
+                        $("#vehicleAmbient").text(v.ambient_temp);
+                        $("#vehicleTime").text(v.created_at || "N/A");
+
+                        if (trips?.trips_data && trips.trips_data[v.plate_no]?.length > 0) {
+                            let latest = trips.trips_data[v.plate_no][0];
+                            let history = trips.trips_data[v.plate_no][1];
+                            $("#th_date_time").text(history?.scheduled_start_at || "N/A");
+                            $("#th_start_end_location").text(history?.start_end_location || "N/A");
+                            $("#th_assigned_driver").text(history?.driver_name || "N/A");
+                            $("#cr_start_location").text(latest?.start_location || "N/A");
+                            $("#cr_destination").text(latest?.destination || "N/A");
+                            $("#cr_assigned_driver").text(latest?.driver_name || "N/A");
+                        }
+                    });
+
+                    markers[id] = marker;
+                }
+            },
+            error: function(xhr) { console.error(xhr); }
         });
-    }
+
+        // --- Always update vehicle cards even without clicking ---
+        $("#vehiclePlate").text(v.plate_no);
+        $("#vehicleSpeed").text(v.speed + " km/h");
+        $("#vehicleRPM").text(v.rpm);
+        $("#vehicleTemperature").text(v.coolant_temp);
+        $("#vehicleThrottle").text(v.throttle);
+        $("#vehicleLoad").text(v.engine_load);
+        $("#vehicleVoltage").text(v.battery_voltage);
+        $("#vehicleOdometer").text(v.odometer);
+        $("#vehicleMAF").text(v.maf);
+        $("#vehicleAmbient").text(v.ambient_temp);
+        $("#vehicleTime").text(v.created_at || "N/A");
+
+        if (api_plate_no && api_plate_no.trim() !== "") {
+            saveDiagnostics(v);
+        }
+
+        if (trips?.trips_data && trips.trips_data[v.plate_no]?.length > 0) {
+            let latest = trips.trips_data[v.plate_no][0];
+            let history = trips.trips_data[v.plate_no][1];
+            $("#th_date_time").text(history?.scheduled_start_at || "N/A");
+            $("#th_start_end_location").text(history?.start_end_location || "N/A");
+            $("#th_assigned_driver").text(history?.driver_name || "N/A");
+            $("#cr_start_location").text(latest?.start_location || "N/A");
+            $("#cr_destination").text(latest?.destination || "N/A");
+            $("#cr_assigned_driver").text(latest?.driver_name || "N/A");
+        }
+    });
+}
+
+
 
 
 
